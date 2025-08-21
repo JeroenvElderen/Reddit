@@ -1,6 +1,6 @@
 import os
 import time
-import asyncio
+import threading
 import praw
 import discord
 from discord.ext import commands
@@ -97,7 +97,7 @@ def update_user_karma(user, points=1):
     flair_id = flair_templates.get(new_flair)
     if flair_id:
         subreddit.flair.set(redditor=user, flair_template_id=flair_id)
-        print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
+        print(f"🏷️ Flair set for {name} → {new_flair} ({new_karma} karma)")
 
 
 async def send_discord_approval(item):
@@ -108,17 +108,21 @@ async def send_discord_approval(item):
         return
 
     if hasattr(item, "title"):  # post
-        preview = item.selftext or ""
+        preview = (item.selftext[:1000] + "...") if item.selftext else ""
         item_type = "Post"
+        title = item.title
     else:  # comment
-        preview = item.body or ""
+        preview = (item.body[:1000] + "...") if item.body else ""
         item_type = "Comment"
+        title = None
 
     embed = discord.Embed(
         title=f"New {item_type} Pending Approval",
-        description=preview[:2000],  # Discord limit
+        description=preview,
         color=discord.Color.orange()
     )
+    if title:
+        embed.add_field(name="Title", value=title, inline=False)
     embed.add_field(name="Author", value=f"u/{item.author}", inline=True)
     embed.add_field(name="Link", value=f"https://reddit.com{item.permalink}", inline=False)
 
@@ -127,11 +131,18 @@ async def send_discord_approval(item):
     await msg.add_reaction("❌")
 
     pending_reviews[msg.id] = item
+    print(f"📨 Sent {item_type} by {item.author} to Discord for review.")
 
 
 def handle_new_item(item):
     """Check karma → auto approve at 500+, else send to Discord."""
     if item.author is None or item.id in seen_ids:
+        return
+
+    # ✅ Skip if already approved or removed
+    if getattr(item, "approved_by", None) or getattr(item, "banned_by", None):
+        seen_ids.add(item.id)
+        print(f"⏩ Skipped {item.author}'s item (already moderated).")
         return
 
     seen_ids.add(item.id)
@@ -145,11 +156,12 @@ def handle_new_item(item):
         update_user_karma(item.author, 1)
         print(f"✅ Auto-approved {name} ({karma} karma)")
     else:
-        asyncio.run_coroutine_threadsafe(send_discord_approval(item), bot.loop)
+        print(f"📥 Sending {name} ({karma} karma) to Discord for review...")
+        bot.loop.create_task(send_discord_approval(item))
 
 
-def blocking_reddit_polling():
-    """Blocking sync praw polling loop (runs in thread)."""
+def reddit_polling():
+    """Runs in a thread, fetches new comments + posts."""
     print("🌍 Reddit polling started...")
     while True:
         try:
@@ -162,16 +174,11 @@ def blocking_reddit_polling():
         time.sleep(15)
 
 
-async def reddit_polling():
-    """Run praw polling loop in a separate thread."""
-    await asyncio.to_thread(blocking_reddit_polling)
-
-
 # ---- Discord events ----
 @bot.event
 async def on_ready():
     print(f"🤖 Discord bot logged in as {bot.user}")
-    bot.loop.create_task(reddit_polling())
+    threading.Thread(target=reddit_polling, daemon=True).start()
 
 
 @bot.event
@@ -187,16 +194,18 @@ async def on_reaction_add(reaction, user):
 
     if str(reaction.emoji) == "✅":
         item.mod.approve()
-        update_user_karma(item.author, 1)  # ✅ karma only on approval
+        update_user_karma(item.author, 1)  # ✅ only karma on approval
         await reaction.message.channel.send(f"✅ Approved {item.author}")
         await reaction.message.delete()
         del pending_reviews[msg_id]
+        print(f"✅ Approved & karma updated for {item.author}")
 
     elif str(reaction.emoji) == "❌":
         item.mod.remove()
         await reaction.message.channel.send(f"❌ Removed {item.author}'s item")
         await reaction.message.delete()
         del pending_reviews[msg_id]
+        print(f"❌ Removed {item.author}'s item")
 
 
 # ---- Start ----
