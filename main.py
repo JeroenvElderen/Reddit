@@ -61,6 +61,7 @@ flair_templates = {
 
 # ---- State ----
 pending_reviews = {}  # discord_msg_id -> reddit item
+seen_ids = set()      # already processed IDs
 
 
 def get_flair_for_karma(karma: int) -> str:
@@ -129,8 +130,10 @@ async def send_discord_approval(item):
 
 async def handle_new_item(item):
     """Check karma → auto approve at 500+, else send to Discord."""
-    if item.author is None:
+    if item.author is None or item.id in seen_ids:
         return
+
+    seen_ids.add(item.id)
 
     name = str(item.author)
     res = supabase.table("user_karma").select("*").eq("username", name).execute()
@@ -144,29 +147,27 @@ async def handle_new_item(item):
         await send_discord_approval(item)
 
 
-# ---- Auto-restarting Reddit polling ----
+# ---- Polling replacement for streams ----
 async def poll_comments():
+    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
     while True:
-        print("💬 Comment polling started...")
         try:
-            subreddit = await reddit.subreddit(SUBREDDIT_NAME)
-            async for comment in subreddit.stream.comments(skip_existing=True):
+            async for comment in subreddit.comments(limit=10):
                 await handle_new_item(comment)
         except Exception as e:
             print(f"⚠️ Comment poll error: {e}")
-            await asyncio.sleep(10)  # wait before retry
+        await asyncio.sleep(10)  # poll every 10s
 
 
 async def poll_submissions():
+    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
     while True:
-        print("📜 Post polling started...")
         try:
-            subreddit = await reddit.subreddit(SUBREDDIT_NAME)
-            async for submission in subreddit.stream.submissions(skip_existing=True):
+            async for submission in subreddit.new(limit=5):
                 await handle_new_item(submission)
         except Exception as e:
             print(f"⚠️ Post poll error: {e}")
-            await asyncio.sleep(10)  # wait before retry
+        await asyncio.sleep(15)  # poll every 15s
 
 
 # ---- Discord events ----
@@ -190,7 +191,7 @@ async def on_reaction_add(reaction, user):
 
     if str(reaction.emoji) == "✅":
         await item.mod.approve()
-        await update_user_karma(item.author, 1)  # ✅ only here karma increments
+        await update_user_karma(item.author, 1)  # ✅ only karma on approval
         await reaction.message.channel.send(f"✅ Approved {item.author}")
         del pending_reviews[msg_id]
 
