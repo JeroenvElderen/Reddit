@@ -17,7 +17,6 @@ reddit = asyncpraw.Reddit(
     username=os.getenv("REDDIT_USERNAME"),
     password=os.getenv("REDDIT_PASSWORD"),
     user_agent=os.getenv("REDDIT_USER_AGENT"),
-    ratelimit_seconds=60,
 )
 
 # ---- Discord Setup ----
@@ -27,7 +26,7 @@ DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
 intents = discord.Intents.default()
 intents.guilds = True
 intents.reactions = True
-intents.messages = True
+intents.message_content = True   # FIX: Enable privileged intent
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ---- Flair Ladder ----
@@ -72,19 +71,15 @@ def get_flair_for_karma(username: str, karma: int) -> str:
 
 
 async def supabase_exec(query):
-    """Run blocking Supabase queries in async loop."""
     return await asyncio.to_thread(query.execute)
 
 
 async def update_user_karma(user, points=0):
-    """Update karma and flair. Default points=0 (used in daily rescan)."""
     if user is None:
         return
-
     name = str(user)
     res = await supabase_exec(supabase.table("user_karma").select("*").eq("username", name))
     current_karma = res.data[0]["karma"] if res.data else 0
-
     new_karma = max(0, current_karma + points)
     new_flair = get_flair_for_karma(name, new_karma)
 
@@ -127,50 +122,43 @@ async def send_discord_approval(item):
     msg = await channel.send(embed=embed)
     await msg.add_reaction("✅")
     await msg.add_reaction("❌")
-
     pending_reviews[msg.id] = item
 
 
 async def handle_new_item(item):
-    """Handle a new Reddit post or comment from the live stream."""
     if item.author is None:
         return
-
     name = str(item.author)
     res = await supabase_exec(supabase.table("user_karma").select("*").eq("username", name))
     karma = res.data[0]["karma"] if res.data else 0
 
     if karma >= 500:
         await item.mod.approve()
-        await update_user_karma(item.author, points=1)  # +1 only for NEW
+        await update_user_karma(item.author, points=1)
         print(f"✅ Auto-approved {name} ({karma} karma)")
     else:
         await send_discord_approval(item)
 
 
-# ---- Poll Reddit ----
+# ---- Streams (fixed, no extra while True) ----
 async def comment_stream():
     subreddit = await reddit.subreddit("PlanetNaturists")
-    print("💬 Comment polling started...")
-    while True:
+    print("💬 Comment stream started...")
+    async for comment in subreddit.stream.comments(skip_existing=True):
         try:
-            async for comment in subreddit.stream.comments(skip_existing=True):
-                await handle_new_item(comment)
+            await handle_new_item(comment)
         except Exception as e:
-            print(f"⚠️ Comment poll error: {e}")
-            await asyncio.sleep(10)
+            print(f"⚠️ Comment error: {e}")
 
 
 async def submission_stream():
     subreddit = await reddit.subreddit("PlanetNaturists")
-    print("📜 Post polling started...")
-    while True:
+    print("📜 Post stream started...")
+    async for submission in subreddit.stream.submissions(skip_existing=True):
         try:
-            async for submission in subreddit.stream.submissions(skip_existing=True):
-                await handle_new_item(submission)
+            await handle_new_item(submission)
         except Exception as e:
-            print(f"⚠️ Post poll error: {e}")
-            await asyncio.sleep(10)
+            print(f"⚠️ Submission error: {e}")
 
 
 async def daily_rescan_loop():
@@ -217,7 +205,7 @@ async def on_reaction_add(reaction, user):
     item = pending_reviews[msg_id]
     if str(reaction.emoji) == "✅":
         await item.mod.approve()
-        await update_user_karma(item.author, points=1)  # +1 only when new + approved
+        await update_user_karma(item.author, points=1)
         await reaction.message.channel.send(f"✅ Approved {item.author}")
         del pending_reviews[msg_id]
     elif str(reaction.emoji) == "❌":
