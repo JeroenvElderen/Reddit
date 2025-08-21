@@ -1,6 +1,7 @@
 import os
 import time
 import threading
+import asyncio
 import praw
 import discord
 from discord.ext import commands
@@ -77,7 +78,11 @@ def get_flair_for_karma(karma: int) -> str:
 
 
 def update_user_karma(user, points=1, allow_negative=True):
-    """Increment/decrement karma & update flair in Supabase + Reddit."""
+    """
+    Increment/decrement karma & update flair in Supabase + Reddit.
+    - points: +1 on approve, -1 on manual reject
+    - allow_negative: False for auto-approvals (never decrease), True for manual rejects
+    """
     if user is None:
         return
 
@@ -104,22 +109,22 @@ def update_user_karma(user, points=1, allow_negative=True):
 
 
 async def send_discord_approval(item):
-    """Send new Reddit item to Discord for approval."""
+    """Send new Reddit item to Discord for approval (full content up to embed limit)."""
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
     if not channel:
         print("⚠️ Discord channel not found")
         return
 
     if hasattr(item, "title"):  # post
-        preview = (item.selftext[:2000] + "...") if item.selftext else ""
+        content = f"**{item.title}**\n\n{item.selftext or ''}"
         item_type = "Post"
     else:  # comment
-        preview = (item.body[:2000] + "...") if item.body else ""
+        content = item.body or ""
         item_type = "Comment"
 
     embed = discord.Embed(
         title=f"New {item_type} Pending Approval",
-        description=preview,
+        description=(content[:4000] + ("... (truncated)" if len(content) > 4000 else "")),
         color=discord.Color.orange()
     )
     embed.add_field(name="Author", value=f"u/{item.author}", inline=True)
@@ -130,15 +135,41 @@ async def send_discord_approval(item):
     await msg.add_reaction("❌")
 
     pending_reviews[msg.id] = item
+    print(f"📨 Sent {item_type} by {item.author} to Discord for review.")
+
+
+def already_moderated(item) -> bool:
+    """
+    Robust check that works across PRAW versions & for both Submission/Comment.
+    We intentionally use getattr to avoid AttributeError on missing attributes.
+    """
+    approved_by = getattr(item, "approved_by", None)
+    removed_by_category = getattr(item, "removed_by_category", None)
+    banned_by = getattr(item, "banned_by", None)
+
+    # If any of these signals exist, treat as already moderated
+    if approved_by:
+        return True
+    if removed_by_category is not None:
+        return True
+    if banned_by:
+        return True
+
+    # Fallback: if the author deleted their own item, it's effectively moderated
+    author_is_deleted = (getattr(item, "author", None) is None)
+    return author_is_deleted
 
 
 def handle_new_item(item):
-    """Check karma → auto approve at 500+, else send to Discord if not already moderated."""
+    """
+    Check karma → auto approve at 500+, else send to Discord if not already moderated.
+    Also ensure we never re-process the same id.
+    """
     if item.author is None or item.id in seen_ids:
         return
 
-    # Skip if already approved or removed
-    if item.approved_by or item.removed_by_category:
+    # Skip if already approved or removed (robust to PRAW versions)
+    if already_moderated(item):
         print(f"⏩ Skipping {item.id} (already moderated)")
         seen_ids.add(item.id)
         return
@@ -150,19 +181,22 @@ def handle_new_item(item):
     karma = res.data[0]["karma"] if res.data else 0
 
     if karma >= 500:
+        # Auto-approved 'naturists' only ever go up
         item.mod.approve()
         update_user_karma(item.author, +1, allow_negative=False)
         print(f"✅ Auto-approved {name} ({karma} karma)")
     else:
         print(f"📨 Sending {item.id} by {name} to Discord for manual review")
-        bot.loop.create_task(send_discord_approval(item))
+        # IMPORTANT: we're in a background thread; schedule the coroutine safely:
+        asyncio.run_coroutine_threadsafe(send_discord_approval(item), bot.loop)
 
 
 def reddit_polling():
-    """Runs in a thread, fetches new comments + posts."""
+    """Runs in a thread, fetches new comments + posts with PRAW (sync)."""
     print("🌍 Reddit polling started...")
     while True:
         try:
+            # poll latest comments & posts; handle_new_item() guards against duplicates & pre-moderated items
             for comment in subreddit.comments(limit=10):
                 handle_new_item(comment)
             for submission in subreddit.new(limit=5):
@@ -191,6 +225,7 @@ async def on_reaction_add(reaction, user):
     item = pending_reviews[msg_id]
     author_name = str(item.author)
 
+    # Fetch current karma for display before we change it
     res = supabase.table("user_karma").select("*").eq("username", author_name).execute()
     current_karma = res.data[0]["karma"] if res.data else 0
 
@@ -198,7 +233,7 @@ async def on_reaction_add(reaction, user):
         item.mod.approve()
         update_user_karma(item.author, +1, allow_negative=False)
         await reaction.message.channel.send(
-            f"✅ Approved {author_name} (karma: {current_karma + 1})"
+            f"✅ Approved {author_name} (karma: {current_karma} → {current_karma + 1})"
         )
         await reaction.message.delete()
         del pending_reviews[msg_id]
@@ -206,8 +241,9 @@ async def on_reaction_add(reaction, user):
     elif str(reaction.emoji) == "❌":
         item.mod.remove()
         update_user_karma(item.author, -1, allow_negative=True)
+        new_karma = current_karma - 1
         await reaction.message.channel.send(
-            f"❌ Removed {author_name}'s item (karma: {current_karma - 1})"
+            f"❌ Removed {author_name}'s item (karma: {current_karma} → {new_karma})"
         )
         await reaction.message.delete()
         del pending_reviews[msg_id]
