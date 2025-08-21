@@ -3,6 +3,7 @@ import time
 import threading
 import praw
 import discord
+import asyncio
 from discord.ext import commands
 from supabase import create_client, Client
 
@@ -76,7 +77,7 @@ def get_flair_for_karma(karma: int) -> str:
     return unlocked
 
 
-def update_user_karma(user, points=1):
+async def update_user_karma(user, points=1):
     """Increment karma & update flair in Supabase + Reddit."""
     if user is None:
         return
@@ -96,7 +97,9 @@ def update_user_karma(user, points=1):
 
     flair_id = flair_templates.get(new_flair)
     if flair_id:
-        subreddit.flair.set(redditor=user, flair_template_id=flair_id)
+        await asyncio.to_thread(
+            subreddit.flair.set, redditor=user, flair_template_id=flair_id
+        )
         print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
 
 
@@ -141,8 +144,8 @@ def handle_new_item(item):
     karma = res.data[0]["karma"] if res.data else 0
 
     if karma >= 500:
-        item.mod.approve()
-        update_user_karma(item.author, 1)
+        asyncio.run_coroutine_threadsafe(item.mod.approve(), bot.loop)
+        asyncio.run_coroutine_threadsafe(update_user_karma(item.author, 1), bot.loop)
         print(f"✅ Auto-approved {name} ({karma} karma)")
     else:
         bot.loop.create_task(send_discord_approval(item))
@@ -181,13 +184,13 @@ async def on_reaction_add(reaction, user):
     item = pending_reviews[msg_id]
 
     if str(reaction.emoji) == "✅":
-        item.mod.approve()
-        update_user_karma(item.author, 1)  # ✅ only karma on approval
+        await asyncio.to_thread(item.mod.approve)
+        await update_user_karma(item.author, 1)  # ✅ only karma on approval
         await reaction.message.channel.send(f"✅ Approved {item.author}")
         del pending_reviews[msg_id]
 
     elif str(reaction.emoji) == "❌":
-        item.mod.remove()
+        await asyncio.to_thread(item.mod.remove)
         await reaction.message.channel.send(f"❌ Removed {item.author}'s item")
         del pending_reviews[msg_id]
 
