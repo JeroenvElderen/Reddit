@@ -1,8 +1,9 @@
 import os
+import time
 import asyncio
 import asyncpraw
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 from supabase import create_client, Client
 
 # ---- Supabase Setup ----
@@ -20,7 +21,6 @@ reddit = asyncpraw.Reddit(
 )
 
 SUBREDDIT_NAME = "PlanetNaturists"
-subreddit = None  # will be awaited in on_ready
 
 # ---- Discord Setup ----
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -59,7 +59,7 @@ flair_templates = {
     "Naturist Legend": "a3f1f8fc-7dd7-11f0-b2c1-227301a06778",
 }
 
-# ---- Pending approvals ----
+# ---- Pending Approvals ----
 pending_reviews = {}  # discord_msg_id -> reddit item
 
 
@@ -73,26 +73,33 @@ def get_flair_for_karma(username: str, karma: int) -> str:
     return unlocked
 
 
-def update_user_karma(user, points=1):
+async def update_user_karma(user, points=1):
+    """Update user karma + flair asynchronously (Supabase in thread)."""
     if user is None:
         return
 
     name = str(user)
-    res = supabase.table("user_karma").select("*").eq("username", name).execute()
+
+    res = await asyncio.to_thread(
+        lambda: supabase.table("user_karma").select("*").eq("username", name).execute()
+    )
     current_karma = res.data[0]["karma"] if res.data else 0
 
     new_karma = max(0, current_karma + points)
     new_flair = get_flair_for_karma(name, new_karma)
 
-    supabase.table("user_karma").upsert({
-        "username": name,
-        "karma": new_karma,
-        "last_flair": new_flair,
-    }).execute()
+    await asyncio.to_thread(
+        lambda: supabase.table("user_karma").upsert({
+            "username": name,
+            "karma": new_karma,
+            "last_flair": new_flair,
+        }).execute()
+    )
 
     flair_id = flair_templates.get(new_flair)
     if flair_id:
-        asyncio.create_task(subreddit.flair.set(redditor=user, flair_template_id=flair_id))
+        subreddit = await reddit.subreddit(SUBREDDIT_NAME)
+        await subreddit.flair.set(redditor=user, flair_template_id=flair_id)
         print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
 
 
@@ -103,11 +110,11 @@ async def send_discord_approval(item):
         print("⚠️ Discord channel not found")
         return
 
-    if hasattr(item, "title"):  # post
+    if hasattr(item, "title"):  # Post
         preview = (item.selftext[:200] + "...") if item.selftext else ""
         item_type = "Post"
         title = item.title
-    else:  # comment
+    else:  # Comment
         preview = (item.body[:200] + "...") if item.body else ""
         item_type = "Comment"
         title = None
@@ -133,19 +140,24 @@ async def handle_new_item(item):
         return
 
     name = str(item.author)
-    res = supabase.table("user_karma").select("*").eq("username", name).execute()
+    res = await asyncio.to_thread(
+        lambda: supabase.table("user_karma").select("*").eq("username", name).execute()
+    )
     karma = res.data[0]["karma"] if res.data else 0
 
     if karma >= 500:
         await item.mod.approve()
-        update_user_karma(item.author, 1)
+        await update_user_karma(item.author, 1)
         print(f"✅ Auto-approved {name} ({karma} karma)")
     else:
         await send_discord_approval(item)
 
 
 async def reddit_stream():
+    """Stream Reddit comments + posts asynchronously."""
+    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
     print("🌍 Reddit stream started...")
+
     async for comment in subreddit.stream.comments(skip_existing=True):
         await handle_new_item(comment)
 
@@ -153,12 +165,14 @@ async def reddit_stream():
         await handle_new_item(submission)
 
 
-@tasks.loop(hours=24)
 async def daily_rescan():
+    """Rescan user karma + flairs daily."""
     print("⏰ Daily rescan...")
-    res = supabase.table("user_karma").select("*").execute()
+    res = await asyncio.to_thread(lambda: supabase.table("user_karma").select("*").execute())
     if not res.data:
         return
+
+    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
 
     for user in res.data:
         username = user["username"]
@@ -166,21 +180,24 @@ async def daily_rescan():
         correct_flair = get_flair_for_karma(username, karma)
 
         if user["last_flair"] != correct_flair:
-            supabase.table("user_karma").update({"last_flair": correct_flair}).eq("username", username).execute()
+            await asyncio.to_thread(
+                lambda: supabase.table("user_karma").update(
+                    {"last_flair": correct_flair}
+                ).eq("username", username).execute()
+            )
             flair_id = flair_templates.get(correct_flair)
             if flair_id:
                 await subreddit.flair.set(redditor=username, flair_template_id=flair_id)
                 print(f"🔄 Flair updated for {username} → {correct_flair}")
 
 
-# ---- Discord events ----
+# ---- Discord Events ----
 @bot.event
 async def on_ready():
-    global subreddit
-    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
     print(f"🤖 Discord bot logged in as {bot.user}")
-    daily_rescan.start()
+    # Start Reddit stream + daily loop
     bot.loop.create_task(reddit_stream())
+    bot.loop.create_task(daily_rescan_loop())
 
 
 @bot.event
@@ -196,7 +213,7 @@ async def on_reaction_add(reaction, user):
 
     if str(reaction.emoji) == "✅":
         await item.mod.approve()
-        update_user_karma(item.author, 1)
+        await update_user_karma(item.author, 1)
         await reaction.message.channel.send(f"✅ Approved {item.author}")
         print(f"✅ Approved {item.author}")
         del pending_reviews[msg_id]
@@ -206,6 +223,12 @@ async def on_reaction_add(reaction, user):
         await reaction.message.channel.send(f"❌ Removed {item.author}'s item")
         print(f"❌ Removed {item.author}")
         del pending_reviews[msg_id]
+
+
+async def daily_rescan_loop():
+    while True:
+        await daily_rescan()
+        await asyncio.sleep(24 * 60 * 60)
 
 
 if __name__ == "__main__":
