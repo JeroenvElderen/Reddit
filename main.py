@@ -11,7 +11,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ---- Reddit Setup ----
+# ---- Reddit Setup (sync praw) ----
 reddit = praw.Reddit(
     client_id=os.getenv("REDDIT_CLIENT_ID"),
     client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
@@ -76,19 +76,19 @@ def get_flair_for_karma(karma: int) -> str:
     return unlocked
 
 
-def update_user_karma(user, delta=0, allow_negative=True):
-    """Change karma (can be +1 or -1) & update flair in Supabase + Reddit."""
+def update_user_karma(user, points=1, allow_negative=True):
+    """Increment/decrement karma & update flair in Supabase + Reddit."""
     if user is None:
-        return 0, "Cover Curious"
+        return
 
     name = str(user)
     res = supabase.table("user_karma").select("*").eq("username", name).execute()
     current_karma = res.data[0]["karma"] if res.data else 0
 
-    if delta < 0 and not allow_negative:
-        return current_karma, get_flair_for_karma(current_karma)
+    new_karma = current_karma + points
+    if not allow_negative:
+        new_karma = max(0, new_karma)
 
-    new_karma = max(0, current_karma + delta)  # prevent below 0
     new_flair = get_flair_for_karma(new_karma)
 
     supabase.table("user_karma").upsert({
@@ -102,26 +102,24 @@ def update_user_karma(user, delta=0, allow_negative=True):
         subreddit.flair.set(redditor=user, flair_template_id=flair_id)
         print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
 
-    return new_karma, new_flair
-
 
 async def send_discord_approval(item):
-    """Send full Reddit item to Discord for approval."""
+    """Send new Reddit item to Discord for approval."""
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
     if not channel:
         print("⚠️ Discord channel not found")
         return
 
     if hasattr(item, "title"):  # post
-        preview = f"**{item.title}**\n\n{item.selftext or ''}"
+        preview = (item.selftext[:2000] + "...") if item.selftext else ""
         item_type = "Post"
     else:  # comment
-        preview = item.body
+        preview = (item.body[:2000] + "...") if item.body else ""
         item_type = "Comment"
 
     embed = discord.Embed(
         title=f"New {item_type} Pending Approval",
-        description=preview[:4000],  # discord embed max length
+        description=preview,
         color=discord.Color.orange()
     )
     embed.add_field(name="Author", value=f"u/{item.author}", inline=True)
@@ -135,8 +133,14 @@ async def send_discord_approval(item):
 
 
 def handle_new_item(item):
-    """Check karma → auto approve at 500+, else send to Discord."""
+    """Check karma → auto approve at 500+, else send to Discord if not already moderated."""
     if item.author is None or item.id in seen_ids:
+        return
+
+    # Skip if already approved or removed
+    if item.approved_by or item.removed_by_category:
+        print(f"⏩ Skipping {item.id} (already moderated)")
+        seen_ids.add(item.id)
         return
 
     seen_ids.add(item.id)
@@ -150,6 +154,7 @@ def handle_new_item(item):
         update_user_karma(item.author, +1, allow_negative=False)
         print(f"✅ Auto-approved {name} ({karma} karma)")
     else:
+        print(f"📨 Sending {item.id} by {name} to Discord for manual review")
         bot.loop.create_task(send_discord_approval(item))
 
 
@@ -184,24 +189,28 @@ async def on_reaction_add(reaction, user):
         return
 
     item = pending_reviews[msg_id]
+    author_name = str(item.author)
+
+    res = supabase.table("user_karma").select("*").eq("username", author_name).execute()
+    current_karma = res.data[0]["karma"] if res.data else 0
 
     if str(reaction.emoji) == "✅":
         item.mod.approve()
-        new_karma, flair = update_user_karma(item.author, +1)
+        update_user_karma(item.author, +1, allow_negative=False)
         await reaction.message.channel.send(
-            f"✅ Approved {item.author} | Karma: {new_karma} | Flair: {flair}"
+            f"✅ Approved {author_name} (karma: {current_karma + 1})"
         )
-        del pending_reviews[msg_id]
         await reaction.message.delete()
+        del pending_reviews[msg_id]
 
     elif str(reaction.emoji) == "❌":
         item.mod.remove()
-        new_karma, flair = update_user_karma(item.author, -1)
+        update_user_karma(item.author, -1, allow_negative=True)
         await reaction.message.channel.send(
-            f"❌ Rejected {item.author} | Karma: {new_karma} | Flair: {flair}"
+            f"❌ Removed {author_name}'s item (karma: {current_karma - 1})"
         )
-        del pending_reviews[msg_id]
         await reaction.message.delete()
+        del pending_reviews[msg_id]
 
 
 # ---- Start ----
