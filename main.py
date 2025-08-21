@@ -1,10 +1,10 @@
-import praw
 import os
 import time
 import threading
-from supabase import create_client, Client
+import praw
 import discord
 from discord.ext import commands
+from supabase import create_client, Client
 
 # ---- Supabase Setup ----
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -23,6 +23,16 @@ reddit = praw.Reddit(
 SUBREDDIT_NAME = "PlanetNaturists"
 subreddit = reddit.subreddit(SUBREDDIT_NAME)
 
+# ---- Discord Setup ----
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))  # channel ID for approvals
+
+intents = discord.Intents.default()
+intents.messages = True
+intents.guilds = True
+intents.reactions = True
+bot = commands.Bot(command_prefix="!", intents=intents)
+
 # ---- Flair Ladder ----
 flair_ladder = [
     ("Cover Curious", 0),
@@ -37,7 +47,6 @@ flair_ladder = [
     ("Naturist Legend", 10000)
 ]
 
-# ---- Flair Templates ----
 flair_templates = {
     "Cover Curious": "ae791af4-7d22-11f0-934a-2e3446070201",
     "First Bare": "bbf4d5d8-7d22-11f0-b485-d64b23d9d74f",
@@ -51,16 +60,8 @@ flair_templates = {
     "Naturist Legend": "a3f1f8fc-7dd7-11f0-b2c1-227301a06778"
 }
 
-# ---- Discord Setup ----
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
-
-intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-# Store pending approvals (message_id -> reddit item)
-pending_reviews = {}
+# ---- Pending approvals ----
+pending_reviews = {}  # discord_msg_id -> reddit item
 
 
 def get_flair_for_karma(username: str, karma: int) -> str:
@@ -96,42 +97,52 @@ def update_user_karma(user, points=1):
         print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
 
 
-async def send_to_discord(item):
-    """Send new Reddit item to Discord with approval buttons"""
+async def send_discord_approval(item):
+    """Send new Reddit item to Discord for approval."""
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
+    if not channel:
+        print("⚠️ Discord channel not found")
+        return
 
-    if hasattr(item, "title"):
+    if hasattr(item, "title"):  # post
+        preview = (item.selftext[:200] + "...") if item.selftext else ""
+        item_type = "Post"
         title = item.title
-        content = (item.selftext[:200] + "...") if item.selftext else ""
-        kind = "Post"
-    else:
-        title = "Comment"
-        content = item.body[:200] + "..."
-        kind = "Comment"
+    else:  # comment
+        preview = (item.body[:200] + "...") if item.body else ""
+        item_type = "Comment"
+        title = None
 
     embed = discord.Embed(
-        title=f"New {kind} from u/{item.author}",
-        description=content,
-        url=f"https://reddit.com{item.permalink}",
-        color=0x3498db
+        title=f"New {item_type} Pending Approval",
+        description=preview,
+        color=discord.Color.orange()
     )
-    embed.set_footer(text=f"Karma will be updated on approval")
+    embed.add_field(name="Author", value=f"u/{item.author}", inline=True)
+    embed.add_field(name="Link", value=f"https://reddit.com{item.permalink}", inline=False)
 
     msg = await channel.send(embed=embed)
     await msg.add_reaction("✅")
     await msg.add_reaction("❌")
 
-    # Store for later approval
     pending_reviews[msg.id] = item
-    print(f"⏳ Sent {kind} from {item.author} to Discord for approval.")
 
 
 def handle_new_item(item):
+    """Auto-approve if karma ≥ 500, else send for Discord approval."""
     if item.author is None:
         return
-    # Push to Discord
-    coro = send_to_discord(item)
-    bot.loop.create_task(coro)
+
+    name = str(item.author)
+    res = supabase.table("user_karma").select("*").eq("username", name).execute()
+    karma = res.data[0]["karma"] if res.data else 0
+
+    if karma >= 500:
+        item.mod.approve()
+        update_user_karma(item.author, 1)
+        print(f"✅ Auto-approved {name} ({karma} karma)")
+    else:
+        bot.loop.create_task(send_discord_approval(item))
 
 
 def run_reddit_stream():
@@ -142,9 +153,29 @@ def run_reddit_stream():
         handle_new_item(submission)
 
 
+def daily_rescan():
+    print("⏰ Daily rescan...")
+    res = supabase.table("user_karma").select("*").execute()
+    if not res.data:
+        return
+
+    for user in res.data:
+        username = user["username"]
+        karma = user["karma"]
+        correct_flair = get_flair_for_karma(username, karma)
+
+        if user["last_flair"] != correct_flair:
+            supabase.table("user_karma").update({"last_flair": correct_flair}).eq("username", username).execute()
+            flair_id = flair_templates.get(correct_flair)
+            if flair_id:
+                subreddit.flair.set(redditor=username, flair_template_id=flair_id)
+                print(f"🔄 Flair updated for {username} → {correct_flair}")
+
+
+# ---- Discord events ----
 @bot.event
 async def on_ready():
-    print(f"✅ Discord bot logged in as {bot.user}")
+    print(f"🤖 Discord bot logged in as {bot.user}")
 
 
 @bot.event
@@ -156,20 +187,32 @@ async def on_reaction_add(reaction, user):
     if msg_id not in pending_reviews:
         return
 
-    item = pending_reviews.pop(msg_id)
+    item = pending_reviews[msg_id]
 
     if str(reaction.emoji) == "✅":
         item.mod.approve()
         update_user_karma(item.author, 1)
-        await reaction.message.channel.send(f"👍 Approved {item.author}")
+        await reaction.message.channel.send(f"✅ Approved {item.author}")
+        print(f"✅ Approved {item.author}")
+        del pending_reviews[msg_id]
+
     elif str(reaction.emoji) == "❌":
         item.mod.remove()
-        await reaction.message.channel.send(f"❌ Rejected {item.author}")
+        await reaction.message.channel.send(f"❌ Removed {item.author}'s item")
+        print(f"❌ Removed {item.author}")
+        del pending_reviews[msg_id]
 
 
-# ---- Run both Discord & Reddit ----
 if __name__ == "__main__":
     t1 = threading.Thread(target=run_reddit_stream, daemon=True)
     t1.start()
+
+    def rescan_loop():
+        while True:
+            daily_rescan()
+            time.sleep(24 * 60 * 60)
+
+    t2 = threading.Thread(target=rescan_loop, daemon=True)
+    t2.start()
 
     bot.run(DISCORD_TOKEN)
