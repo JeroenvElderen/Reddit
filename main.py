@@ -1,7 +1,6 @@
 import os
 import time
 import threading
-import asyncio
 import praw
 import discord
 from discord.ext import commands
@@ -12,7 +11,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ---- Reddit Setup (sync praw) ----
+# ---- Reddit Setup ----
 reddit = praw.Reddit(
     client_id=os.getenv("REDDIT_CLIENT_ID"),
     client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
@@ -77,7 +76,7 @@ def get_flair_for_karma(karma: int) -> str:
     return unlocked
 
 
-async def update_user_karma(user, points=1):
+def update_user_karma(user, points=1):
     """Increment karma & update flair in Supabase + Reddit."""
     if user is None:
         return
@@ -97,12 +96,11 @@ async def update_user_karma(user, points=1):
 
     flair_id = flair_templates.get(new_flair)
     if flair_id:
-        # run blocking call in thread
-        await asyncio.to_thread(subreddit.flair.set, redditor=user, flair_template_id=flair_id)
+        subreddit.flair.set(redditor=user, flair_template_id=flair_id)
         print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
 
 
-async def send_discord_approval(item):
+async def send_discord_approval(item, reason="Pending Approval"):
     """Send new Reddit item to Discord for approval."""
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
     if not channel:
@@ -117,7 +115,7 @@ async def send_discord_approval(item):
         item_type = "Comment"
 
     embed = discord.Embed(
-        title=f"New {item_type} Pending Approval",
+        title=f"New {item_type} {reason}",
         description=preview,
         color=discord.Color.orange()
     )
@@ -132,23 +130,25 @@ async def send_discord_approval(item):
 
 
 def handle_new_item(item):
-    """Check karma → auto approve at 500+, else send to Discord."""
+    """Hybrid logic: auto-approve at 500+, else review (new users always review)."""
     if item.author is None or item.id in seen_ids:
         return
 
     seen_ids.add(item.id)
-
     name = str(item.author)
+
+    # Check if user exists in DB
     res = supabase.table("user_karma").select("*").eq("username", name).execute()
+    user_exists = bool(res.data)
     karma = res.data[0]["karma"] if res.data else 0
 
-    if karma >= 500:
-        # Approve + karma in safe async way
-        asyncio.run_coroutine_threadsafe(asyncio.to_thread(item.mod.approve), bot.loop)
-        asyncio.run_coroutine_threadsafe(update_user_karma(item.author, 1), bot.loop)
+    if user_exists and karma >= 500:
+        item.mod.approve()
+        update_user_karma(item.author, 1)
         print(f"✅ Auto-approved {name} ({karma} karma)")
     else:
-        asyncio.run_coroutine_threadsafe(send_discord_approval(item), bot.loop)
+        # Always send new or low-karma users to Discord
+        bot.loop.create_task(send_discord_approval(item, reason="Needs Review"))
 
 
 def reddit_polling():
@@ -182,16 +182,30 @@ async def on_reaction_add(reaction, user):
         return
 
     item = pending_reviews[msg_id]
+    author_name = str(item.author)
 
     if str(reaction.emoji) == "✅":
-        await asyncio.to_thread(item.mod.approve)   # ✅ fixed
-        await update_user_karma(item.author, 1)     # add karma only when approved
-        await reaction.message.channel.send(f"✅ Approved {item.author}")
+        item.mod.approve()
+
+        # If new user → add them to Supabase with karma = 1
+        res = supabase.table("user_karma").select("*").eq("username", author_name).execute()
+        if not res.data:
+            supabase.table("user_karma").insert({
+                "username": author_name,
+                "karma": 1,
+                "last_flair": get_flair_for_karma(1)
+            }).execute()
+            subreddit.flair.set(redditor=item.author, flair_template_id=flair_templates["Cover Curious"])
+            print(f"🆕 New user {author_name} approved and added with 1 karma")
+        else:
+            update_user_karma(item.author, 1)
+
+        await reaction.message.channel.send(f"✅ Approved {author_name}")
         del pending_reviews[msg_id]
 
     elif str(reaction.emoji) == "❌":
-        await asyncio.to_thread(item.mod.remove)    # ❌ fixed
-        await reaction.message.channel.send(f"❌ Removed {item.author}'s item")
+        item.mod.remove()
+        await reaction.message.channel.send(f"❌ Removed {author_name}'s item")
         del pending_reviews[msg_id]
 
 
