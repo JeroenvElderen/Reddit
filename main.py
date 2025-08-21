@@ -1,11 +1,10 @@
 import os
 import time
-import threading
+import asyncio
 import praw
 import discord
 from discord.ext import commands
 from supabase import create_client, Client
-from io import BytesIO
 
 # ---- Supabase Setup ----
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -109,34 +108,21 @@ async def send_discord_approval(item):
         return
 
     if hasattr(item, "title"):  # post
-        content = item.selftext or ""
+        preview = item.selftext or ""
         item_type = "Post"
-        embed_title = item.title
     else:  # comment
-        content = item.body or ""
+        preview = item.body or ""
         item_type = "Comment"
-        embed_title = f"Comment by u/{item.author}"
-
-    # Build embed with truncated content
-    truncated = len(content) > 4000
-    content_display = content[:4000] + ("... (truncated)" if truncated else "")
 
     embed = discord.Embed(
-        title=f"{item_type}: {embed_title}",
-        description=content_display,
+        title=f"New {item_type} Pending Approval",
+        description=preview[:2000],  # Discord limit
         color=discord.Color.orange()
     )
     embed.add_field(name="Author", value=f"u/{item.author}", inline=True)
     embed.add_field(name="Link", value=f"https://reddit.com{item.permalink}", inline=False)
 
     msg = await channel.send(embed=embed)
-
-    # If text too long, attach full as .txt
-    if truncated:
-        text_file = BytesIO(content.encode("utf-8"))
-        text_file.name = f"{item_type.lower()}_{item.id}.txt"
-        await channel.send(file=discord.File(text_file))
-
     await msg.add_reaction("✅")
     await msg.add_reaction("❌")
 
@@ -159,11 +145,11 @@ def handle_new_item(item):
         update_user_karma(item.author, 1)
         print(f"✅ Auto-approved {name} ({karma} karma)")
     else:
-        bot.loop.create_task(send_discord_approval(item))
+        asyncio.run_coroutine_threadsafe(send_discord_approval(item), bot.loop)
 
 
-def reddit_polling():
-    """Runs in a thread, fetches new comments + posts."""
+def blocking_reddit_polling():
+    """Blocking sync praw polling loop (runs in thread)."""
     print("🌍 Reddit polling started...")
     while True:
         try:
@@ -176,11 +162,16 @@ def reddit_polling():
         time.sleep(15)
 
 
+async def reddit_polling():
+    """Run praw polling loop in a separate thread."""
+    await asyncio.to_thread(blocking_reddit_polling)
+
+
 # ---- Discord events ----
 @bot.event
 async def on_ready():
     print(f"🤖 Discord bot logged in as {bot.user}")
-    threading.Thread(target=reddit_polling, daemon=True).start()
+    bot.loop.create_task(reddit_polling())
 
 
 @bot.event
@@ -196,15 +187,15 @@ async def on_reaction_add(reaction, user):
 
     if str(reaction.emoji) == "✅":
         item.mod.approve()
-        update_user_karma(item.author, 1)  # ✅ only karma on approval
+        update_user_karma(item.author, 1)  # ✅ karma only on approval
         await reaction.message.channel.send(f"✅ Approved {item.author}")
-        await reaction.message.delete()  # 🧹 delete review message
+        await reaction.message.delete()
         del pending_reviews[msg_id]
 
     elif str(reaction.emoji) == "❌":
         item.mod.remove()
         await reaction.message.channel.send(f"❌ Removed {item.author}'s item")
-        await reaction.message.delete()  # 🧹 delete review message
+        await reaction.message.delete()
         del pending_reviews[msg_id]
 
 
