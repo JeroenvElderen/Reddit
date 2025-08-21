@@ -3,6 +3,8 @@ import os
 import time
 import threading
 from supabase import create_client, Client
+import discord
+from discord.ext import commands
 
 # ---- Supabase Setup ----
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -49,9 +51,19 @@ flair_templates = {
     "Naturist Legend": "a3f1f8fc-7dd7-11f0-b2c1-227301a06778"
 }
 
+# ---- Discord Setup ----
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
+
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+# Store pending approvals (message_id -> reddit item)
+pending_reviews = {}
+
 
 def get_flair_for_karma(username: str, karma: int) -> str:
-    """Pick highest flair unlocked by karma."""
     unlocked = "Cover Curious"
     for flair, threshold in flair_ladder:
         if karma >= threshold:
@@ -62,17 +74,12 @@ def get_flair_for_karma(username: str, karma: int) -> str:
 
 
 def update_user_karma(user, points=1):
-    """Increment user karma and update flair."""
     if user is None:
         return
 
     name = str(user)
     res = supabase.table("user_karma").select("*").eq("username", name).execute()
-
-    if res.data:
-        current_karma = res.data[0]["karma"]
-    else:
-        current_karma = 0
+    current_karma = res.data[0]["karma"] if res.data else 0
 
     new_karma = max(0, current_karma + points)
     new_flair = get_flair_for_karma(name, new_karma)
@@ -87,63 +94,82 @@ def update_user_karma(user, points=1):
     if flair_id:
         subreddit.flair.set(redditor=user, flair_template_id=flair_id)
         print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
+
+
+async def send_to_discord(item):
+    """Send new Reddit item to Discord with approval buttons"""
+    channel = bot.get_channel(DISCORD_CHANNEL_ID)
+
+    if hasattr(item, "title"):
+        title = item.title
+        content = (item.selftext[:200] + "...") if item.selftext else ""
+        kind = "Post"
     else:
-        print(f"⚠️ No flair template for {new_flair}, skipping flair update.")
+        title = "Comment"
+        content = item.body[:200] + "..."
+        kind = "Comment"
+
+    embed = discord.Embed(
+        title=f"New {kind} from u/{item.author}",
+        description=content,
+        url=f"https://reddit.com{item.permalink}",
+        color=0x3498db
+    )
+    embed.set_footer(text=f"Karma will be updated on approval")
+
+    msg = await channel.send(embed=embed)
+    await msg.add_reaction("✅")
+    await msg.add_reaction("❌")
+
+    # Store for later approval
+    pending_reviews[msg.id] = item
+    print(f"⏳ Sent {kind} from {item.author} to Discord for approval.")
 
 
 def handle_new_item(item):
-    """Approve all posts/comments and update karma."""
     if item.author is None:
         return
+    # Push to Discord
+    coro = send_to_discord(item)
+    bot.loop.create_task(coro)
 
-    item.mod.approve()
-    update_user_karma(item.author, 1)
-    print(f"👍 Auto-approved {item.author}")
 
-
-def run_bot():
-    print("🌍 PlanetNaturists Flair Bot running...")
-
-    # Comments
+def run_reddit_stream():
+    print("🌍 Reddit stream started...")
     for comment in subreddit.stream.comments(skip_existing=True):
         handle_new_item(comment)
-
-    # Posts
     for submission in subreddit.stream.submissions(skip_existing=True):
         handle_new_item(submission)
 
 
-def daily_rescan():
-    """Rescan all users and update flair if needed."""
-    print("⏰ Starting daily rescan...")
-    res = supabase.table("user_karma").select("*").execute()
-    if not res.data:
-        print("⚠️ No users found in database.")
+@bot.event
+async def on_ready():
+    print(f"✅ Discord bot logged in as {bot.user}")
+
+
+@bot.event
+async def on_reaction_add(reaction, user):
+    if user.bot:
         return
 
-    for user in res.data:
-        username = user["username"]
-        karma = user["karma"]
-        correct_flair = get_flair_for_karma(username, karma)
+    msg_id = reaction.message.id
+    if msg_id not in pending_reviews:
+        return
 
-        if user["last_flair"] != correct_flair:
-            supabase.table("user_karma").update({
-                "last_flair": correct_flair
-            }).eq("username", username).execute()
+    item = pending_reviews.pop(msg_id)
 
-            flair_id = flair_templates.get(correct_flair)
-            if flair_id:
-                subreddit.flair.set(redditor=username, flair_template_id=flair_id)
-                print(f"🔄 Updated flair for {username} → {correct_flair} ({karma} karma)")
-
-    print("✅ Daily rescan complete!")
+    if str(reaction.emoji) == "✅":
+        item.mod.approve()
+        update_user_karma(item.author, 1)
+        await reaction.message.channel.send(f"👍 Approved {item.author}")
+    elif str(reaction.emoji) == "❌":
+        item.mod.remove()
+        await reaction.message.channel.send(f"❌ Rejected {item.author}")
 
 
+# ---- Run both Discord & Reddit ----
 if __name__ == "__main__":
-    # Threads: live stream + daily rescan
-    t1 = threading.Thread(target=run_bot, daemon=True)
+    t1 = threading.Thread(target=run_reddit_stream, daemon=True)
     t1.start()
 
-    while True:
-        daily_rescan()
-        time.sleep(24 * 60 * 60)
+    bot.run(DISCORD_TOKEN)
