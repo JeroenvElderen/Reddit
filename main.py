@@ -19,12 +19,9 @@ reddit = asyncpraw.Reddit(
     user_agent=os.getenv("REDDIT_USER_AGENT")
 )
 
-SUBREDDIT_NAME = "PlanetNaturists"
-subreddit = reddit.subreddit(SUBREDDIT_NAME)
-
 # ---- Discord Setup ----
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))  # approval channel
+DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
 
 intents = discord.Intents.default()
 intents.guilds = True
@@ -74,7 +71,6 @@ def get_flair_for_karma(username: str, karma: int) -> str:
 
 
 async def update_user_karma(user, points=1):
-    """Increase karma and update flair."""
     if user is None:
         return
 
@@ -93,12 +89,12 @@ async def update_user_karma(user, points=1):
 
     flair_id = flair_templates.get(new_flair)
     if flair_id:
+        subreddit = await reddit.subreddit("PlanetNaturists")
         await subreddit.flair.set(redditor=user, flair_template_id=flair_id)
         print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
 
 
 async def send_discord_approval(item):
-    """Send new Reddit item to Discord for approval."""
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
     if not channel:
         print("⚠️ Discord channel not found")
@@ -127,13 +123,9 @@ async def send_discord_approval(item):
 
 
 async def handle_new_item(item):
-    """Approve or send for Discord review (new items only)."""
     if item.author is None:
         return
-
-    # Skip edited/old content → no karma
     if getattr(item, "edited", False):
-        print(f"⏭️ Skipped edited item from {item.author}")
         return
 
     name = str(item.author)
@@ -150,6 +142,7 @@ async def handle_new_item(item):
 
 # ---- Poll Reddit ----
 async def comment_stream():
+    subreddit = await reddit.subreddit("PlanetNaturists")
     print("💬 Comment polling started...")
     while True:
         try:
@@ -161,6 +154,7 @@ async def comment_stream():
 
 
 async def submission_stream():
+    subreddit = await reddit.subreddit("PlanetNaturists")
     print("📜 Post polling started...")
     while True:
         try:
@@ -172,6 +166,7 @@ async def submission_stream():
 
 
 async def daily_rescan_loop():
+    subreddit = await reddit.subreddit("PlanetNaturists")
     while True:
         print("⏰ Daily rescan...")
         try:
@@ -207,24 +202,19 @@ async def on_ready():
 async def on_reaction_add(reaction, user):
     if user.bot:
         return
-
     msg_id = reaction.message.id
     if msg_id not in pending_reviews:
         return
 
     item = pending_reviews[msg_id]
-
     if str(reaction.emoji) == "✅":
         await item.mod.approve()
-        await update_user_karma(item.author, 1)  # ✅ karma only here
+        await update_user_karma(item.author, 1)
         await reaction.message.channel.send(f"✅ Approved {item.author}")
-        print(f"✅ Approved {item.author}")
         del pending_reviews[msg_id]
-
     elif str(reaction.emoji) == "❌":
         await item.mod.remove()
         await reaction.message.channel.send(f"❌ Removed {item.author}'s item")
-        print(f"❌ Removed {item.author}")
         del pending_reviews[msg_id]
 
 
