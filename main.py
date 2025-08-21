@@ -16,7 +16,8 @@ reddit = asyncpraw.Reddit(
     client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
     username=os.getenv("REDDIT_USERNAME"),
     password=os.getenv("REDDIT_PASSWORD"),
-    user_agent=os.getenv("REDDIT_USER_AGENT")
+    user_agent=os.getenv("REDDIT_USER_AGENT"),
+    ratelimit_seconds=60,
 )
 
 # ---- Discord Setup ----
@@ -70,22 +71,30 @@ def get_flair_for_karma(username: str, karma: int) -> str:
     return unlocked
 
 
-async def update_user_karma(user, points=1):
+async def supabase_exec(query):
+    """Run blocking Supabase queries in async loop."""
+    return await asyncio.to_thread(query.execute)
+
+
+async def update_user_karma(user, points=0):
+    """Update karma and flair. Default points=0 (used in daily rescan)."""
     if user is None:
         return
 
     name = str(user)
-    res = supabase.table("user_karma").select("*").eq("username", name).execute()
+    res = await supabase_exec(supabase.table("user_karma").select("*").eq("username", name))
     current_karma = res.data[0]["karma"] if res.data else 0
 
     new_karma = max(0, current_karma + points)
     new_flair = get_flair_for_karma(name, new_karma)
 
-    supabase.table("user_karma").upsert({
-        "username": name,
-        "karma": new_karma,
-        "last_flair": new_flair
-    }).execute()
+    await supabase_exec(
+        supabase.table("user_karma").upsert({
+            "username": name,
+            "karma": new_karma,
+            "last_flair": new_flair
+        })
+    )
 
     flair_id = flair_templates.get(new_flair)
     if flair_id:
@@ -100,10 +109,10 @@ async def send_discord_approval(item):
         print("⚠️ Discord channel not found")
         return
 
-    if hasattr(item, "title"):  # post
+    if hasattr(item, "title"):
         preview = (item.selftext[:200] + "...") if item.selftext else ""
         item_type = "Post"
-    else:  # comment
+    else:
         preview = (item.body[:200] + "...") if item.body else ""
         item_type = "Comment"
 
@@ -123,18 +132,17 @@ async def send_discord_approval(item):
 
 
 async def handle_new_item(item):
+    """Handle a new Reddit post or comment from the live stream."""
     if item.author is None:
-        return
-    if getattr(item, "edited", False):
         return
 
     name = str(item.author)
-    res = supabase.table("user_karma").select("*").eq("username", name).execute()
+    res = await supabase_exec(supabase.table("user_karma").select("*").eq("username", name))
     karma = res.data[0]["karma"] if res.data else 0
 
     if karma >= 500:
         await item.mod.approve()
-        await update_user_karma(item.author, 1)
+        await update_user_karma(item.author, points=1)  # +1 only for NEW
         print(f"✅ Auto-approved {name} ({karma} karma)")
     else:
         await send_discord_approval(item)
@@ -170,16 +178,16 @@ async def daily_rescan_loop():
     while True:
         print("⏰ Daily rescan...")
         try:
-            res = supabase.table("user_karma").select("*").execute()
+            res = await supabase_exec(supabase.table("user_karma").select("*"))
             if res.data:
                 for user in res.data:
                     username = user["username"]
                     karma = user["karma"]
                     correct_flair = get_flair_for_karma(username, karma)
                     if user["last_flair"] != correct_flair:
-                        supabase.table("user_karma").update(
-                            {"last_flair": correct_flair}
-                        ).eq("username", username).execute()
+                        await supabase_exec(
+                            supabase.table("user_karma").update({"last_flair": correct_flair}).eq("username", username)
+                        )
                         flair_id = flair_templates.get(correct_flair)
                         if flair_id:
                             await subreddit.flair.set(redditor=username, flair_template_id=flair_id)
@@ -193,9 +201,9 @@ async def daily_rescan_loop():
 @bot.event
 async def on_ready():
     print(f"🤖 Discord bot logged in as {bot.user}")
-    bot.loop.create_task(comment_stream())
-    bot.loop.create_task(submission_stream())
-    bot.loop.create_task(daily_rescan_loop())
+    asyncio.create_task(comment_stream())
+    asyncio.create_task(submission_stream())
+    asyncio.create_task(daily_rescan_loop())
 
 
 @bot.event
@@ -209,7 +217,7 @@ async def on_reaction_add(reaction, user):
     item = pending_reviews[msg_id]
     if str(reaction.emoji) == "✅":
         await item.mod.approve()
-        await update_user_karma(item.author, 1)
+        await update_user_karma(item.author, points=1)  # +1 only when new + approved
         await reaction.message.channel.send(f"✅ Approved {item.author}")
         del pending_reviews[msg_id]
     elif str(reaction.emoji) == "❌":
