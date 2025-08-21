@@ -1,36 +1,29 @@
 import os
-import time
 import asyncio
 import asyncpraw
 import discord
 from discord.ext import commands
 from supabase import create_client, Client
 
-# ---- Supabase Setup ----
+# ---- Supabase ----
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ---- Reddit Setup ----
-reddit = asyncpraw.Reddit(
-    client_id=os.getenv("REDDIT_CLIENT_ID"),
-    client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
-    username=os.getenv("REDDIT_USERNAME"),
-    password=os.getenv("REDDIT_PASSWORD"),
-    user_agent=os.getenv("REDDIT_USER_AGENT")
-)
-
-SUBREDDIT_NAME = "PlanetNaturists"
-
-# ---- Discord Setup ----
+# ---- Discord ----
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
 
 intents = discord.Intents.default()
-intents.messages = True
+intents.message_content = True   # FIX: Needed for commands & approvals
 intents.guilds = True
 intents.reactions = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+# ---- Globals ----
+reddit = None
+subreddit = None
+pending_reviews = {}
 
 # ---- Flair Ladder ----
 flair_ladder = [
@@ -58,9 +51,6 @@ flair_templates = {
     "Bare Master": "987da246-7dd7-11f0-ae7f-8206f7eb2e0a",
     "Naturist Legend": "a3f1f8fc-7dd7-11f0-b2c1-227301a06778"
 }
-
-# ---- Pending approvals ----
-pending_reviews = {}  # discord_msg_id -> reddit item
 
 
 def get_flair_for_karma(username: str, karma: int) -> str:
@@ -92,7 +82,6 @@ async def update_user_karma(user, points=1):
 
     flair_id = flair_templates.get(new_flair)
     if flair_id:
-        subreddit = await reddit.subreddit(SUBREDDIT_NAME)
         await subreddit.flair.set(redditor=user, flair_template_id=flair_id)
         print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
 
@@ -100,7 +89,6 @@ async def update_user_karma(user, points=1):
 async def send_discord_approval(item):
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
     if not channel:
-        print("⚠️ Discord channel not found")
         return
 
     if hasattr(item, "title"):  # post
@@ -141,10 +129,8 @@ async def handle_new_item(item):
         await send_discord_approval(item)
 
 
-# ---- Reddit Polling ----
-async def reddit_comments_stream():
+async def reddit_comments_poll():
     print("💬 Comment polling started...")
-    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
     seen = set()
     while True:
         try:
@@ -158,9 +144,8 @@ async def reddit_comments_stream():
             await asyncio.sleep(30)
 
 
-async def reddit_posts_stream():
+async def reddit_posts_poll():
     print("📜 Post polling started...")
-    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
     seen = set()
     while True:
         try:
@@ -174,34 +159,43 @@ async def reddit_posts_stream():
             await asyncio.sleep(30)
 
 
-# ---- Daily rescan ----
-async def daily_rescan():
-    print("⏰ Daily rescan...")
-    res = supabase.table("user_karma").select("*").execute()
-    if not res.data:
-        return
-
-    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
-
-    for user in res.data:
-        username = user["username"]
-        karma = user["karma"]
-        correct_flair = get_flair_for_karma(username, karma)
-
-        if user["last_flair"] != correct_flair:
-            supabase.table("user_karma").update({"last_flair": correct_flair}).eq("username", username).execute()
-            flair_id = flair_templates.get(correct_flair)
-            if flair_id:
-                await subreddit.flair.set(redditor=username, flair_template_id=flair_id)
-                print(f"🔄 Flair updated for {username} → {correct_flair}")
+async def daily_rescan_loop():
+    while True:
+        print("⏰ Daily rescan...")
+        res = supabase.table("user_karma").select("*").execute()
+        if res.data:
+            for user in res.data:
+                username = user["username"]
+                karma = user["karma"]
+                correct_flair = get_flair_for_karma(username, karma)
+                if user["last_flair"] != correct_flair:
+                    supabase.table("user_karma").update(
+                        {"last_flair": correct_flair}
+                    ).eq("username", username).execute()
+                    flair_id = flair_templates.get(correct_flair)
+                    if flair_id:
+                        await subreddit.flair.set(redditor=username, flair_template_id=flair_id)
+                        print(f"🔄 Flair updated for {username} → {correct_flair}")
+        await asyncio.sleep(24 * 60 * 60)
 
 
-# ---- Discord events ----
 @bot.event
 async def on_ready():
+    global reddit, subreddit
     print(f"🤖 Discord bot logged in as {bot.user}")
-    asyncio.create_task(reddit_comments_stream())
-    asyncio.create_task(reddit_posts_stream())
+
+    # FIX: Reddit client created inside async task
+    reddit = asyncpraw.Reddit(
+        client_id=os.getenv("REDDIT_CLIENT_ID"),
+        client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
+        username=os.getenv("REDDIT_USERNAME"),
+        password=os.getenv("REDDIT_PASSWORD"),
+        user_agent=os.getenv("REDDIT_USER_AGENT")
+    )
+    subreddit = await reddit.subreddit("PlanetNaturists")
+
+    asyncio.create_task(reddit_comments_poll())
+    asyncio.create_task(reddit_posts_poll())
     asyncio.create_task(daily_rescan_loop())
 
 
@@ -220,21 +214,11 @@ async def on_reaction_add(reaction, user):
         await item.mod.approve()
         await update_user_karma(item.author, 1)
         await reaction.message.channel.send(f"✅ Approved {item.author}")
-        print(f"✅ Approved {item.author}")
         del pending_reviews[msg_id]
-
     elif str(reaction.emoji) == "❌":
         await item.mod.remove()
         await reaction.message.channel.send(f"❌ Removed {item.author}'s item")
-        print(f"❌ Removed {item.author}")
         del pending_reviews[msg_id]
-
-
-# ---- Background loop ----
-async def daily_rescan_loop():
-    while True:
-        await daily_rescan()
-        await asyncio.sleep(24 * 60 * 60)
 
 
 if __name__ == "__main__":
