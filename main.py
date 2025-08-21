@@ -5,25 +5,32 @@ import discord
 from discord.ext import commands
 from supabase import create_client, Client
 
-# ---- Supabase ----
+# ---- Supabase Setup ----
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ---- Discord ----
+# ---- Reddit Setup ----
+reddit = asyncpraw.Reddit(
+    client_id=os.getenv("REDDIT_CLIENT_ID"),
+    client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
+    username=os.getenv("REDDIT_USERNAME"),
+    password=os.getenv("REDDIT_PASSWORD"),
+    user_agent=os.getenv("REDDIT_USER_AGENT")
+)
+
+SUBREDDIT_NAME = "PlanetNaturists"
+subreddit = reddit.subreddit(SUBREDDIT_NAME)
+
+# ---- Discord Setup ----
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
+DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))  # approval channel
 
 intents = discord.Intents.default()
-intents.message_content = True   # FIX: Needed for commands & approvals
 intents.guilds = True
 intents.reactions = True
+intents.messages = True
 bot = commands.Bot(command_prefix="!", intents=intents)
-
-# ---- Globals ----
-reddit = None
-subreddit = None
-pending_reviews = {}
 
 # ---- Flair Ladder ----
 flair_ladder = [
@@ -52,6 +59,9 @@ flair_templates = {
     "Naturist Legend": "a3f1f8fc-7dd7-11f0-b2c1-227301a06778"
 }
 
+# ---- Pending approvals ----
+pending_reviews = {}  # discord_msg_id -> reddit item
+
 
 def get_flair_for_karma(username: str, karma: int) -> str:
     unlocked = "Cover Curious"
@@ -64,6 +74,7 @@ def get_flair_for_karma(username: str, karma: int) -> str:
 
 
 async def update_user_karma(user, points=1):
+    """Increase karma and update flair."""
     if user is None:
         return
 
@@ -87,8 +98,10 @@ async def update_user_karma(user, points=1):
 
 
 async def send_discord_approval(item):
+    """Send new Reddit item to Discord for approval."""
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
     if not channel:
+        print("⚠️ Discord channel not found")
         return
 
     if hasattr(item, "title"):  # post
@@ -114,7 +127,13 @@ async def send_discord_approval(item):
 
 
 async def handle_new_item(item):
+    """Approve or send for Discord review (new items only)."""
     if item.author is None:
+        return
+
+    # Skip edited/old content → no karma
+    if getattr(item, "edited", False):
+        print(f"⏭️ Skipped edited item from {item.author}")
         return
 
     name = str(item.author)
@@ -129,74 +148,59 @@ async def handle_new_item(item):
         await send_discord_approval(item)
 
 
-async def reddit_comments_poll():
+# ---- Poll Reddit ----
+async def comment_stream():
     print("💬 Comment polling started...")
-    seen = set()
     while True:
         try:
-            async for comment in subreddit.comments(limit=10):
-                if comment.id not in seen:
-                    await handle_new_item(comment)
-                    seen.add(comment.id)
-            await asyncio.sleep(10)
+            async for comment in subreddit.stream.comments(skip_existing=True):
+                await handle_new_item(comment)
         except Exception as e:
             print(f"⚠️ Comment poll error: {e}")
-            await asyncio.sleep(30)
+            await asyncio.sleep(10)
 
 
-async def reddit_posts_poll():
+async def submission_stream():
     print("📜 Post polling started...")
-    seen = set()
     while True:
         try:
-            async for submission in subreddit.new(limit=10):
-                if submission.id not in seen:
-                    await handle_new_item(submission)
-                    seen.add(submission.id)
-            await asyncio.sleep(10)
+            async for submission in subreddit.stream.submissions(skip_existing=True):
+                await handle_new_item(submission)
         except Exception as e:
             print(f"⚠️ Post poll error: {e}")
-            await asyncio.sleep(30)
+            await asyncio.sleep(10)
 
 
 async def daily_rescan_loop():
     while True:
         print("⏰ Daily rescan...")
-        res = supabase.table("user_karma").select("*").execute()
-        if res.data:
-            for user in res.data:
-                username = user["username"]
-                karma = user["karma"]
-                correct_flair = get_flair_for_karma(username, karma)
-                if user["last_flair"] != correct_flair:
-                    supabase.table("user_karma").update(
-                        {"last_flair": correct_flair}
-                    ).eq("username", username).execute()
-                    flair_id = flair_templates.get(correct_flair)
-                    if flair_id:
-                        await subreddit.flair.set(redditor=username, flair_template_id=flair_id)
-                        print(f"🔄 Flair updated for {username} → {correct_flair}")
+        try:
+            res = supabase.table("user_karma").select("*").execute()
+            if res.data:
+                for user in res.data:
+                    username = user["username"]
+                    karma = user["karma"]
+                    correct_flair = get_flair_for_karma(username, karma)
+                    if user["last_flair"] != correct_flair:
+                        supabase.table("user_karma").update(
+                            {"last_flair": correct_flair}
+                        ).eq("username", username).execute()
+                        flair_id = flair_templates.get(correct_flair)
+                        if flair_id:
+                            await subreddit.flair.set(redditor=username, flair_template_id=flair_id)
+                            print(f"🔄 Flair updated for {username} → {correct_flair}")
+        except Exception as e:
+            print(f"⚠️ Daily rescan error: {e}")
         await asyncio.sleep(24 * 60 * 60)
 
 
+# ---- Discord events ----
 @bot.event
 async def on_ready():
-    global reddit, subreddit
     print(f"🤖 Discord bot logged in as {bot.user}")
-
-    # FIX: Reddit client created inside async task
-    reddit = asyncpraw.Reddit(
-        client_id=os.getenv("REDDIT_CLIENT_ID"),
-        client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
-        username=os.getenv("REDDIT_USERNAME"),
-        password=os.getenv("REDDIT_PASSWORD"),
-        user_agent=os.getenv("REDDIT_USER_AGENT")
-    )
-    subreddit = await reddit.subreddit("PlanetNaturists")
-
-    asyncio.create_task(reddit_comments_poll())
-    asyncio.create_task(reddit_posts_poll())
-    asyncio.create_task(daily_rescan_loop())
+    bot.loop.create_task(comment_stream())
+    bot.loop.create_task(submission_stream())
+    bot.loop.create_task(daily_rescan_loop())
 
 
 @bot.event
@@ -212,12 +216,15 @@ async def on_reaction_add(reaction, user):
 
     if str(reaction.emoji) == "✅":
         await item.mod.approve()
-        await update_user_karma(item.author, 1)
+        await update_user_karma(item.author, 1)  # ✅ karma only here
         await reaction.message.channel.send(f"✅ Approved {item.author}")
+        print(f"✅ Approved {item.author}")
         del pending_reviews[msg_id]
+
     elif str(reaction.emoji) == "❌":
         await item.mod.remove()
         await reaction.message.channel.send(f"❌ Removed {item.author}'s item")
+        print(f"❌ Removed {item.author}")
         del pending_reviews[msg_id]
 
 
