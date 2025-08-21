@@ -1,29 +1,28 @@
 import os
-import time
 import asyncio
 import asyncpraw
 import discord
 from discord.ext import commands, tasks
 from supabase import create_client, Client
 
-# ---- Supabase ----
+# ---- Supabase Setup ----
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ---- Reddit ----
+# ---- Reddit Setup ----
 reddit = asyncpraw.Reddit(
     client_id=os.getenv("REDDIT_CLIENT_ID"),
     client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
     username=os.getenv("REDDIT_USERNAME"),
     password=os.getenv("REDDIT_PASSWORD"),
-    user_agent=os.getenv("REDDIT_USER_AGENT")
+    user_agent=os.getenv("REDDIT_USER_AGENT"),
 )
 
 SUBREDDIT_NAME = "PlanetNaturists"
-subreddit = reddit.subreddit(SUBREDDIT_NAME)
+subreddit = None  # will be awaited in on_ready
 
-# ---- Discord ----
+# ---- Discord Setup ----
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
 
@@ -44,7 +43,7 @@ flair_ladder = [
     ("Open Air", 1000),
     ("True Naturist", 2000),
     ("Bare Master", 5000),
-    ("Naturist Legend", 10000)
+    ("Naturist Legend", 10000),
 ]
 
 flair_templates = {
@@ -57,9 +56,10 @@ flair_templates = {
     "Open Air": "7cfdbc2c-7dd7-11f0-9936-9e1c00b89022",
     "True Naturist": "8a5fbeb0-7dd7-11f0-9fa7-2e98a4cf4302",
     "Bare Master": "987da246-7dd7-11f0-ae7f-8206f7eb2e0a",
-    "Naturist Legend": "a3f1f8fc-7dd7-11f0-b2c1-227301a06778"
+    "Naturist Legend": "a3f1f8fc-7dd7-11f0-b2c1-227301a06778",
 }
 
+# ---- Pending approvals ----
 pending_reviews = {}  # discord_msg_id -> reddit item
 
 
@@ -73,9 +73,10 @@ def get_flair_for_karma(username: str, karma: int) -> str:
     return unlocked
 
 
-async def update_user_karma(user, points=1):
+def update_user_karma(user, points=1):
     if user is None:
         return
+
     name = str(user)
     res = supabase.table("user_karma").select("*").eq("username", name).execute()
     current_karma = res.data[0]["karma"] if res.data else 0
@@ -86,12 +87,12 @@ async def update_user_karma(user, points=1):
     supabase.table("user_karma").upsert({
         "username": name,
         "karma": new_karma,
-        "last_flair": new_flair
+        "last_flair": new_flair,
     }).execute()
 
     flair_id = flair_templates.get(new_flair)
     if flair_id:
-        await subreddit.flair.set(redditor=user, flair_template_id=flair_id)
+        asyncio.create_task(subreddit.flair.set(redditor=user, flair_template_id=flair_id))
         print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
 
 
@@ -102,17 +103,19 @@ async def send_discord_approval(item):
         print("⚠️ Discord channel not found")
         return
 
-    if hasattr(item, "title"):
+    if hasattr(item, "title"):  # post
         preview = (item.selftext[:200] + "...") if item.selftext else ""
         item_type = "Post"
-    else:
+        title = item.title
+    else:  # comment
         preview = (item.body[:200] + "...") if item.body else ""
         item_type = "Comment"
+        title = None
 
     embed = discord.Embed(
         title=f"New {item_type} Pending Approval",
         description=preview,
-        color=discord.Color.orange()
+        color=discord.Color.orange(),
     )
     embed.add_field(name="Author", value=f"u/{item.author}", inline=True)
     embed.add_field(name="Link", value=f"https://reddit.com{item.permalink}", inline=False)
@@ -120,19 +123,22 @@ async def send_discord_approval(item):
     msg = await channel.send(embed=embed)
     await msg.add_reaction("✅")
     await msg.add_reaction("❌")
+
     pending_reviews[msg.id] = item
 
 
 async def handle_new_item(item):
+    """Auto-approve if karma ≥ 500, else send for Discord approval."""
     if item.author is None:
         return
+
     name = str(item.author)
     res = supabase.table("user_karma").select("*").eq("username", name).execute()
     karma = res.data[0]["karma"] if res.data else 0
 
     if karma >= 500:
         await item.mod.approve()
-        await update_user_karma(item.author, 1)
+        update_user_karma(item.author, 1)
         print(f"✅ Auto-approved {name} ({karma} karma)")
     else:
         await send_discord_approval(item)
@@ -142,6 +148,7 @@ async def reddit_stream():
     print("🌍 Reddit stream started...")
     async for comment in subreddit.stream.comments(skip_existing=True):
         await handle_new_item(comment)
+
     async for submission in subreddit.stream.submissions(skip_existing=True):
         await handle_new_item(submission)
 
@@ -152,10 +159,12 @@ async def daily_rescan():
     res = supabase.table("user_karma").select("*").execute()
     if not res.data:
         return
+
     for user in res.data:
         username = user["username"]
         karma = user["karma"]
         correct_flair = get_flair_for_karma(username, karma)
+
         if user["last_flair"] != correct_flair:
             supabase.table("user_karma").update({"last_flair": correct_flair}).eq("username", username).execute()
             flair_id = flair_templates.get(correct_flair)
@@ -167,6 +176,8 @@ async def daily_rescan():
 # ---- Discord events ----
 @bot.event
 async def on_ready():
+    global subreddit
+    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
     print(f"🤖 Discord bot logged in as {bot.user}")
     daily_rescan.start()
     bot.loop.create_task(reddit_stream())
@@ -176,18 +187,24 @@ async def on_ready():
 async def on_reaction_add(reaction, user):
     if user.bot:
         return
+
     msg_id = reaction.message.id
     if msg_id not in pending_reviews:
         return
+
     item = pending_reviews[msg_id]
+
     if str(reaction.emoji) == "✅":
         await item.mod.approve()
-        await update_user_karma(item.author, 1)
+        update_user_karma(item.author, 1)
         await reaction.message.channel.send(f"✅ Approved {item.author}")
+        print(f"✅ Approved {item.author}")
         del pending_reviews[msg_id]
+
     elif str(reaction.emoji) == "❌":
         await item.mod.remove()
         await reaction.message.channel.send(f"❌ Removed {item.author}'s item")
+        print(f"❌ Removed {item.author}")
         del pending_reviews[msg_id]
 
 
