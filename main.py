@@ -1,6 +1,7 @@
 import os
-import asyncio
-import asyncpraw
+import time
+import threading
+import praw
 import discord
 from discord.ext import commands
 from supabase import create_client, Client
@@ -10,8 +11,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ---- Reddit Setup ----
-reddit = asyncpraw.Reddit(
+# ---- Reddit Setup (sync praw) ----
+reddit = praw.Reddit(
     client_id=os.getenv("REDDIT_CLIENT_ID"),
     client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
     username=os.getenv("REDDIT_USERNAME"),
@@ -20,6 +21,7 @@ reddit = asyncpraw.Reddit(
 )
 
 SUBREDDIT_NAME = "PlanetNaturists"
+subreddit = reddit.subreddit(SUBREDDIT_NAME)
 
 # ---- Discord Setup ----
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -29,7 +31,7 @@ intents = discord.Intents.default()
 intents.messages = True
 intents.reactions = True
 intents.guilds = True
-intents.message_content = True   # ✅ removes privileged intent warning
+intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ---- Flair Ladder ----
@@ -74,7 +76,7 @@ def get_flair_for_karma(karma: int) -> str:
     return unlocked
 
 
-async def update_user_karma(user, points=1):
+def update_user_karma(user, points=1):
     """Increment karma & update flair in Supabase + Reddit."""
     if user is None:
         return
@@ -94,8 +96,7 @@ async def update_user_karma(user, points=1):
 
     flair_id = flair_templates.get(new_flair)
     if flair_id:
-        subreddit = await reddit.subreddit(SUBREDDIT_NAME)
-        await subreddit.flair.set(redditor=name, flair_template_id=flair_id)
+        subreddit.flair.set(redditor=user, flair_template_id=flair_id)
         print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
 
 
@@ -128,7 +129,7 @@ async def send_discord_approval(item):
     pending_reviews[msg.id] = item
 
 
-async def handle_new_item(item):
+def handle_new_item(item):
     """Check karma → auto approve at 500+, else send to Discord."""
     if item.author is None or item.id in seen_ids:
         return
@@ -140,42 +141,32 @@ async def handle_new_item(item):
     karma = res.data[0]["karma"] if res.data else 0
 
     if karma >= 500:
-        await item.mod.approve()
-        await update_user_karma(item.author, 1)
+        item.mod.approve()
+        update_user_karma(item.author, 1)
         print(f"✅ Auto-approved {name} ({karma} karma)")
     else:
-        await send_discord_approval(item)
+        bot.loop.create_task(send_discord_approval(item))
 
 
-# ---- Polling replacement for streams ----
-async def poll_comments():
-    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
+def reddit_polling():
+    """Runs in a thread, fetches new comments + posts."""
+    print("🌍 Reddit polling started...")
     while True:
         try:
-            async for comment in subreddit.comments(limit=10):
-                await handle_new_item(comment)
+            for comment in subreddit.comments(limit=10):
+                handle_new_item(comment)
+            for submission in subreddit.new(limit=5):
+                handle_new_item(submission)
         except Exception as e:
-            print(f"⚠️ Comment poll error: {e}")
-        await asyncio.sleep(10)  # poll every 10s
-
-
-async def poll_submissions():
-    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
-    while True:
-        try:
-            async for submission in subreddit.new(limit=5):
-                await handle_new_item(submission)
-        except Exception as e:
-            print(f"⚠️ Post poll error: {e}")
-        await asyncio.sleep(15)  # poll every 15s
+            print(f"⚠️ Reddit poll error: {e}")
+        time.sleep(15)
 
 
 # ---- Discord events ----
 @bot.event
 async def on_ready():
     print(f"🤖 Discord bot logged in as {bot.user}")
-    bot.loop.create_task(poll_comments())
-    bot.loop.create_task(poll_submissions())
+    threading.Thread(target=reddit_polling, daemon=True).start()
 
 
 @bot.event
@@ -190,13 +181,13 @@ async def on_reaction_add(reaction, user):
     item = pending_reviews[msg_id]
 
     if str(reaction.emoji) == "✅":
-        await item.mod.approve()
-        await update_user_karma(item.author, 1)  # ✅ only karma on approval
+        item.mod.approve()
+        update_user_karma(item.author, 1)  # ✅ only karma on approval
         await reaction.message.channel.send(f"✅ Approved {item.author}")
         del pending_reviews[msg_id]
 
     elif str(reaction.emoji) == "❌":
-        await item.mod.remove()
+        item.mod.remove()
         await reaction.message.channel.send(f"❌ Removed {item.author}'s item")
         del pending_reviews[msg_id]
 
