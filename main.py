@@ -5,13 +5,14 @@ import praw
 import discord
 from discord.ext import commands
 from supabase import create_client, Client
+from io import BytesIO
 
 # ---- Supabase Setup ----
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ---- Reddit Setup ----
+# ---- Reddit Setup (sync praw) ----
 reddit = praw.Reddit(
     client_id=os.getenv("REDDIT_CLIENT_ID"),
     client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
@@ -100,7 +101,7 @@ def update_user_karma(user, points=1):
         print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
 
 
-async def send_discord_approval(item, reason="Pending Approval"):
+async def send_discord_approval(item):
     """Send new Reddit item to Discord for approval."""
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
     if not channel:
@@ -108,21 +109,34 @@ async def send_discord_approval(item, reason="Pending Approval"):
         return
 
     if hasattr(item, "title"):  # post
-        preview = (item.selftext[:200] + "...") if item.selftext else ""
+        content = item.selftext or ""
         item_type = "Post"
+        embed_title = item.title
     else:  # comment
-        preview = (item.body[:200] + "...") if item.body else ""
+        content = item.body or ""
         item_type = "Comment"
+        embed_title = f"Comment by u/{item.author}"
+
+    # Build embed with truncated content
+    truncated = len(content) > 4000
+    content_display = content[:4000] + ("... (truncated)" if truncated else "")
 
     embed = discord.Embed(
-        title=f"New {item_type} {reason}",
-        description=preview,
+        title=f"{item_type}: {embed_title}",
+        description=content_display,
         color=discord.Color.orange()
     )
     embed.add_field(name="Author", value=f"u/{item.author}", inline=True)
     embed.add_field(name="Link", value=f"https://reddit.com{item.permalink}", inline=False)
 
     msg = await channel.send(embed=embed)
+
+    # If text too long, attach full as .txt
+    if truncated:
+        text_file = BytesIO(content.encode("utf-8"))
+        text_file.name = f"{item_type.lower()}_{item.id}.txt"
+        await channel.send(file=discord.File(text_file))
+
     await msg.add_reaction("✅")
     await msg.add_reaction("❌")
 
@@ -130,25 +144,22 @@ async def send_discord_approval(item, reason="Pending Approval"):
 
 
 def handle_new_item(item):
-    """Hybrid logic: auto-approve at 500+, else review (new users always review)."""
+    """Check karma → auto approve at 500+, else send to Discord."""
     if item.author is None or item.id in seen_ids:
         return
 
     seen_ids.add(item.id)
-    name = str(item.author)
 
-    # Check if user exists in DB
+    name = str(item.author)
     res = supabase.table("user_karma").select("*").eq("username", name).execute()
-    user_exists = bool(res.data)
     karma = res.data[0]["karma"] if res.data else 0
 
-    if user_exists and karma >= 500:
+    if karma >= 500:
         item.mod.approve()
         update_user_karma(item.author, 1)
         print(f"✅ Auto-approved {name} ({karma} karma)")
     else:
-        # Always send new or low-karma users to Discord
-        bot.loop.create_task(send_discord_approval(item, reason="Needs Review"))
+        bot.loop.create_task(send_discord_approval(item))
 
 
 def reddit_polling():
@@ -182,30 +193,18 @@ async def on_reaction_add(reaction, user):
         return
 
     item = pending_reviews[msg_id]
-    author_name = str(item.author)
 
     if str(reaction.emoji) == "✅":
         item.mod.approve()
-
-        # If new user → add them to Supabase with karma = 1
-        res = supabase.table("user_karma").select("*").eq("username", author_name).execute()
-        if not res.data:
-            supabase.table("user_karma").insert({
-                "username": author_name,
-                "karma": 1,
-                "last_flair": get_flair_for_karma(1)
-            }).execute()
-            subreddit.flair.set(redditor=item.author, flair_template_id=flair_templates["Cover Curious"])
-            print(f"🆕 New user {author_name} approved and added with 1 karma")
-        else:
-            update_user_karma(item.author, 1)
-
-        await reaction.message.channel.send(f"✅ Approved {author_name}")
+        update_user_karma(item.author, 1)  # ✅ only karma on approval
+        await reaction.message.channel.send(f"✅ Approved {item.author}")
+        await reaction.message.delete()  # 🧹 delete review message
         del pending_reviews[msg_id]
 
     elif str(reaction.emoji) == "❌":
         item.mod.remove()
-        await reaction.message.channel.send(f"❌ Removed {author_name}'s item")
+        await reaction.message.channel.send(f"❌ Removed {item.author}'s item")
+        await reaction.message.delete()  # 🧹 delete review message
         del pending_reviews[msg_id]
 
 
