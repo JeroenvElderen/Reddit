@@ -35,7 +35,7 @@ flair_ladder = [
     ("Naturist Legend", 10000)
 ]
 
-# ---- Flair Templates ----
+# ---- Flair Templates (your real IDs) ----
 flair_templates = {
     "Cover Curious": "ae791af4-7d22-11f0-934a-2e3446070201",
     "First Bare": "bbf4d5d8-7d22-11f0-b485-d64b23d9d74f",
@@ -51,8 +51,9 @@ flair_templates = {
 
 # ---- Owner ----
 OWNER_USERNAME = "SnowDragonFly94"
+BOT_USERNAME = "PlanetNaturistsBot"
 
-# ---- Pending Approvals ----
+# Pending reviews dict (item_id -> item object)
 pending_reviews = {}
 
 
@@ -72,107 +73,130 @@ def get_flair_for_karma(username: str, karma: int) -> str:
 
 def update_user_karma(user, points=1):
     """Increment user karma and update flair."""
+    if user is None:
+        return
+
     name = str(user)
 
+    # Get current user record
     res = supabase.table("user_karma").select("*").eq("username", name).execute()
-    if res.data:
-        new_karma = max(0, res.data[0]["karma"] + points)
-    else:
-        new_karma = max(0, points)
 
+    if res.data:
+        current_karma = res.data[0]["karma"]
+    else:
+        current_karma = 0
+
+    new_karma = max(0, current_karma + points)
     new_flair = get_flair_for_karma(name, new_karma)
 
+    # Save new karma + flair
     supabase.table("user_karma").upsert({
         "username": name,
         "karma": new_karma,
         "last_flair": new_flair
     }).execute()
 
+    # Apply flair with template ID
     flair_id = flair_templates.get(new_flair)
     if flair_id:
         subreddit.flair.set(redditor=user, flair_template_id=flair_id)
-    print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
+        print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
+    else:
+        print(f"⚠️ No flair template found for {new_flair}, skipping flair update.")
 
 
 def handle_new_item(item):
-    """Decide whether to auto-approve or send for owner approval."""
+    """Handle a new post/comment with approval logic."""
     if item.author is None:
         return
+
     username = str(item.author)
 
     # Owner always auto-approved
     if username.lower() == OWNER_USERNAME.lower():
+        item.mod.approve()
         update_user_karma(item.author, 1)
         return
 
-    # Get user karma
+    # Get karma
     res = supabase.table("user_karma").select("*").eq("username", username).execute()
     karma = res.data[0]["karma"] if res.data else 0
 
     if karma < 500:
-        # Send PM to owner for approval
+        # --- Build preview ---
+        if hasattr(item, "title"):  # it's a post
+            preview = f"**Post Title:** {item.title}\n\n"
+            if hasattr(item, "selftext") and item.selftext:
+                preview += f"{item.selftext[:200]}..."
+        else:  # it's a comment
+            preview = f"**Comment:** {item.body[:200]}..."
+
+        # --- Approve/Reject links with item_id ---
+        approve_link = f"https://reddit.com/message/compose/?to={BOT_USERNAME}&subject=Approval&message=approve:{item.id}"
+        reject_link = f"https://reddit.com/message/compose/?to={BOT_USERNAME}&subject=Approval&message=reject:{item.id}"
+
         msg = f"""
 New {'Post' if hasattr(item, 'title') else 'Comment'} in r/{SUBREDDIT_NAME}
 Author: u/{username}
 Flair: {get_flair_for_karma(username, karma)} ({karma} karma)
 Link: https://reddit.com{item.permalink}
 
-Reply "approve {item.id}" to approve and +1 karma.
-Reply "reject {item.id}" to remove.
+--- Preview ---
+{preview}
+
+[Approve]({approve_link}) | [Reject]({reject_link})
 """
         reddit.redditor(OWNER_USERNAME).message("Approval Needed", msg)
         pending_reviews[item.id] = item
-        print(f"⏳ Approval requested from owner for {username} ({karma} karma)")
+        print(f"⏳ Approval requested for {username} ({karma} karma)")
     else:
-        # Auto approve and update
+        # Auto approve
         item.mod.approve()
         update_user_karma(item.author, 1)
 
 
-def monitor_owner_replies():
-    """Listen to inbox for owner replies (approve/reject)."""
+def handle_owner_replies():
+    """Listen for owner's replies to approve/reject pending items."""
     for message in reddit.inbox.stream(skip_existing=True):
-        if str(message.author).lower() != OWNER_USERNAME.lower():
-            continue
+        if str(message.author).lower() == OWNER_USERNAME.lower():
+            body = message.body.strip().lower()
+            if body.startswith("approve:") or body.startswith("reject:"):
+                action, item_id = body.split(":", 1)
 
-        parts = message.body.strip().lower().split()
-        if len(parts) < 2:
-            continue
+                if item_id not in pending_reviews:
+                    print(f"⚠️ No pending item found with id {item_id}")
+                    message.mark_read()
+                    continue
 
-        action, item_id = parts[0], parts[1]
-        if item_id not in pending_reviews:
-            continue
+                item = pending_reviews.pop(item_id)
 
-        item = pending_reviews.pop(item_id)
+                if action == "approve":
+                    item.mod.approve()
+                    update_user_karma(item.author, 1)
+                    print(f"👍 Approved {item.author} ({item_id})")
+                else:
+                    item.mod.remove()
+                    print(f"❌ Rejected {item.author} ({item_id})")
 
-        if action == "approve":
-            item.mod.approve()
-            update_user_karma(item.author, 1)
-            print(f"✅ Owner approved {item_id} from {item.author}")
-        elif action == "reject":
-            item.mod.remove()
-            print(f"❌ Owner rejected {item_id} from {item.author}")
-
-        message.mark_read()
+                message.mark_read()
 
 
 def run_bot():
     print("🌍 PlanetNaturists Flair Bot running...")
 
-    # Listen to comments
+    # Comments
     for comment in subreddit.stream.comments(skip_existing=True):
         handle_new_item(comment)
 
-    # Listen to posts
+    # Posts
     for submission in subreddit.stream.submissions(skip_existing=True):
         handle_new_item(submission)
 
 
 def daily_rescan():
-    """Rescan all users in Supabase once every 24h and update flair if needed."""
+    """Rescan all users and update flair if needed."""
     print("⏰ Starting daily rescan...")
     res = supabase.table("user_karma").select("*").execute()
-
     if not res.data:
         print("⚠️ No users found in database.")
         return
@@ -186,20 +210,32 @@ def daily_rescan():
             supabase.table("user_karma").update({
                 "last_flair": correct_flair
             }).eq("username", username).execute()
+
             flair_id = flair_templates.get(correct_flair)
             if flair_id:
                 subreddit.flair.set(redditor=username, flair_template_id=flair_id)
                 print(f"🔄 Updated flair for {username} → {correct_flair} ({karma} karma)")
+
     print("✅ Daily rescan complete!")
 
 
-if __name__ == "__main__":
-    # Thread for live updates
-    t1 = threading.Thread(target=run_bot, daemon=True)
-    t1.start()
+def backfill_existing(limit_posts=100, limit_comments=200):
+    print("📥 Running backfill of existing users...")
+    for submission in subreddit.new(limit=limit_posts):
+        handle_new_item(submission)
+    for comment in subreddit.comments(limit=limit_comments):
+        handle_new_item(comment)
+    print("✅ Backfill complete!")
 
-    # Thread for owner inbox monitoring
-    t2 = threading.Thread(target=monitor_owner_replies, daemon=True)
+
+if __name__ == "__main__":
+    # One-time backfill
+    backfill_existing()
+
+    # Threads: one for items, one for approvals
+    t1 = threading.Thread(target=run_bot, daemon=True)
+    t2 = threading.Thread(target=handle_owner_replies, daemon=True)
+    t1.start()
     t2.start()
 
     # Daily rescan loop
