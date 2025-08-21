@@ -21,6 +21,7 @@ reddit = asyncpraw.Reddit(
 )
 
 SUBREDDIT_NAME = "PlanetNaturists"
+subreddit = None  # will be set later inside the loop
 
 # ---- Discord Setup ----
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -89,8 +90,7 @@ async def update_user_karma(user, points=1):
     ).execute()
 
     flair_id = flair_templates.get(new_flair)
-    if flair_id:
-        subreddit = await reddit.subreddit(SUBREDDIT_NAME)
+    if flair_id and subreddit:
         await subreddit.flair.set(redditor=name, flair_template_id=flair_id)
         print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
 
@@ -105,11 +105,9 @@ async def send_discord_approval(item):
     if hasattr(item, "title"):  # post
         preview = (item.selftext[:200] + "...") if item.selftext else ""
         item_type = "Post"
-        title = item.title
     else:  # comment
         preview = (item.body[:200] + "...") if item.body else ""
         item_type = "Comment"
-        title = None
 
     embed = discord.Embed(
         title=f"New {item_type} Pending Approval",
@@ -145,7 +143,7 @@ async def handle_new_item(item):
 
 # ---- Reddit Streams ----
 async def reddit_comments_stream():
-    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
+    global subreddit
     print("💬 Comment stream started...")
     try:
         async for comment in subreddit.stream.comments(skip_existing=True):
@@ -157,7 +155,7 @@ async def reddit_comments_stream():
 
 
 async def reddit_posts_stream():
-    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
+    global subreddit
     print("📜 Post stream started...")
     try:
         async for submission in subreddit.stream.submissions(skip_existing=True):
@@ -168,11 +166,6 @@ async def reddit_posts_stream():
         bot.loop.create_task(reddit_posts_stream())
 
 
-async def reddit_stream():
-    bot.loop.create_task(reddit_comments_stream())
-    bot.loop.create_task(reddit_posts_stream())
-
-
 # ---- Daily Rescan ----
 async def daily_rescan():
     print("⏰ Daily rescan...")
@@ -180,13 +173,12 @@ async def daily_rescan():
     if not res.data:
         return
 
-    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
     for user in res.data:
         username = user["username"]
         karma = user["karma"]
         correct_flair = get_flair_for_karma(username, karma)
 
-        if user["last_flair"] != correct_flair:
+        if user["last_flair"] != correct_flair and subreddit:
             supabase.table("user_karma").update({"last_flair": correct_flair}).eq(
                 "username", username
             ).execute()
@@ -205,8 +197,14 @@ async def rescan_loop():
 # ---- Discord events ----
 @bot.event
 async def on_ready():
+    global subreddit
     print(f"🤖 Discord bot logged in as {bot.user}")
-    bot.loop.create_task(reddit_stream())
+
+    # Create subreddit object AFTER loop is ready
+    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
+
+    bot.loop.create_task(reddit_comments_stream())
+    bot.loop.create_task(reddit_posts_stream())
     bot.loop.create_task(rescan_loop())
 
 
