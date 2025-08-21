@@ -1,9 +1,8 @@
 import os
-import time
 import asyncio
 import asyncpraw
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 from supabase import create_client, Client
 
 # ---- Supabase Setup ----
@@ -11,7 +10,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ---- Reddit Setup (asyncpraw) ----
+# ---- Reddit Setup ----
 reddit = asyncpraw.Reddit(
     client_id=os.getenv("REDDIT_CLIENT_ID"),
     client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
@@ -30,6 +29,7 @@ intents = discord.Intents.default()
 intents.messages = True
 intents.reactions = True
 intents.guilds = True
+intents.message_content = True   # ✅ removes privileged intent warning
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ---- Flair Ladder ----
@@ -59,12 +59,11 @@ flair_templates = {
     "Naturist Legend": "a3f1f8fc-7dd7-11f0-b2c1-227301a06778"
 }
 
-# ---- Pending approvals ----
+# ---- State ----
 pending_reviews = {}  # discord_msg_id -> reddit item
 
 
-# ---- Flair + Karma ----
-def get_flair_for_karma(username: str, karma: int) -> str:
+def get_flair_for_karma(karma: int) -> str:
     unlocked = "Cover Curious"
     for flair, threshold in flair_ladder:
         if karma >= threshold:
@@ -74,8 +73,8 @@ def get_flair_for_karma(username: str, karma: int) -> str:
     return unlocked
 
 
-def increment_karma(user):
-    """Increase karma only when approved (manual or auto)."""
+async def update_user_karma(user, points=1):
+    """Increment karma & update flair in Supabase + Reddit."""
     if user is None:
         return
 
@@ -83,8 +82,8 @@ def increment_karma(user):
     res = supabase.table("user_karma").select("*").eq("username", name).execute()
     current_karma = res.data[0]["karma"] if res.data else 0
 
-    new_karma = current_karma + 1
-    new_flair = get_flair_for_karma(name, new_karma)
+    new_karma = max(0, current_karma + points)
+    new_flair = get_flair_for_karma(new_karma)
 
     supabase.table("user_karma").upsert({
         "username": name,
@@ -94,14 +93,13 @@ def increment_karma(user):
 
     flair_id = flair_templates.get(new_flair)
     if flair_id:
-        asyncio.create_task(
-            reddit.subreddit(SUBREDDIT_NAME).flair.set(name, flair_template_id=flair_id)
-        )
-    print(f"✅ {name} now has {new_karma} karma ({new_flair})")
+        subreddit = await reddit.subreddit(SUBREDDIT_NAME)
+        await subreddit.flair.set(redditor=name, flair_template_id=flair_id)
+        print(f"✅ Flair set for {name} → {new_flair} ({new_karma} karma)")
 
 
-# ---- Discord Embed ----
 async def send_discord_approval(item):
+    """Send new Reddit item to Discord for approval."""
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
     if not channel:
         print("⚠️ Discord channel not found")
@@ -110,11 +108,9 @@ async def send_discord_approval(item):
     if hasattr(item, "title"):  # post
         preview = (item.selftext[:200] + "...") if item.selftext else ""
         item_type = "Post"
-        title = item.title
     else:  # comment
         preview = (item.body[:200] + "...") if item.body else ""
         item_type = "Comment"
-        title = None
 
     embed = discord.Embed(
         title=f"New {item_type} Pending Approval",
@@ -131,22 +127,8 @@ async def send_discord_approval(item):
     pending_reviews[msg.id] = item
 
 
-# ---- Reddit Streams ----
-async def reddit_comment_stream():
-    print("💬 Comment stream started...")
-    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
-    async for comment in subreddit.stream.comments(skip_existing=True):
-        await handle_new_item(comment)
-
-
-async def reddit_post_stream():
-    print("📜 Post stream started...")
-    subreddit = await reddit.subreddit(SUBREDDIT_NAME)
-    async for post in subreddit.stream.submissions(skip_existing=True):
-        await handle_new_item(post)
-
-
 async def handle_new_item(item):
+    """Check karma → auto approve at 500+, else send to Discord."""
     if item.author is None:
         return
 
@@ -156,41 +138,43 @@ async def handle_new_item(item):
 
     if karma >= 500:
         await item.mod.approve()
-        increment_karma(item.author)
+        await update_user_karma(item.author, 1)
         print(f"✅ Auto-approved {name} ({karma} karma)")
     else:
         await send_discord_approval(item)
 
 
-# ---- Daily Rescan ----
-@tasks.loop(hours=24)
-async def daily_rescan():
-    print("⏰ Daily rescan...")
-    res = supabase.table("user_karma").select("*").execute()
-    if not res.data:
-        return
-
-    for user in res.data:
-        username = user["username"]
-        karma = user["karma"]
-        correct_flair = get_flair_for_karma(username, karma)
-
-        if user["last_flair"] != correct_flair:
-            supabase.table("user_karma").update({"last_flair": correct_flair}).eq("username", username).execute()
-            flair_id = flair_templates.get(correct_flair)
-            if flair_id:
-                subreddit = await reddit.subreddit(SUBREDDIT_NAME)
-                await subreddit.flair.set(username, flair_template_id=flair_id)
-                print(f"🔄 Flair updated for {username} → {correct_flair}")
+# ---- Auto-restarting Reddit polling ----
+async def poll_comments():
+    while True:
+        print("💬 Comment polling started...")
+        try:
+            subreddit = await reddit.subreddit(SUBREDDIT_NAME)
+            async for comment in subreddit.stream.comments(skip_existing=True):
+                await handle_new_item(comment)
+        except Exception as e:
+            print(f"⚠️ Comment poll error: {e}")
+            await asyncio.sleep(10)  # wait before retry
 
 
-# ---- Discord Events ----
+async def poll_submissions():
+    while True:
+        print("📜 Post polling started...")
+        try:
+            subreddit = await reddit.subreddit(SUBREDDIT_NAME)
+            async for submission in subreddit.stream.submissions(skip_existing=True):
+                await handle_new_item(submission)
+        except Exception as e:
+            print(f"⚠️ Post poll error: {e}")
+            await asyncio.sleep(10)  # wait before retry
+
+
+# ---- Discord events ----
 @bot.event
 async def on_ready():
     print(f"🤖 Discord bot logged in as {bot.user}")
-    bot.loop.create_task(reddit_comment_stream())
-    bot.loop.create_task(reddit_post_stream())
-    daily_rescan.start()
+    bot.loop.create_task(poll_comments())
+    bot.loop.create_task(poll_submissions())
 
 
 @bot.event
@@ -206,7 +190,7 @@ async def on_reaction_add(reaction, user):
 
     if str(reaction.emoji) == "✅":
         await item.mod.approve()
-        increment_karma(item.author)
+        await update_user_karma(item.author, 1)  # ✅ only here karma increments
         await reaction.message.channel.send(f"✅ Approved {item.author}")
         del pending_reviews[msg_id]
 
@@ -216,5 +200,6 @@ async def on_reaction_add(reaction, user):
         del pending_reviews[msg_id]
 
 
+# ---- Start ----
 if __name__ == "__main__":
     bot.run(DISCORD_TOKEN)
