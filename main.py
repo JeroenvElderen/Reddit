@@ -133,6 +133,7 @@ flair_ladder = [
     ("Naturist Legend", 10000),
 ]
 flair_templates = {
+    "Needs Growth": "75c23a86-7f6d-11f0-8745-f666d1d62ce4",
     "Cover Curious": "ae791af4-7d22-11f0-934a-2e3446070201",
     "First Bare": "bbf4d5d8-7d22-11f0-b485-d64b23d9d74f",
     "Skin Fresh": "c5be4a5e-7d22-11f0-b278-0298fe10eba2",
@@ -181,6 +182,8 @@ def in_night_guard_window(now: datetime) -> bool:
     return start_t <= local_t.replace(tzinfo=None) <= end_t
 
 def get_flair_for_karma(karma: int) -> str:
+    if karma < 0:
+        return "Needs Growth"   # 👈 use your special flair
     unlocked = "Cover Curious"
     for flair, threshold in flair_ladder:
         if karma >= threshold:
@@ -188,6 +191,7 @@ def get_flair_for_karma(karma: int) -> str:
         else:
             break
     return unlocked
+
 
 def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
     """Apply delta to karma (floor at 0 if allow_negative=False) and update user flair."""
