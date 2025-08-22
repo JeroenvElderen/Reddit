@@ -113,6 +113,8 @@ REJECTION_REASONS = {
     "9️⃣": "Rule 9: No advertising or promotion.",
     "🔟": "Rule 10: Be mindful when sharing personal photos.",
     "📝": "Removed because it had no meaningful addition to the post or discussion.",
+    "✏️": "Custom reason (to be filled manually)",
+
 }
 
 # =========================
@@ -494,6 +496,11 @@ async def send_discord_approval(item, lang_label=None, note=None, night_guard_pi
     embed.add_field(name="Sub Karma", value=str(sub_karma), inline=True)
     embed.add_field(name="Acct Age (days)", value=str(acct_days), inline=True)
     embed.add_field(name="Link", value=f"https://reddit.com{item.permalink}", inline=False)
+
+    # === Rules overview ===
+    rules_overview = "\n".join([f"{emoji} {text}" for emoji, text in REJECTION_REASONS.items()])
+    embed.add_field(name="Rules Overview", value=rules_overview[:1024], inline=False)
+
 
     # === ETA footer (NEW) ===
     eta_text = compute_eta_text(pending_count=len(pending_reviews) + 1)
@@ -944,11 +951,8 @@ async def on_ready():
     threading.Thread(target=sla_loop, daemon=True).start()
 
 @bot.event
+@bot.event
 async def on_reaction_add(reaction, user):
-    """Manual review: ✅ approve (award), ❌ reject (−1). 
-    Decision lock applied + ETA metrics. 
-    Also logs approvals/rejections to separate channels.
-    """
     if user.bot:
         return
     msg_id = reaction.message.id
@@ -968,18 +972,11 @@ async def on_reaction_add(reaction, user):
         old_k, new_k, flair, total_delta, extras = apply_approval_awards(item, is_manual=True)
         note = f"+{total_delta}" + (f" ({extras})" if extras else "")
 
-        # confirmation in review channel
         await reaction.message.channel.send(
             f"✅ Approved u/{author_name} ({old_k} → {new_k}) {note}, flair: {flair}"
         )
-
-        # record ETA metric
         record_mod_decision(entry.get("created_ts"), user.id)
-
-        # lock and delete review card
         await _lock_and_delete_message(reaction.message)
-
-        # log to approval log channel
         await log_approval(item, old_k, new_k, flair, note, extras)
 
     # ❌ REJECT
@@ -987,48 +984,63 @@ async def on_reaction_add(reaction, user):
         item.mod.remove()
         old_k, new_k, flair = apply_karma_and_flair(item.author, -1, allow_negative=True)
 
-    await reaction.message.channel.send(
-        f"❌ Removed u/{author_name}'s item ({old_k} → {new_k}), flair: {flair}. "
-        "Please react with a rule number (1️⃣–🔟) or 📝 for 'no addition'."
-    )
-
-    # Add the rejection reason reactions
-    for emoji in REJECTION_REASONS.keys():
-        await reaction.message.add_reaction(emoji)
-
-    def check(r, u):
-        return (
-            r.message.id == reaction.message.id
-            and u.id == user.id
-            and str(r.emoji) in REJECTION_REASONS
+        await reaction.message.channel.send(
+            f"❌ Removed u/{author_name}'s item ({old_k} → {new_k}), flair: {flair}. "
+            "Please react with a rule number (1️⃣–🔟), 📝 for 'no addition', or ✏️ for custom reason."
         )
 
-    try:
-        reason_reaction, _ = await bot.wait_for("reaction_add", timeout=60.0, check=check)
-        reason_text = REJECTION_REASONS[str(reason_reaction.emoji)]
+        # Add rule reactions
+       
+# Add rule reactions to the **review card** embed
+        review_msg = reaction.message
+        for emoji in REJECTION_REASONS.keys():
+            await review_msg.add_reaction(emoji)
 
-        # DM the Reddit user
-        try:
-            redditor = reddit.redditor(author_name)
-            redditor.message(
-                f"❌ Your post/comment was removed from r/{SUBREDDIT_NAME}",
-                f"Reason: {reason_text}\n\nPlease review the subreddit rules before posting again."
+
+
+        def check(r, u):
+            return (
+                r.message.id == reaction.message.id
+                and u.id == user.id
+                and str(r.emoji) in REJECTION_REASONS
             )
-            print(f"📩 Sent rejection DM to u/{author_name}")
-        except Exception as e:
-            print(f"⚠️ Could not DM u/{author_name}: {e}")
 
-        # Log with reason
-        await log_rejection(item, old_k, new_k, flair, reason_text)
+        try:
+            reason_reaction, _ = await bot.wait_for("reaction_add", timeout=60.0, check=check)
 
-    except asyncio.TimeoutError:
-        await reaction.message.channel.send("⏳ No rejection reason chosen, skipping DM/log reason.")
+            if str(reason_reaction.emoji) == "✏️":
+                await reaction.message.channel.send(
+                    f"{user.mention}, please type the custom rejection reason (60s timeout):"
+                )
+                msg = await bot.wait_for(
+                    "message",
+                    timeout=60.0,
+                    check=lambda m: m.author == user and m.channel == reaction.message.channel
+                )
+                reason_text = f"Custom: {msg.content}"
+            else:
+                reason_text = REJECTION_REASONS[str(reason_reaction.emoji)]
 
-    # record ETA metric
-    record_mod_decision(entry.get("created_ts"), user.id)
+            # DM Reddit user
+            try:
+                redditor = reddit.redditor(author_name)
+                redditor.message(
+                    f"❌ Your post/comment was removed from r/{SUBREDDIT_NAME}",
+                    f"Reason: {reason_text}\n\nPlease review the subreddit rules before posting again."
+                )
+                print(f"📩 Sent rejection DM to u/{author_name}")
+            except Exception as e:
+                print(f"⚠️ Could not DM u/{author_name}: {e}")
 
-    # lock & delete
-    await _lock_and_delete_message(reaction.message)
+            # Log rejection
+            await log_rejection(item, old_k, new_k, flair, reason_text)
+
+        except asyncio.TimeoutError:
+            await reaction.message.channel.send("⏳ No rejection reason chosen, skipping DM/log reason.")
+
+        record_mod_decision(entry.get("created_ts"), user.id)
+        await _lock_and_delete_message(reaction.message)
+
 
 
 
