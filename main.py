@@ -97,6 +97,24 @@ POST_FLAIR_TEXT_ID = os.getenv("POST_FLAIR_TEXT_ID", "")
 POST_FLAIR_LINK_ID = os.getenv("POST_FLAIR_LINK_ID", "")
 POST_FLAIR_KEYWORDS = os.getenv("POST_FLAIR_KEYWORDS", "")
 
+
+# =========================
+# Rejection reasons (1–10 + extra)
+# =========================
+REJECTION_REASONS = {
+    "1️⃣": "Rule 1: This is a naturist space, not a fetish subreddit.",
+    "2️⃣": "Rule 2: Respect consent and privacy.",
+    "3️⃣": "Rule 3: Nudity allowed, never sexualized.",
+    "4️⃣": "Rule 4: No content involving minors.",
+    "5️⃣": "Rule 5: Be kind, civil, and body-positive.",
+    "6️⃣": "Rule 6: Keep it on-topic.",
+    "7️⃣": "Rule 7: Tag nudity as NSFW.",
+    "8️⃣": "Rule 8: No creepy or inappropriate behavior.",
+    "9️⃣": "Rule 9: No advertising or promotion.",
+    "🔟": "Rule 10: Be mindful when sharing personal photos.",
+    "📝": "Removed because it had no meaningful addition to the post or discussion.",
+}
+
 # =========================
 # Flair ladder + user flair templates
 # =========================
@@ -569,8 +587,8 @@ async def log_approval(item, old_k: int, new_k: int, flair: str, note: str, extr
     await channel.send(embed=embed)
 
 
-async def log_rejection(item, old_k: int, new_k: int, flair: str):
-    """Log full rejection info to the rejection log channel."""
+async def log_rejection(item, old_k: int, new_k: int, flair: str, reason_text: str):
+    """Log full rejection info (with reason) to the rejection log channel."""
     channel = bot.get_channel(DISCORD_REJECTION_LOG_CHANNEL_ID)
     if not channel:
         return
@@ -590,6 +608,7 @@ async def log_rejection(item, old_k: int, new_k: int, flair: str):
     if hasattr(item, "title") and item.title:
         embed.add_field(name="Title", value=item.title[:256], inline=False)
     embed.add_field(name="Author", value=f"u/{author}", inline=True)
+    embed.add_field(name="Reason", value=reason_text, inline=False)   # 👈 NEW
     embed.add_field(name="Image", value=img_label, inline=True)
     embed.add_field(name="Karma", value=f"{old_k} → {new_k} (−1)", inline=True)
     embed.add_field(name="Flair", value=flair, inline=True)
@@ -600,8 +619,6 @@ async def log_rejection(item, old_k: int, new_k: int, flair: str):
     embed.add_field(name="Link", value=f"https://reddit.com{item.permalink}", inline=False)
 
     await channel.send(embed=embed)
-
-
 
 # =========================
 # Approval bookkeeping
@@ -767,7 +784,7 @@ def handle_new_item(item):
 
         # also log to approval log channel
         asyncio.run_coroutine_threadsafe(
-            log_approval(author_name, old_k, new_k, flair, note),
+            log_approval(item, old_k, new_k, flair, note),
             bot.loop
         )
         return
@@ -970,19 +987,49 @@ async def on_reaction_add(reaction, user):
         item.mod.remove()
         old_k, new_k, flair = apply_karma_and_flair(item.author, -1, allow_negative=True)
 
-        # confirmation in review channel
-        await reaction.message.channel.send(
-            f"❌ Removed u/{author_name}'s item ({old_k} → {new_k}), flair: {flair}"
+    await reaction.message.channel.send(
+        f"❌ Removed u/{author_name}'s item ({old_k} → {new_k}), flair: {flair}. "
+        "Please react with a rule number (1️⃣–🔟) or 📝 for 'no addition'."
+    )
+
+    # Add the rejection reason reactions
+    for emoji in REJECTION_REASONS.keys():
+        await reaction.message.add_reaction(emoji)
+
+    def check(r, u):
+        return (
+            r.message.id == reaction.message.id
+            and u.id == user.id
+            and str(r.emoji) in REJECTION_REASONS
         )
 
-        # record ETA metric
-        record_mod_decision(entry.get("created_ts"), user.id)
+    try:
+        reason_reaction, _ = await bot.wait_for("reaction_add", timeout=60.0, check=check)
+        reason_text = REJECTION_REASONS[str(reason_reaction.emoji)]
 
-        # lock and delete review card
-        await _lock_and_delete_message(reaction.message)
+        # DM the Reddit user
+        try:
+            redditor = reddit.redditor(author_name)
+            redditor.message(
+                f"❌ Your post/comment was removed from r/{SUBREDDIT_NAME}",
+                f"Reason: {reason_text}\n\nPlease review the subreddit rules before posting again."
+            )
+            print(f"📩 Sent rejection DM to u/{author_name}")
+        except Exception as e:
+            print(f"⚠️ Could not DM u/{author_name}: {e}")
 
-        # log to rejection log channel
-        await log_rejection(item, old_k, new_k, flair)
+        # Log with reason
+        await log_rejection(item, old_k, new_k, flair, reason_text)
+
+    except asyncio.TimeoutError:
+        await reaction.message.channel.send("⏳ No rejection reason chosen, skipping DM/log reason.")
+
+    # record ETA metric
+    record_mod_decision(entry.get("created_ts"), user.id)
+
+    # lock & delete
+    await _lock_and_delete_message(reaction.message)
+
 
 
 # =========================
