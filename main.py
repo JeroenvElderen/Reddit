@@ -534,33 +534,73 @@ async def send_discord_auto_log(item, old_k, new_k, flair, awarded_points, extra
     await channel.send(embed=embed)
 
 
-async def log_approval(username: str, old_k: int, new_k: int, flair: str, note: str):
-    """Log approvals to a separate channel"""
+async def log_approval(item, old_k: int, new_k: int, flair: str, note: str, extras: str = ""):
+    """Log full approval info to the approval log channel."""
     channel = bot.get_channel(DISCORD_APPROVAL_LOG_CHANNEL_ID)
-    if channel:
-        embed = discord.Embed(
-            title="✅ Approval Log",
-            description=f"[u/{username}](https://reddit.com/u/{username}) approved",
-            color=discord.Color.green()
-        )
-        embed.add_field(name="Karma", value=f"{old_k} → {new_k}", inline=True)
-        embed.add_field(name="Flair", value=flair, inline=True)
-        if note:
-            embed.add_field(name="Notes", value=note, inline=False)
-        await channel.send(embed=embed)
+    if not channel:
+        return
 
-async def log_rejection(username: str, old_k: int, new_k: int, flair: str):
-    """Log rejections to a separate channel"""
+    author = str(item.author)
+    item_type = "Post" if hasattr(item, "title") else "Comment"
+    content = (item.selftext if hasattr(item, "selftext") else item.body) or ""
+    img_label = image_flag_label(item)
+    sub_karma, acct_days = about_user_block(author)
+    shadow = get_shadow_flag(author)
+
+    embed = discord.Embed(
+        title=f"✅ Approved {item_type}",
+        description=(content[:1500] + ("... (truncated)" if len(content) > 1500 else "")),
+        color=discord.Color.green(),
+    )
+    if hasattr(item, "title") and item.title:
+        embed.add_field(name="Title", value=item.title[:256], inline=False)
+    embed.add_field(name="Author", value=f"u/{author}", inline=True)
+    embed.add_field(name="Image", value=img_label, inline=True)
+    embed.add_field(name="Karma", value=f"{old_k} → {new_k} {note}", inline=True)
+    embed.add_field(name="Flair", value=flair, inline=True)
+    embed.add_field(name="Sub Karma", value=str(sub_karma), inline=True)
+    embed.add_field(name="Acct Age (days)", value=str(acct_days), inline=True)
+    if shadow:
+        embed.add_field(name="Shadow Flag", value=shadow, inline=False)
+    if extras:
+        embed.add_field(name="Notes", value=extras, inline=False)
+    embed.add_field(name="Link", value=f"https://reddit.com{item.permalink}", inline=False)
+
+    await channel.send(embed=embed)
+
+
+async def log_rejection(item, old_k: int, new_k: int, flair: str):
+    """Log full rejection info to the rejection log channel."""
     channel = bot.get_channel(DISCORD_REJECTION_LOG_CHANNEL_ID)
-    if channel:
-        embed = discord.Embed(
-            title="❌ Rejection Log",
-            description=f"[u/{username}](https://reddit.com/u/{username}) rejected",
-            color=discord.Color.red()
-        )
-        embed.add_field(name="Karma", value=f"{old_k} → {new_k}", inline=True)
-        embed.add_field(name="Flair", value=flair, inline=True)
-        await channel.send(embed=embed)
+    if not channel:
+        return
+
+    author = str(item.author)
+    item_type = "Post" if hasattr(item, "title") else "Comment"
+    content = (item.selftext if hasattr(item, "selftext") else item.body) or ""
+    img_label = image_flag_label(item)
+    sub_karma, acct_days = about_user_block(author)
+    shadow = get_shadow_flag(author)
+
+    embed = discord.Embed(
+        title=f"❌ Rejected {item_type}",
+        description=(content[:1500] + ("... (truncated)" if len(content) > 1500 else "")),
+        color=discord.Color.red(),
+    )
+    if hasattr(item, "title") and item.title:
+        embed.add_field(name="Title", value=item.title[:256], inline=False)
+    embed.add_field(name="Author", value=f"u/{author}", inline=True)
+    embed.add_field(name="Image", value=img_label, inline=True)
+    embed.add_field(name="Karma", value=f"{old_k} → {new_k} (−1)", inline=True)
+    embed.add_field(name="Flair", value=flair, inline=True)
+    embed.add_field(name="Sub Karma", value=str(sub_karma), inline=True)
+    embed.add_field(name="Acct Age (days)", value=str(acct_days), inline=True)
+    if shadow:
+        embed.add_field(name="Shadow Flag", value=shadow, inline=False)
+    embed.add_field(name="Link", value=f"https://reddit.com{item.permalink}", inline=False)
+
+    await channel.send(embed=embed)
+
 
 
 # =========================
@@ -923,7 +963,7 @@ async def on_reaction_add(reaction, user):
         await _lock_and_delete_message(reaction.message)
 
         # log to approval log channel
-        await log_approval(author_name, old_k, new_k, flair, note)
+        await log_approval(item, old_k, new_k, flair, note, extras)
 
     # ❌ REJECT
     elif str(reaction.emoji) == "❌":
@@ -942,7 +982,7 @@ async def on_reaction_add(reaction, user):
         await _lock_and_delete_message(reaction.message)
 
         # log to rejection log channel
-        await log_rejection(author_name, old_k, new_k, flair)
+        await log_rejection(item, old_k, new_k, flair)
 
 
 # =========================
