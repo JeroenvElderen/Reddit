@@ -986,7 +986,6 @@ async def on_reaction_add(reaction, user):
 
         await reaction.message.channel.send(
             f"❌ Removed u/{author_name}'s item ({old_k} → {new_k}), flair: {flair}. "
-            "Please react with a rule number (1️⃣–🔟), 📝 for 'no addition', or ✏️ for custom reason."
         )
 
         # Add rule reactions
