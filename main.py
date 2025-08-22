@@ -784,10 +784,10 @@ def handle_new_item(item):
         print(f"✅ Auto-approved u/{author_name} ({old_k}→{new_k}) {note}")
 
         # send the auto-approval log to review channel (for context)
-        asyncio.run_coroutine_threadsafe(
-            send_discord_auto_log(item, old_k, new_k, flair, total_delta, extras_note=extras),
-            bot.loop
-        )
+       # asyncio.run_coroutine_threadsafe(
+       #     send_discord_auto_log(item, old_k, new_k, flair, total_delta, extras_note=extras),
+       #     bot.loop
+       # )
 
         # also log to approval log channel
         asyncio.run_coroutine_threadsafe(
