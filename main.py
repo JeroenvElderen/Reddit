@@ -1009,7 +1009,7 @@ async def on_reaction_add(reaction, user):
             reason_reaction, _ = await bot.wait_for("reaction_add", timeout=60.0, check=check)
 
             if str(reason_reaction.emoji) == "✏️":
-                await reaction.message.channel.send(
+                prompt_msg = await reaction.message.channel.send(
                     f"{user.mention}, please type the custom rejection reason (60s timeout):"
                 )
                 msg = await bot.wait_for(
@@ -1018,6 +1018,14 @@ async def on_reaction_add(reaction, user):
                     check=lambda m: m.author == user and m.channel == reaction.message.channel
                 )
                 reason_text = f"Custom: {msg.content}"
+
+                # 🧹 Delete the prompt + the moderator’s reason message
+                try:
+                    await prompt_msg.delete()
+                    await msg.delete()
+                except Exception as e:
+                    print(f"⚠️ Could not delete custom reason messages: {e}")
+
             else:
                 reason_text = REJECTION_REASONS[str(reason_reaction.emoji)]
 
