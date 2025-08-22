@@ -36,6 +36,9 @@ subreddit = reddit.subreddit(SUBREDDIT_NAME)
 # =========================
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
+DISCORD_DECAY_LOG_CHANNEL_ID = int(os.getenv("DISCORD_DECAY_LOG_CHANNEL_ID", "1408406356582731776"))
+DISCORD_APPROVAL_LOG_CHANNEL_ID = int(os.getenv("DISCORD_APPROVAL_LOG_CHANNEL_ID", "1408406760322240572"))
+DISCORD_REJECTION_LOG_CHANNEL_ID = int(os.getenv("DISCORD_REJECTION_LOG_CHANNEL_ID", "1408406824453148725"))
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -184,6 +187,36 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
         subreddit.flair.set(redditor=name, flair_template_id=flair_id)
         print(f"🏷️ Flair set for {name} → {flair} ({new} karma)")
     return old, new, flair
+
+# =========================
+# Decay Warning Helpers
+# =========================
+async def send_decay_warning(username: str, days_since: int, karma: int, flair: str):
+    """DM the user and log to a separate Discord channel when they are close to decay."""
+    try:
+        redditor = reddit.redditor(username)
+        msg = (
+            f"Hey u/{username}, just a friendly reminder 🌞\n\n"
+            f"You haven’t had an approved post or comment in **{days_since} days**. "
+            f"After {DECAY_AFTER_DAYS} days, your community karma will start to decay and you may lose your flair.\n\n"
+            "Stay active to keep your streak alive and your flair growing! 🌿"
+        )
+        redditor.message(f"⚠️ Reminder: Stay active in r/{SUBREDDIT_NAME}", msg)
+        print(f"📩 Sent decay warning to u/{username}")
+
+        # Log to Discord (separate channel)
+        channel = bot.get_channel(DISCORD_DECAY_LOG_CHANNEL_ID)
+        if channel:
+            embed = discord.Embed(
+                title="⚠️ Decay Warning Sent",
+                description=f"u/{username} warned (inactive {days_since}d, decay in {DECAY_AFTER_DAYS - days_since}d)",
+                color=discord.Color.gold(),
+            )
+            embed.add_field(name="Current Karma", value=str(karma), inline=True)
+            embed.add_field(name="Flair", value=flair, inline=True)
+            await channel.send(embed=embed)
+    except Exception as e:
+        print(f"⚠️ Failed to send DM/log warning for {username}: {e}")
 
 # ---------- Language hinting ----------
 EN_STOPWORDS = {
@@ -472,7 +505,7 @@ async def send_discord_auto_log(item, old_k, new_k, flair, awarded_points, extra
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
     if not channel:
         return
-
+    
     author = str(item.author)
     sub_karma, acct_days = about_user_block(author)
     shadow = get_shadow_flag(author)
@@ -499,6 +532,36 @@ async def send_discord_auto_log(item, old_k, new_k, flair, awarded_points, extra
         embed.add_field(name="Notes", value=extras_note, inline=False)
     embed.add_field(name="Link", value=f"https://reddit.com{item.permalink}", inline=False)
     await channel.send(embed=embed)
+
+
+async def log_approval(username: str, old_k: int, new_k: int, flair: str, note: str):
+    """Log approvals to a separate channel"""
+    channel = bot.get_channel(DISCORD_APPROVAL_LOG_CHANNEL_ID)
+    if channel:
+        embed = discord.Embed(
+            title="✅ Approval Log",
+            description=f"[u/{username}](https://reddit.com/u/{username}) approved",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Karma", value=f"{old_k} → {new_k}", inline=True)
+        embed.add_field(name="Flair", value=flair, inline=True)
+        if note:
+            embed.add_field(name="Notes", value=note, inline=False)
+        await channel.send(embed=embed)
+
+async def log_rejection(username: str, old_k: int, new_k: int, flair: str):
+    """Log rejections to a separate channel"""
+    channel = bot.get_channel(DISCORD_REJECTION_LOG_CHANNEL_ID)
+    if channel:
+        embed = discord.Embed(
+            title="❌ Rejection Log",
+            description=f"[u/{username}](https://reddit.com/u/{username}) rejected",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="Karma", value=f"{old_k} → {new_k}", inline=True)
+        embed.add_field(name="Flair", value=flair, inline=True)
+        await channel.send(embed=embed)
+
 
 # =========================
 # Approval bookkeeping
@@ -650,13 +713,21 @@ def handle_new_item(item):
         return
 
     # AUTO-APPROVE path
-    if karma >= 500:
+    if karma >= 500:   # ✅ now inside the function
         item.mod.approve()
         old_k, new_k, flair, total_delta, extras = apply_approval_awards(item, is_manual=False)
         note = f"+{total_delta}" + (f" ({extras})" if extras else "")
         print(f"✅ Auto-approved u/{author_name} ({old_k}→{new_k}) {note}")
+
+        # send the auto-approval log to review channel (for context)
         asyncio.run_coroutine_threadsafe(
             send_discord_auto_log(item, old_k, new_k, flair, total_delta, extras_note=extras),
+            bot.loop
+        )
+
+        # also log to approval log channel
+        asyncio.run_coroutine_threadsafe(
+            log_approval(author_name, old_k, new_k, flair, note),
             bot.loop
         )
         return
@@ -667,6 +738,7 @@ def handle_new_item(item):
         send_discord_approval(item, lang_label="English"),
         bot.loop
     )
+
 
 # =========================
 # Polling (PRAW)
@@ -715,6 +787,13 @@ def apply_decay_once():
             ld = None
 
         since = (today_local - (la or today_local)).days
+        if since == (DECAY_AFTER_DAYS - 1):
+            flair = get_flair_for_karma(karma)
+            asyncio.run_coroutine_threadsafe(
+                send_decay_warning(name, since, karma, flair),
+                bot.loop
+            )
+        
         if since <= DECAY_AFTER_DAYS:
             continue
 
@@ -809,7 +888,10 @@ async def on_ready():
 
 @bot.event
 async def on_reaction_add(reaction, user):
-    """Manual review: ✅ approve (award), ❌ reject (−1). Decision lock applied + ETA metrics."""
+    """Manual review: ✅ approve (award), ❌ reject (−1). 
+    Decision lock applied + ETA metrics. 
+    Also logs approvals/rejections to separate channels.
+    """
     if user.bot:
         return
     msg_id = reaction.message.id
@@ -823,25 +905,45 @@ async def on_reaction_add(reaction, user):
     item = entry["item"]
     author_name = str(item.author)
 
+    # ✅ APPROVE
     if str(reaction.emoji) == "✅":
         item.mod.approve()
         old_k, new_k, flair, total_delta, extras = apply_approval_awards(item, is_manual=True)
         note = f"+{total_delta}" + (f" ({extras})" if extras else "")
+
+        # confirmation in review channel
         await reaction.message.channel.send(
             f"✅ Approved u/{author_name} ({old_k} → {new_k}) {note}, flair: {flair}"
         )
+
         # record ETA metric
         record_mod_decision(entry.get("created_ts"), user.id)
+
+        # lock and delete review card
         await _lock_and_delete_message(reaction.message)
 
+        # log to approval log channel
+        await log_approval(author_name, old_k, new_k, flair, note)
+
+    # ❌ REJECT
     elif str(reaction.emoji) == "❌":
         item.mod.remove()
         old_k, new_k, flair = apply_karma_and_flair(item.author, -1, allow_negative=True)
+
+        # confirmation in review channel
         await reaction.message.channel.send(
             f"❌ Removed u/{author_name}'s item ({old_k} → {new_k}), flair: {flair}"
         )
+
+        # record ETA metric
         record_mod_decision(entry.get("created_ts"), user.id)
+
+        # lock and delete review card
         await _lock_and_delete_message(reaction.message)
+
+        # log to rejection log channel
+        await log_rejection(author_name, old_k, new_k, flair)
+
 
 # =========================
 # Start
