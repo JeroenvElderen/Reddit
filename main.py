@@ -852,23 +852,7 @@ def reddit_polling():
     print("🌍 Reddit polling started...")
     while True:
         try:
-            # --- NEW: register subscribers ---
-            for redditor in subreddit.stream.subscribers(pause_after=0):
-                if redditor is None:
-                    break
-                name = str(redditor)
-                res = supabase.table("user_karma").select("username").eq("username", name).execute()
-                if not res.data:
-                    supabase.table("user_karma").upsert({
-                        "username": name,
-                        "karma": 0,
-                        "last_flair": "Cover Curious"
-                    }).execute()
-                    flair_id = flair_templates.get("Cover Curious")
-                    if flair_id:
-                        subreddit.flair.set(redditor=name, flair_template_id=flair_id)
-                    print(f"🌱 Registered new subscriber: u/{name}")
-
+            
             # --- Existing logic: comments ---
             for comment in subreddit.comments(limit=10):
                 handle_new_item(comment)
@@ -1035,7 +1019,7 @@ async def on_ready():
     threading.Thread(target=decay_loop, daemon=True).start()
     threading.Thread(target=sla_loop, daemon=True).start()
     threading.Thread(target=daily_prompt_poster, daemon=True).start()
-@bot.event
+
 @bot.event
 async def on_reaction_add(reaction, user):
     if user.bot:
