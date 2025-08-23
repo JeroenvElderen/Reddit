@@ -1,3 +1,4 @@
 praw
 supabase
 discord.py
+openai
