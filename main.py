@@ -3,6 +3,7 @@ import time
 import json
 import threading
 import asyncio
+import openai
 from datetime import datetime, date, timedelta, timezone, time as dtime
 from urllib.parse import urlparse
 
@@ -10,6 +11,9 @@ import praw
 import discord
 from discord.ext import commands
 from supabase import create_client, Client
+
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # =========================
 # Supabase
@@ -334,6 +338,37 @@ def get_shadow_flag(username: str) -> str | None:
     except Exception:
         pass
     return None
+    
+    # ---------- OpenAI Daily Prompt Generators ----------
+def generate_trivia():
+    try:
+        resp = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a trivia generator for a naturist Reddit community."},
+                {"role": "user", "content": "Write one naturist-themed trivia question."}
+            ],
+            max_tokens=60
+        )
+        return resp.choices[0].message["content"].strip()
+    except Exception as e:
+        print(f"⚠️ Trivia generation failed: {e}")
+        return "What year did the modern naturist movement begin?"
+
+def generate_mindfulness():
+    try:
+        resp = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a meditation guide for naturists."},
+                {"role": "user", "content": "Write one naturist mindfulness or meditation prompt."}
+            ],
+            max_tokens=60
+        )
+        return resp.choices[0].message["content"].strip()
+    except Exception as e:
+        print(f"⚠️ Mindfulness generation failed: {e}")
+        return "Take a moment to feel the breeze on your skin and breathe deeply."
 
 # ---------- About snapshot ----------
 def about_user_block(name: str):
@@ -966,6 +1001,30 @@ def sla_loop():
             time.sleep(30)
 
 # =========================
+# Daily Prompt Poster (Trivia / Mindfulness)
+# =========================
+def daily_prompt_poster():
+    print("🕒 Daily prompt loop started...")
+    while True:
+        try:
+            now = datetime.now(current_tz())
+            if now.hour == 9 and now.minute == 0:  # runs daily at 09:00
+                if random.random() < 0.5:
+                    prompt = generate_trivia()
+                    title = "🌞 Naturist Trivia of the Day"
+                else:
+                    prompt = generate_mindfulness()
+                    title = "🌿 Naturist Mindfulness Prompt"
+
+                subreddit.submit(title, selftext=prompt)
+                print(f"📢 Posted daily prompt: {title}")
+
+                time.sleep(60)  # prevent double-posting in same minute
+
+        except Exception as e:
+            print(f"⚠️ Daily prompt error: {e}")
+        time.sleep(30)
+# =========================
 # Discord events
 # =========================
 @bot.event
@@ -974,7 +1033,7 @@ async def on_ready():
     threading.Thread(target=reddit_polling, daemon=True).start()
     threading.Thread(target=decay_loop, daemon=True).start()
     threading.Thread(target=sla_loop, daemon=True).start()
-
+    threading.Thread(target=daily_prompt_poster, daemon=True).start()
 @bot.event
 @bot.event
 async def on_reaction_add(reaction, user):
