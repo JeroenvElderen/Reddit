@@ -812,14 +812,35 @@ def handle_new_item(item):
 # Polling (PRAW)
 # =========================
 def reddit_polling():
-    """Background polling for new comments + posts."""
+    """Background polling for new subscribers + comments + posts."""
     print("🌍 Reddit polling started...")
     while True:
         try:
+            # --- NEW: register subscribers ---
+            for redditor in subreddit.stream.subscribers(pause_after=0):
+                if redditor is None:
+                    break
+                name = str(redditor)
+                res = supabase.table("user_karma").select("username").eq("username", name).execute()
+                if not res.data:
+                    supabase.table("user_karma").upsert({
+                        "username": name,
+                        "karma": 0,
+                        "last_flair": "Cover Curious"
+                    }).execute()
+                    flair_id = flair_templates.get("Cover Curious")
+                    if flair_id:
+                        subreddit.flair.set(redditor=name, flair_template_id=flair_id)
+                    print(f"🌱 Registered new subscriber: u/{name}")
+
+            # --- Existing logic: comments ---
             for comment in subreddit.comments(limit=10):
                 handle_new_item(comment)
+
+            # --- Existing logic: submissions ---
             for submission in subreddit.new(limit=5):
                 handle_new_item(submission)
+
         except Exception as e:
             print(f"⚠️ Reddit poll error: {e}")
         time.sleep(15)
