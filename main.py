@@ -400,19 +400,34 @@ def generate_trivia():
 
 def generate_body_positive():
     try:
+        # 🌿 Emoji pool for variety
+        emoji_pool = ["🌿", "🌞", "🍃", "💚", "🌊", "🌻", "🌈", "✨", "🍂", "🌺", "🌱"]
+        chosen = random.sample(emoji_pool, k=3)  # pick 3 different emojis each time
+
         resp = openai.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a body positivity and naturist community guide."},
-                {"role": "user", "content": "Write one short, uplifting body-positive message for naturists."}
+                {
+                    "role": "system",
+                    "content": "You are a naturist community guide who writes uplifting, body-positive posts."
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Write a naturist body-positive message in 2–4 sentences. "
+                        "Encourage self-love, confidence, and natural beauty. "
+                        "Use warm, inclusive language. "
+                        f"Include these emojis naturally in the text: {', '.join(chosen)}"
+                    )
+                }
             ],
-            max_tokens=60
+            max_tokens=140
         )
         return resp.choices[0].message["content"].strip()
     except Exception as e:
         print(f"⚠️ Body-positive generation failed: {e}")
-        return "Every body is unique and beautiful 🌿 embrace your natural self."
-        
+        return "💚 Every body is unique and beautiful 🌿 embrace your natural self under the sun 🌞."
+         
 def generate_mindfulness():
     try:
         resp = openai.ChatCompletion.create(
