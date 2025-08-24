@@ -424,7 +424,7 @@ def generate_trivia():
         return "🌞 True or False: Naturism encourages respect for both people and nature."
         
 def generate_body_positive():
-    """Generate a unique body positivity message and store it in Supabase."""
+    """Generate a longer uplifting body positivity message (2–5 sentences) with emojis."""
     try:
         for _ in range(5):
             resp = openai.ChatCompletion.create(
@@ -434,15 +434,16 @@ def generate_body_positive():
                         "role": "system",
                         "content": (
                             "You are a naturist body positivity coach. "
-                            "Write a short uplifting message (2–3 sentences) "
-                            "that celebrates natural bodies, diversity, confidence, and freedom. "
-                            "Always include emojis that match the theme (🌞🌿🌊✨🌸💚). "
-                            "Avoid repeating previous messages."
+                            "Always write between 2 and 5 sentences. "
+                            "Celebrate natural bodies, diversity, confidence, and freedom. "
+                            "Use emojis like 🌞🌿🌊✨🌸💚 naturally throughout the message. "
+                            "Each message must feel fresh, supportive, and uplifting. "
+                            "Do not repeat previous prompts."
                         )
                     },
-                    {"role": "user", "content": "Give one body positivity prompt for naturists."}
+                    {"role": "user", "content": "Write one body positivity message for naturists."}
                 ],
-                max_tokens=120
+                max_tokens=200
             )
             message = resp.choices[0].message["content"].strip()
 
@@ -457,12 +458,12 @@ def generate_body_positive():
                 return message
 
         # Fallback
-        return "💚 Every body is unique and beautiful 🌿 embrace your natural self with pride and confidence."
+        return "💚 Every body is unique and beautiful 🌿✨. Embrace your natural self with pride and confidence 🌞🌸🌊."
 
     except Exception as e:
         print(f"⚠️ Body-positive generation failed: {e}")
-        return "🌞 Remember: your body is not something to fix — it's something to celebrate 🌸✨."
-         
+        return "🌞 Remember: your body is not something to fix — it's something to celebrate 🌿💚✨."
+        
 def generate_mindfulness():
     try:
         resp = openai.ChatCompletion.create(
@@ -1103,29 +1104,20 @@ def daily_prompt_poster():
         try:
             now = datetime.now(current_tz())
 
-            # Runs once per day at 12:15
-            if now.hour == 13 and now.minute == 30:
+            # Runs once per day at 12:00
+            if now.hour == 12 and now.minute == 0:
                 today = now.date().isoformat()
 
-                # Check if something was already posted today
-                if now.toordinal() % 2 == 0:
-                    # Body positivity day
-                    res = supabase.table("daily_bodypositive").select("*").eq("date_posted", today).execute()
-                    if res.data:
-                        print("ℹ️ Body positivity already posted today, skipping.")
-                        time.sleep(60)
-                        continue
-                    prompt = generate_body_positive()
-                    title = "💚 Body Positivity Prompt"
-                else:
-                    # Trivia day
-                    res = supabase.table("daily_trivia").select("*").eq("date_posted", today).execute()
-                    if res.data:
-                        print("ℹ️ Trivia already posted today, skipping.")
-                        time.sleep(60)
-                        continue
-                    prompt = generate_trivia()
-                    title = "🌞 Naturist Trivia of the Day"
+                # Check if already posted today
+                res = supabase.table("daily_bodypositive").select("*").eq("date_posted", today).execute()
+                if res.data:
+                    print("ℹ️ Body positivity already posted today, skipping.")
+                    time.sleep(60)
+                    continue
+
+                # Always body positivity
+                prompt = generate_body_positive()
+                title = "💚 Body Positivity Prompt"
 
                 # Submit post
                 submission = subreddit.submit(title, selftext=prompt)
@@ -1148,7 +1140,7 @@ def daily_prompt_poster():
                 else:
                     print("ℹ️ No Daily Prompt flair ID configured, skipping flair")
 
-                print(f"📢 Posted daily prompt: {title}")
+                print(f"📢 Posted daily body positivity prompt")
                 time.sleep(60)  # avoid double posting in same minute
 
         except Exception as e:
