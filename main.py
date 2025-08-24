@@ -1102,12 +1102,28 @@ def daily_prompt_poster():
     while True:
         try:
             now = datetime.now(current_tz())
-            if now.hour == 13 and now.minute == 00:  # runs daily at 12:15
-                # Alternate daily: odd = body positivity, even = trivia
-                if now.day % 2 == 1:
+
+            # Runs once per day at 12:15
+            if now.hour == 12 and now.minute == 15:
+                today = now.date().isoformat()
+
+                # Check if something was already posted today
+                if now.toordinal() % 2 == 0:
+                    # Body positivity day
+                    res = supabase.table("daily_bodypositive").select("*").eq("date_posted", today).execute()
+                    if res.data:
+                        print("ℹ️ Body positivity already posted today, skipping.")
+                        time.sleep(60)
+                        continue
                     prompt = generate_body_positive()
                     title = "💚 Body Positivity Prompt"
                 else:
+                    # Trivia day
+                    res = supabase.table("daily_trivia").select("*").eq("date_posted", today).execute()
+                    if res.data:
+                        print("ℹ️ Trivia already posted today, skipping.")
+                        time.sleep(60)
+                        continue
                     prompt = generate_trivia()
                     title = "🌞 Naturist Trivia of the Day"
 
@@ -1121,7 +1137,7 @@ def daily_prompt_poster():
                 except Exception as e:
                     print(f"⚠️ Could not auto-approve Daily Prompt post: {e}")
 
-                # Try to apply Daily Prompt flair (optional)
+                # Try to apply Daily Prompt flair
                 daily_flair_id = flair_templates.get("Daily Prompt")
                 if daily_flair_id:
                     try:
@@ -1133,10 +1149,11 @@ def daily_prompt_poster():
                     print("ℹ️ No Daily Prompt flair ID configured, skipping flair")
 
                 print(f"📢 Posted daily prompt: {title}")
-                time.sleep(60)  # prevent double-posting in same minute
+                time.sleep(60)  # avoid double posting in same minute
 
         except Exception as e:
             print(f"⚠️ Daily prompt error: {e}")
+
         time.sleep(30)
 # =========================
 # Discord events
