@@ -149,6 +149,7 @@ flair_templates = {
     "True Naturist": "8a5fbeb0-7dd7-11f0-9fa7-2e98a4cf4302",
     "Bare Master": "987da246-7dd7-11f0-ae7f-8206f7eb2e0a",
     "Naturist Legend": "a3f1f8fc-7dd7-11f0-b2c1-227301a06778",
+    "Daily Prompt": "PASTE-YOUR-FLAIR-ID-HERE",
 }
 
 # =========================
