@@ -1168,7 +1168,18 @@ def daily_prompt_poster():
                     print("✅ Auto-approved Daily Prompt post")
                 except Exception as e:
                     print(f"⚠️ Could not auto-approve Daily Prompt post: {e}")
-
+                # Log bot's own post to Discord
+                asyncio.run_coroutine_threadsafe(
+                    send_discord_auto_log(
+                        submission,
+                        old_k=0, new_k=0,
+                        flair="Daily Prompt",
+                        awarded_points=0,
+                        extras_note="Bot daily body positivity post"
+                    ),
+                    bot.loop
+                
+                )
                 # Try to apply Daily Prompt flair
                 daily_flair_id = flair_templates.get("Daily Prompt")
                 if daily_flair_id:
@@ -1194,8 +1205,8 @@ def daily_fact_poster():
         try:
             now = datetime.now(current_tz())
 
-            # Runs once per day at 00:00 (midnight)
-            if now.hour == 0 and now.minute == 0:
+            # Runs once per day at 08:00 (midnight)
+            if now.hour == 8 and now.minute == 0:
                 today = now.date().isoformat()
 
                 # Skip if already posted today
@@ -1217,7 +1228,19 @@ def daily_fact_poster():
                     print("✅ Auto-approved Naturist Fact post")
                 except Exception as e:
                     print(f"⚠️ Could not auto-approve Naturist Fact post: {e}")
-
+                
+                # Log bot's own post to Discord
+                asyncio.run_coroutine_threadsafe(
+                    send_discord_auto_log(
+                        submission,
+                        old_k=0, new_k=0,
+                        flair="Daily Prompt",
+                        awarded_points=0,
+                        extras_note="Bot daily fact post"
+                    ),
+                    bot.loop
+                )
+                
                 # Apply Daily Prompt flair (reuse same one if you want)
                 daily_flair_id = flair_templates.get("Daily Prompt")
                 if daily_flair_id:
