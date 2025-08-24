@@ -1104,7 +1104,7 @@ def daily_prompt_poster():
             now = datetime.now(current_tz())
 
             # Runs once per day at 12:15
-            if now.hour == 12 and now.minute == 15:
+            if now.hour == 13 and now.minute == 15:
                 today = now.date().isoformat()
 
                 # Check if something was already posted today
