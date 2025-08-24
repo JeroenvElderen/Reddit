@@ -1083,13 +1083,14 @@ def daily_prompt_poster():
     while True:
         try:
             now = datetime.now(current_tz())
-            if now.hour == 12 and now.minute == 15:  # runs daily at 12:00
-                if random.random() < 0.5:
-                    prompt = generate_trivia()
-                    title = "🌞 Naturist Trivia of the Day"
-                else:
+            if now.hour == 12 and now.minute == 30:  # runs daily at 12:15
+                # Alternate daily: odd = body positivity, even = trivia
+                if now.day % 2 == 1:
                     prompt = generate_body_positive()
                     title = "💚 Body Positivity Prompt"
+                else:
+                    prompt = generate_trivia()
+                    title = "🌞 Naturist Trivia of the Day"
 
                 # Submit post
                 submission = subreddit.submit(title, selftext=prompt)
