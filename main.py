@@ -479,6 +479,46 @@ def generate_mindfulness():
         print(f"⚠️ Mindfulness generation failed: {e}")
         return "Take a moment to feel the breeze on your skin and breathe deeply."
 
+def generate_naturist_fact():
+    """Generate a longer naturist fact (up to 5 sentences, with emojis)."""
+    try:
+        for _ in range(5):  # retry a few times if duplicate
+            resp = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a naturist historian and educator. "
+                            "Write one naturist-related fact in 2–5 sentences. "
+                            "Facts can include history, culture, health, famous naturist places, or environmental aspects. "
+                            "Always weave in emojis naturally (🌿🌞🌊✨💚). "
+                            "Make it sound friendly and engaging for a naturist community. "
+                            "Avoid repeating previous facts."
+                        )
+                    },
+                    {"role": "user", "content": "Give one unique naturist fact now."}
+                ],
+                max_tokens=200
+            )
+            fact = resp.choices[0].message["content"].strip()
+
+            # Check if fact already exists
+            res = supabase.table("daily_facts").select("id").eq("fact", fact).execute()
+            if not res.data:
+                supabase.table("daily_facts").insert({
+                    "date_posted": datetime.now().date().isoformat(),
+                    "fact": fact
+                }).execute()
+                return fact
+
+        # fallback if duplicates
+        return "🌞 Did you know? Naturism has deep roots in early 20th century Europe, promoting health, freedom, and a closer bond with nature 🌿✨."
+
+    except Exception as e:
+        print(f"⚠️ Fact generation failed: {e}")
+        return "🌿 Naturism celebrates respect for the earth, body positivity, and living freely under the sun 🌞."
+        
 # ---------- About snapshot ----------
 def about_user_block(name: str):
     res = supabase.table("user_karma").select("*").eq("username", name).execute()
@@ -1147,6 +1187,53 @@ def daily_prompt_poster():
             print(f"⚠️ Daily prompt error: {e}")
 
         time.sleep(30)
+        
+def daily_fact_poster():
+    print("🕒 Daily fact loop started...")
+    while True:
+        try:
+            now = datetime.now(current_tz())
+
+            # Runs once per day at 00:00 (midnight)
+            if now.hour == 0 and now.minute == 0:
+                today = now.date().isoformat()
+
+                # Skip if already posted today
+                res = supabase.table("daily_facts").select("*").eq("date_posted", today).execute()
+                if res.data:
+                    print("ℹ️ Fact already posted today, skipping.")
+                    time.sleep(60)
+                    continue
+
+                fact = generate_naturist_fact()
+                title = "🌿 Naturist Fact of the Day"
+
+                # Submit post
+                submission = subreddit.submit(title, selftext=fact)
+
+                # ✅ Auto-approve bot’s own daily posts
+                try:
+                    submission.mod.approve()
+                    print("✅ Auto-approved Naturist Fact post")
+                except Exception as e:
+                    print(f"⚠️ Could not auto-approve Naturist Fact post: {e}")
+
+                # Apply Daily Prompt flair (reuse same one if you want)
+                daily_flair_id = flair_templates.get("Daily Prompt")
+                if daily_flair_id:
+                    try:
+                        submission.flair.select(daily_flair_id)
+                        print("🏷️ Flair set to Daily Prompt")
+                    except Exception as e:
+                        print(f"⚠️ Could not set flair: {e}")
+
+                print(f"📢 Posted daily fact: {title}")
+                time.sleep(60)
+
+        except Exception as e:
+            print(f"⚠️ Daily fact error: {e}")
+
+        time.sleep(30)
 # =========================
 # Discord events
 # =========================
@@ -1159,6 +1246,7 @@ async def on_ready():
     threading.Thread(target=decay_loop, daemon=True).start()
     threading.Thread(target=sla_loop, daemon=True).start()
     threading.Thread(target=daily_prompt_poster, daemon=True).start()
+    threading.Thread(target=daily_fact_poster, daemon=True).start()
 
 @bot.event
 async def on_reaction_add(reaction, user):
