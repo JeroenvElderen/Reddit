@@ -398,6 +398,21 @@ def generate_trivia():
         print(f"⚠️ Trivia generation failed: {e}")
         return "What year did the modern naturist movement begin?"
 
+def generate_body_positive():
+    try:
+        resp = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a body positivity and naturist community guide."},
+                {"role": "user", "content": "Write one short, uplifting body-positive message for naturists."}
+            ],
+            max_tokens=60
+        )
+        return resp.choices[0].message["content"].strip()
+    except Exception as e:
+        print(f"⚠️ Body-positive generation failed: {e}")
+        return "Every body is unique and beautiful 🌿 embrace your natural self."
+        
 def generate_mindfulness():
     try:
         resp = openai.ChatCompletion.create(
@@ -1037,7 +1052,7 @@ def daily_prompt_poster():
     while True:
         try:
             now = datetime.now(current_tz())
-            if now.hour == 12 and now.minute == 0:  # runs daily at 12:00
+            if now.hour == 12 and now.minute == 15:  # runs daily at 12:00
                 if random.random() < 0.5:
                     prompt = generate_trivia()
                     title = "🌞 Naturist Trivia of the Day"
