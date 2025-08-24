@@ -385,19 +385,35 @@ def restore_pending_reviews():
     # ---------- OpenAI Daily Prompt Generators ----------
 def generate_trivia():
     try:
+        # Rotate between different trivia styles
+        styles = [
+            "Write a multiple-choice naturist trivia question (with 3 answer options).",
+            "Write a fun fact about naturism, phrased as a trivia-style question.",
+            "Write a naturist history trivia question with a clear answer.",
+            "Write a short true/false naturist trivia question.",
+            "Write a question about famous naturist places or beaches."
+        ]
+        chosen = random.choice(styles)
+
         resp = openai.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a trivia generator for a naturist Reddit community."},
-                {"role": "user", "content": "Write one naturist-themed trivia question."}
+                {
+                    "role": "system",
+                    "content": "You are a trivia generator for a naturist Reddit community."
+                },
+                {
+                    "role": "user",
+                    "content": chosen
+                }
             ],
-            max_tokens=60
+            max_tokens=120
         )
         return resp.choices[0].message["content"].strip()
     except Exception as e:
         print(f"⚠️ Trivia generation failed: {e}")
-        return "What year did the modern naturist movement begin?"
-
+        return "🌞 True or False: Naturism is only about being naked, not about respect for nature."
+        
 def generate_body_positive():
     try:
         # 🌿 Emoji pool for variety
