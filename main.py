@@ -859,17 +859,18 @@ def handle_new_item(item):
         return
 
     # AUTO-APPROVE path
-    if karma >= 500:   # ✅ now inside the function
+        # AUTO-APPROVE path (either high karma OR bot itself)
+    bot_username = os.getenv("REDDIT_USERNAME", "").lower()
+    if karma >= 500 or author_name.lower() == bot_username:
         item.mod.approve()
         old_k, new_k, flair, total_delta, extras = apply_approval_awards(item, is_manual=False)
+
+        # Option: prevent karma changes for the bot itself
+        if author_name.lower() == bot_username:
+            old_k, new_k, flair, total_delta, extras = 0, 0, "—", 0, ""
+
         note = f"+{total_delta}" + (f" ({extras})" if extras else "")
         print(f"✅ Auto-approved u/{author_name} ({old_k}→{new_k}) {note}")
-
-        # send the auto-approval log to review channel (for context)
-       # asyncio.run_coroutine_threadsafe(
-       #     send_discord_auto_log(item, old_k, new_k, flair, total_delta, extras_note=extras),
-       #     bot.loop
-       # )
 
         # also log to approval log channel
         asyncio.run_coroutine_threadsafe(
@@ -1035,17 +1036,36 @@ def daily_prompt_poster():
     while True:
         try:
             now = datetime.now(current_tz())
-            if now.hour == 9 and now.minute == 0:  # runs daily at 09:00
+            if now.hour == 12 and now.minute == 0:  # runs daily at 12:00
                 if random.random() < 0.5:
                     prompt = generate_trivia()
                     title = "🌞 Naturist Trivia of the Day"
                 else:
-                    prompt = generate_mindfulness()
-                    title = "🌿 Naturist Mindfulness Prompt"
+                    prompt = generate_body_positive()
+                    title = "💚 Body Positivity Prompt"
 
-                subreddit.submit(title, selftext=prompt)
+                # Submit post
+                submission = subreddit.submit(title, selftext=prompt)
+
+                # ✅ Auto-approve bot’s own daily posts
+                try:
+                    submission.mod.approve()
+                    print("✅ Auto-approved Daily Prompt post")
+                except Exception as e:
+                    print(f"⚠️ Could not auto-approve Daily Prompt post: {e}")
+
+                # Try to apply Daily Prompt flair (optional)
+                daily_flair_id = flair_templates.get("Daily Prompt")
+                if daily_flair_id:
+                    try:
+                        submission.flair.select(daily_flair_id)
+                        print("🏷️ Flair set to Daily Prompt")
+                    except Exception as e:
+                        print(f"⚠️ Could not set flair: {e}")
+                else:
+                    print("ℹ️ No Daily Prompt flair ID configured, skipping flair")
+
                 print(f"📢 Posted daily prompt: {title}")
-
                 time.sleep(60)  # prevent double-posting in same minute
 
         except Exception as e:
