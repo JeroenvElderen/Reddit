@@ -340,6 +340,47 @@ def get_shadow_flag(username: str) -> str | None:
         pass
     return None
     
+# =========================
+# Pending reviews persistence (Supabase)
+# =========================
+def save_pending_review(msg_id: int, item, level: int):
+    try:
+        supabase.table("pending_reviews").upsert({
+            "msg_id": msg_id,
+            "item_id": item.id,
+            "is_submission": hasattr(item, "title"),
+            "created_ts": datetime.utcnow().isoformat(),
+            "level": level,
+        }).execute()
+        print(f"💾 Saved pending review {msg_id} for {item.id}")
+    except Exception as e:
+        print(f"⚠️ Failed to save pending review {msg_id}: {e}")
+
+def delete_pending_review(msg_id: int):
+    try:
+        supabase.table("pending_reviews").delete().eq("msg_id", msg_id).execute()
+        print(f"🗑️ Deleted pending review {msg_id}")
+    except Exception as e:
+        print(f"⚠️ Failed to delete pending review {msg_id}: {e}")
+
+def restore_pending_reviews():
+    rows = supabase.table("pending_reviews").select("*").execute().data or []
+    for row in rows:
+        try:
+            if row["is_submission"]:
+                item = reddit.submission(id=row["item_id"])
+            else:
+                item = reddit.comment(id=row["item_id"])
+            pending_reviews[row["msg_id"]] = {
+                "item": item,
+                "created_ts": time.time(),
+                "last_escalated_ts": time.time(),
+                "level": row["level"],
+            }
+            print(f"🔄 Restored pending review {row['msg_id']} for u/{item.author}")
+        except Exception as e:
+            print(f"⚠️ Could not restore review {row['msg_id']}: {e}")
+    
     # ---------- OpenAI Daily Prompt Generators ----------
 def generate_trivia():
     try:
@@ -564,6 +605,7 @@ async def send_discord_approval(item, lang_label=None, note=None, night_guard_pi
         "last_escalated_ts": time.time(),
         "level": priority_level,
     }
+    save_pending_review(msg.id, item, priority_level)
     print(f"📨 Sent {item_type} by u/{author} to Discord (priority={priority_level}, ETA={eta_text}, night_ping={bool(mention)})")
 
 async def send_discord_auto_log(item, old_k, new_k, flair, awarded_points, extras_note=""):
@@ -1015,6 +1057,8 @@ def daily_prompt_poster():
 @bot.event
 async def on_ready():
     print(f"🤖 Discord bot logged in as {bot.user}")
+    # Restore reviews from Supabase
+    restore_pending_reviews()
     threading.Thread(target=reddit_polling, daemon=True).start()
     threading.Thread(target=decay_loop, daemon=True).start()
     threading.Thread(target=sla_loop, daemon=True).start()
@@ -1035,6 +1079,7 @@ async def on_reaction_add(reaction, user):
         return
 
     entry = pending_reviews.pop(msg_id, None)
+    delete_pending_review(msg_id)
     if not entry:
         print("⚠️ Entry missing even though msg_id was in pending_reviews.")
         return
