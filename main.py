@@ -384,65 +384,84 @@ def restore_pending_reviews():
     
     # ---------- OpenAI Daily Prompt Generators ----------
 def generate_trivia():
+    """Generate a unique trivia question and store it in Supabase."""
     try:
-        # Rotate between different trivia styles
-        styles = [
-            "Write a multiple-choice naturist trivia question (with 3 answer options).",
-            "Write a fun fact about naturism, phrased as a trivia-style question.",
-            "Write a naturist history trivia question with a clear answer.",
-            "Write a short true/false naturist trivia question.",
-            "Write a question about famous naturist places or beaches."
-        ]
-        chosen = random.choice(styles)
+        for _ in range(5):  # try up to 5 times to avoid duplicates
+            resp = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a trivia generator for a naturist Reddit community. "
+                            "Always create varied and engaging questions: true/false, "
+                            "multiple choice, or open-ended. Cover history, culture, "
+                            "environment, health, famous naturist places, and body positivity. "
+                            "Use emojis naturally. Never repeat previous ones."
+                        )
+                    },
+                    {"role": "user", "content": "Write one unique naturist trivia question now."}
+                ],
+                max_tokens=100
+            )
+            question = resp.choices[0].message["content"].strip()
 
-        resp = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a trivia generator for a naturist Reddit community."
-                },
-                {
-                    "role": "user",
-                    "content": chosen
-                }
-            ],
-            max_tokens=120
-        )
-        return resp.choices[0].message["content"].strip()
+            # Check if already exists
+            res = supabase.table("daily_trivia").select("id").eq("question", question).execute()
+            if not res.data:
+                # Save new question
+                supabase.table("daily_trivia").insert({
+                    "date_posted": datetime.now().date().isoformat(),
+                    "question": question
+                }).execute()
+                return question
+
+        # Fallback if all retries were duplicates
+        return "🌿 In which decade did modern naturism first gain popularity in Europe?"
+
     except Exception as e:
         print(f"⚠️ Trivia generation failed: {e}")
-        return "🌞 True or False: Naturism is only about being naked, not about respect for nature."
+        return "🌞 True or False: Naturism encourages respect for both people and nature."
         
 def generate_body_positive():
+    """Generate a unique body positivity message and store it in Supabase."""
     try:
-        # 🌿 Emoji pool for variety
-        emoji_pool = ["🌿", "🌞", "🍃", "💚", "🌊", "🌻", "🌈", "✨", "🍂", "🌺", "🌱"]
-        chosen = random.sample(emoji_pool, k=3)  # pick 3 different emojis each time
+        for _ in range(5):
+            resp = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a naturist body positivity coach. "
+                            "Write a short uplifting message (2–3 sentences) "
+                            "that celebrates natural bodies, diversity, confidence, and freedom. "
+                            "Always include emojis that match the theme (🌞🌿🌊✨🌸💚). "
+                            "Avoid repeating previous messages."
+                        )
+                    },
+                    {"role": "user", "content": "Give one body positivity prompt for naturists."}
+                ],
+                max_tokens=120
+            )
+            message = resp.choices[0].message["content"].strip()
 
-        resp = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a naturist community guide who writes uplifting, body-positive posts."
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        "Write a naturist body-positive message in 2–4 sentences. "
-                        "Encourage self-love, confidence, and natural beauty. "
-                        "Use warm, inclusive language. "
-                        f"Include these emojis naturally in the text: {', '.join(chosen)}"
-                    )
-                }
-            ],
-            max_tokens=140
-        )
-        return resp.choices[0].message["content"].strip()
+            # Check if already exists
+            res = supabase.table("daily_bodypositive").select("id").eq("message", message).execute()
+            if not res.data:
+                # Save new message
+                supabase.table("daily_bodypositive").insert({
+                    "date_posted": datetime.now().date().isoformat(),
+                    "message": message
+                }).execute()
+                return message
+
+        # Fallback
+        return "💚 Every body is unique and beautiful 🌿 embrace your natural self with pride and confidence."
+
     except Exception as e:
         print(f"⚠️ Body-positive generation failed: {e}")
-        return "💚 Every body is unique and beautiful 🌿 embrace your natural self under the sun 🌞."
+        return "🌞 Remember: your body is not something to fix — it's something to celebrate 🌸✨."
          
 def generate_mindfulness():
     try:
@@ -1083,7 +1102,7 @@ def daily_prompt_poster():
     while True:
         try:
             now = datetime.now(current_tz())
-            if now.hour == 12 and now.minute == 30:  # runs daily at 12:15
+            if now.hour == 13 and now.minute == 00:  # runs daily at 12:15
                 # Alternate daily: odd = body positivity, even = trivia
                 if now.day % 2 == 1:
                     prompt = generate_body_positive()
