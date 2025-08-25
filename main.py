@@ -46,6 +46,11 @@ reddit_owner = praw.Reddit(
 
 SUBREDDIT_NAME = "PlanetNaturists"
 subreddit = reddit.subreddit(SUBREDDIT_NAME)
+# =========================
+# bot account flair
+# ========================
+BOT_USERNAME = os.getenv("REDDIT_USERNAME", "").lower()
+BOT_FLAIR_ID = os.getenv("BOT_FLAIR_ID", "ce269096-81b1-11f0-b51d-6ecc7a96815b")
 
 # =========================
 # Discord
@@ -214,7 +219,19 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
     """Apply delta to karma (floor at 0 if allow_negative=False) and update user flair."""
     if user_or_name is None:
         return 0, 0, "Cover Curious"
-    name = str(user_or_name)
+
+    name = str(user_or_name).lower()
+
+    # 🔒 Special case: bot account always keeps fixed flair
+    if name == BOT_USERNAME:
+        try:
+            subreddit.flair.set(redditor=name, flair_template_id=BOT_FLAIR_ID)
+            print(f"🤖 Bot account flair forced to ID {BOT_FLAIR_ID}")
+        except Exception as e:
+            print(f"⚠️ Failed to set bot flair: {e}")
+        return 0, 0, "Bot"
+
+    # --- Normal user flow ---
     res = supabase.table("user_karma").select("*").eq("username", name).execute()
     row = res.data[0] if res.data else {}
     old = int(row.get("karma", 0))
@@ -228,6 +245,7 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
         subreddit.flair.set(redditor=name, flair_template_id=flair_id)
         print(f"🏷️ Flair set for {name} → {flair} ({new} karma)")
     return old, new, flair
+
 
 # =========================
 # get last approved item
