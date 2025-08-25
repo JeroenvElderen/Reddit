@@ -1691,11 +1691,13 @@ def post_weekly_achievements():
 
     title = "🌟 Weekly Naturist Achievements 🌿✨"
     try:
-        submission = subreddit.submit(title, selftext=text)
+        # 👇 use OWNER account to post instead of Bot
+        submission = reddit_owner.subreddit(SUBREDDIT_NAME).submit(title, selftext=text)
         submission.mod.approve()
-        print("✅ Weekly achievements post auto-approved")
+        print("✅ Weekly achievements post auto-approved (by owner account)")
     except Exception as e:
         print(f"⚠️ Could not post weekly achievements: {e}")
+
 
 def weekly_achievements_loop():
     print("🕒 Weekly achievements loop started...")
