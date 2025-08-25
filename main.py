@@ -1780,23 +1780,53 @@ def get_weekly_achievements():
     return res.data or []
 
 def post_weekly_achievements():
-    rows = get_weekly_achievements()
-    if not rows:
-        print("ℹ️ No achievements this week — skipping weekly post.")
-        return
-    
-    text = format_weekly_achievements(rows)
-    if not text:
-        return
+    """Post weekly digest with new + all-time achievements."""
+    week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+
+    # fetch new badges (last 7 days)
+    recent_rows = supabase.table("user_badges").select("*").gte("unlocked_on", week_ago).execute().data or []
+
+    # fetch all-time badges
+    all_rows = supabase.table("user_badges").select("*").execute().data or []
+
+    parts = []
+    parts.append("🌟🌿🌞🌿🌟\n✨ Weekly Naturist Achievements ✨\n🌟🌿🌞🌿🌟\n")
+
+    # --- Section 1: New achievements ---
+    if recent_rows:
+        parts.append("🎉 **New Achievements This Week**")
+        for row in recent_rows:
+            u = row["username"]
+            badge = row["badge"]
+            parts.append(f"• u/{u} → {badge}")
+    else:
+        parts.append("🎉 **New Achievements This Week**\nThis week there are no new achievements reached 🌱")
+
+    parts.append("\n🌿🌿🌿🌿🌿\n")
+
+    # --- Section 2: All-time achievements per user ---
+    if all_rows:
+        user_badges = {}
+        for row in all_rows:
+            user_badges.setdefault(row["username"], []).append(row["badge"])
+
+        parts.append("📜 **All-Time Achievements (per user)**")
+        for u, badges in sorted(user_badges.items()):
+            badges_text = ", ".join(sorted(badges))
+            parts.append(f"• u/{u} → {badges_text}")
+
+    parts.append("\n🌞💚 Keep shining, sharing, and celebrating naturism! ✨🌿")
+
+    text = "\n".join(parts)
 
     title = "🌟 Weekly Naturist Achievements 🌿✨"
     try:
-        # 👇 use OWNER account to post instead of Bot
         submission = reddit_owner.subreddit(SUBREDDIT_NAME).submit(title, selftext=text)
         submission.mod.approve()
         print("✅ Weekly achievements post auto-approved (by owner account)")
     except Exception as e:
         print(f"⚠️ Could not post weekly achievements: {e}")
+
 
 
 def weekly_achievements_loop():
