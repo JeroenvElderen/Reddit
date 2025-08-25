@@ -329,13 +329,20 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
         flair_id = flair_templates.get(flair)
         if flair_id:
             subreddit.flair.set(redditor=name, flair_template_id=flair_id)
+                # increment exit counter
+        exits = int(row.get("observer_exits_count", 0)) + 1
         supabase.table("user_karma").upsert({
             "username": name,
             "karma": new,
-            "last_flair": flair
+            "last_flair": flair,
+            "observer_exits_count": exits
         }).execute()
+        row["observer_exits_count"] = exits
+        check_observer_badges(name, row)
+
         print(f"🌅 {name} climbed out of Quiet Observer → {flair} ({new} karma)")
         return old, new, flair
+
 
     # 🪶 Otherwise → normal flair ladder
     flair = get_flair_for_karma(new)
@@ -494,6 +501,63 @@ def check_seasonal_and_rare(username: str, row: dict):
             "unlocked_on": datetime.utcnow().isoformat()
         }).execute()
         print(f"🌍 Traveler badge unlocked for u/{username}")
+
+# =========================
+# Observer Ladder Badges
+# =========================
+def check_observer_badges(username: str, row: dict):
+    """Check and award Quiet Observer achievement ladders."""
+    # --- Patience ---
+    patience_thresholds = [7, 30, 90]
+    patience_badges = ["Still Waters 🪷", "Deep Reflection 🪷", "Silent Strength 🪷"]
+    for i, t in enumerate(patience_thresholds):
+        if row.get("observer_days", 0) >= t:
+            award_badge(username, f"{patience_badges[i]} Lv.{i+1 if i < 2 else 'MAX'}")
+
+    # --- Contribution ---
+    contrib_thresholds = [1, 5, 20]
+    contrib_badges = ["Quiet Voice 🗣️", "Gentle Helper 💚", "Guiding Light 🌟"]
+    for i, t in enumerate(contrib_thresholds):
+        if row.get("observer_comments_count", 0) >= t:
+            award_badge(username, f"{contrib_badges[i]} Lv.{i+1 if i < 2 else 'MAX'}")
+
+    # --- Growth ---
+    growth_thresholds = [1, 3, 5]
+    growth_badges = ["First Step 🌱", "Comeback Trail 👣", "Resilient Spirit ✨"]
+    for i, t in enumerate(growth_thresholds):
+        if row.get("observer_exits_count", 0) >= t:
+            award_badge(username, f"{growth_badges[i]} Lv.{i+1 if i < 2 else 'MAX'}")
+
+    # --- Community Support ---
+    support_thresholds = [10, 50, 200]
+    support_badges = ["Friendly Observer 🤝", "Encourager 🌿", "Community Whisper ✨"]
+    for i, t in enumerate(support_thresholds):
+        if row.get("observer_upvotes_total", 0) >= t:
+            award_badge(username, f"{support_badges[i]} Lv.{i+1 if i < 2 else 'MAX'}")
+
+
+def award_badge(username: str, badge_name: str):
+    """Generic badge award helper (to keep code DRY)."""
+    try:
+        supabase.table("user_badges").upsert({
+            "username": username,
+            "badge": badge_name,
+            "unlocked_on": datetime.utcnow().isoformat()
+        }).execute()
+        print(f"🌙 Observer badge unlocked: {badge_name} for u/{username}")
+
+        # Optional: DM user from owner account
+        try:
+            reddit_owner.redditor(username).message(
+                "🌙 New Observer Achievement!",
+                f"Congrats u/{username}! You just earned **{badge_name}** 🏆\n\n"
+                f"Your time as an Observer is part of your naturist journey 🌿"
+            )
+        except Exception as e:
+            print(f"⚠️ Could not DM Observer badge to {username}: {e}")
+
+    except Exception as e:
+        print(f"⚠️ Could not save Observer badge for {username}: {e}")
 
 # =========================
 # Weekly achievements digest formatter
@@ -1553,6 +1617,31 @@ def apply_approval_awards(item, is_manual: bool):
             # Check Seasonal & Rare
             row = supabase.table("user_karma").select("*").eq("username", name).execute().data[0]
             check_seasonal_and_rare(name, row)
+
+        # 🌙 Observer contribution + support
+        if row.get("last_flair") == "Quiet Observer":
+            if not hasattr(item, "title"):  # comment
+                comments = int(row.get("observer_comments_count", 0)) + 1
+                supabase.table("user_karma").upsert({
+                    "username": name,
+                    "observer_comments_count": comments
+                }).execute()
+                row["observer_comments_count"] = comments
+
+            # add upvotes (both posts & comments)
+            try:
+                score = int(getattr(item, "score", 0) or 0)
+            except Exception:
+                score = 0
+            upvotes = int(row.get("observer_upvotes_total", 0)) + score
+            supabase.table("user_karma").upsert({
+                "username": name,
+                "observer_upvotes_total": upvotes
+            }).execute()
+            row["observer_upvotes_total"] = upvotes
+
+            check_observer_badges(name, row)
+
     except Exception as e:
         print(f"⚠️ Achievement ladder failed: {e}")
 
@@ -1665,9 +1754,20 @@ def apply_decay_once():
         return
 
     today_local = datetime.now(current_tz()).date()
+
     for row in rows:
         name = row.get("username")
         karma = int(row.get("karma", 0))
+            # 🌙 Observer: track days spent in Observer
+        if row.get("last_flair") == "Quiet Observer":
+            days = int(row.get("observer_days", 0)) + 1
+            supabase.table("user_karma").upsert({
+                "username": name,
+                "observer_days": days
+            }).execute()
+            row["observer_days"] = days
+            check_observer_badges(name, row)
+
         if karma <= 0:
             continue
 
@@ -1780,7 +1880,7 @@ def get_weekly_achievements():
     return res.data or []
 
 def post_weekly_achievements():
-    """Post weekly digest with new + all-time achievements."""
+    """Post weekly digest with new + all-time + observer achievements."""
     week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
 
     # fetch new badges (last 7 days)
@@ -1804,7 +1904,26 @@ def post_weekly_achievements():
 
     parts.append("\n🌿🌿🌿🌿🌿\n")
 
-    # --- Section 2: All-time achievements per user ---
+    # --- Section 2: Quiet Observer achievements ---
+    observer_rows = [r for r in all_rows if any(obs_kw in r["badge"] for obs_kw in [
+        "Still Waters", "Deep Reflection", "Silent Strength",
+        "Quiet Voice", "Gentle Helper", "Guiding Light",
+        "First Step", "Comeback Trail", "Resilient Spirit",
+        "Friendly Observer", "Encourager", "Community Whisper"
+    ])]
+
+    if observer_rows:
+        observer_badges = {}
+        for row in observer_rows:
+            observer_badges.setdefault(row["username"], []).append(row["badge"])
+        parts.append("🌙 **Quiet Observer Achievements**")
+        for u, badges in sorted(observer_badges.items()):
+            badges_text = ", ".join(sorted(badges))
+            parts.append(f"• u/{u} → {badges_text}")
+
+        parts.append("\n🌿🌿🌿🌿🌿\n")
+
+    # --- Section 3: All-time achievements per user ---
     if all_rows:
         user_badges = {}
         for row in all_rows:
@@ -1826,8 +1945,6 @@ def post_weekly_achievements():
         print("✅ Weekly achievements post auto-approved (by owner account)")
     except Exception as e:
         print(f"⚠️ Could not post weekly achievements: {e}")
-
-
 
 def weekly_achievements_loop():
     print("🕒 Weekly achievements loop started...")
