@@ -368,20 +368,31 @@ def restore_pending_reviews():
     rows = supabase.table("pending_reviews").select("*").execute().data or []
     for row in rows:
         try:
+            # Load the original item from Reddit
             if row["is_submission"]:
                 item = reddit.submission(id=row["item_id"])
             else:
                 item = reddit.comment(id=row["item_id"])
-            pending_reviews[row["msg_id"]] = {
-                "item": item,
-                "created_ts": time.time(),
-                "last_escalated_ts": time.time(),
-                "level": row["level"],
-            }
-            print(f"🔄 Restored pending review {row['msg_id']} for u/{item.author}")
+
+            # Delete the old msg_id record (since the old Discord card is gone after restart)
+            delete_pending_review(row["msg_id"])
+
+            # Re-post to Discord with a red "(RESTORED)" note
+            asyncio.run_coroutine_threadsafe(
+                send_discord_approval(
+                    item,
+                    lang_label="English",
+                    note="🔴 Restored after bot restart",
+                    priority_level=row.get("level", 0)
+                ),
+                bot.loop
+            )
+
+            print(f"🔄 Re-posted restored review for u/{item.author} (level={row.get('level',0)})")
+
         except Exception as e:
-            print(f"⚠️ Could not restore review {row['msg_id']}: {e}")
-    
+            print(f"⚠️ Could not restore review {row.get('msg_id')}: {e}")
+            
     # ---------- OpenAI Daily Prompt Generators ----------
 def generate_trivia():
     """Generate a unique trivia question and store it in Supabase."""
@@ -667,7 +678,11 @@ async def send_discord_approval(item, lang_label=None, note=None, night_guard_pi
         item_type = "Comment"
         img_label = "N/A"
 
+    # === Title prefix handling ===
     title_prefix = f"{SLA_PRIORITY_PREFIX} (L{priority_level}) · " if priority_level > 0 else ""
+    if note and "Restored" in note:
+        title_prefix = "🔴 (RESTORED) · " + title_prefix
+
     embed = discord.Embed(
         title=f"{title_prefix}🧾 {item_type} Pending Review",
         description=(content[:4000] + ("... (truncated)" if len(content) > 4000 else "")),
@@ -688,7 +703,6 @@ async def send_discord_approval(item, lang_label=None, note=None, night_guard_pi
     # === Rules overview ===
     rules_overview = "\n".join([f"{emoji} {text}" for emoji, text in REJECTION_REASONS.items()])
     embed.add_field(name="Rules Overview", value=rules_overview[:1024], inline=False)
-
 
     # === ETA footer (NEW) ===
     eta_text = compute_eta_text(pending_count=len(pending_reviews) + 1)
@@ -714,7 +728,7 @@ async def send_discord_approval(item, lang_label=None, note=None, night_guard_pi
     }
     save_pending_review(msg.id, item, priority_level)
     print(f"📨 Sent {item_type} by u/{author} to Discord (priority={priority_level}, ETA={eta_text}, night_ping={bool(mention)})")
-
+    
 async def send_discord_auto_log(item, old_k, new_k, flair, awarded_points, extras_note=""):
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
     if not channel:
