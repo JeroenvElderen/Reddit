@@ -179,6 +179,7 @@ flair_templates = {
     "Bare Master": "987da246-7dd7-11f0-ae7f-8206f7eb2e0a",
     "Naturist Legend": "a3f1f8fc-7dd7-11f0-b2c1-227301a06778",
     "Daily Prompt": "8b04873e-80d8-11f0-81d2-260f76f8fd83",
+    "Quiet Observer": "a3d0f81c-81c6-11f0-a40f-028908714e28",
 }
 
 # =========================
@@ -301,14 +302,34 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
     new = old + delta
     if not allow_negative:
         new = max(0, new)
+
+    # 🌿 Special case: if karma drops below 10 → reset to 0 and give Quiet Observer flair
+    if new < 10 and old >= 10:
+        new = 0
+        flair = "Quiet Observer"
+        flair_id = flair_templates.get(flair)
+        if flair_id:
+            subreddit.flair.set(redditor=name, flair_template_id=flair_id)
+        supabase.table("user_karma").upsert({
+            "username": name,
+            "karma": new,
+            "last_flair": flair
+        }).execute()
+        print(f"🌙 Quiet Observer → {name} reset to 0 karma and given Quiet Observer flair")
+        return old, new, flair
+
+    # Otherwise → normal flair ladder
     flair = get_flair_for_karma(new)
-    supabase.table("user_karma").upsert({"username": name, "karma": new, "last_flair": flair}).execute()
+    supabase.table("user_karma").upsert({
+        "username": name,
+        "karma": new,
+        "last_flair": flair
+    }).execute()
     flair_id = flair_templates.get(flair)
     if flair_id:
         subreddit.flair.set(redditor=name, flair_template_id=flair_id)
         print(f"🏷️ Flair set for {name} → {flair} ({new} karma)")
     return old, new, flair
-
 
 # =========================
 # get last approved item
@@ -797,6 +818,7 @@ def cmd_help(author: str, message):
         "!decay": "Check if you’re close to decay",
         "!top": "See this week’s top posts",
         "!safety": "Naturist safety tips",
+        "!observer": "Get Quiet Observer flair",
         "!help": "Show this menu",
     }
     message.reply(
@@ -804,6 +826,26 @@ def cmd_help(author: str, message):
         + "\n".join([f"- {c} → {desc}" for c, desc in commands.items()])
         + "\n\nType any command in DM (e.g., `!stats`)."
     )
+
+def cmd_observer(author: str, message):
+    """Let users self-assign the Quiet Observer flair."""
+    flair_id = flair_templates.get("Quiet Observer")
+    if flair_id:
+        try:
+            subreddit.flair.set(redditor=author, flair_template_id=flair_id)
+            supabase.table("user_karma").upsert({
+                "username": author,
+                "last_flair": "Quiet Observer"
+            }).execute()
+            message.reply(
+                "🌙 You are now a **Quiet Observer 🌿**.\n\n"
+                "You can still earn karma and climb back into the flair ladder anytime you contribute 🌞"
+            )
+            print(f"🌙 u/{author} set themselves to Quiet Observer")
+        except Exception as e:
+            message.reply("⚠️ Sorry, I couldn’t set your Observer flair right now.")
+            print(f"⚠️ Failed to set Quiet Observer flair for {author}: {e}")
+
 
 # Map of available commands
 COMMANDS = {
@@ -813,6 +855,7 @@ COMMANDS = {
     "!decay": cmd_decay,
     "!top": cmd_top,
     "!safety": cmd_safety,
+    "!observer": cmd_observer,
     "!help": cmd_help,
 }
 
