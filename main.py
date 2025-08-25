@@ -227,6 +227,10 @@ META_TITLES = [
     "Naturist Legend 👑"
 ]
 
+def badge_level_label(level: int, max_level: int) -> str:
+    """Return Lv.MAX if level is the last one, otherwise Lv.{n}"""
+    return "Lv.MAX" if level == max_level else f"Lv.{level}"
+
 # =========================
 # State
 # =========================
@@ -368,7 +372,7 @@ def check_and_award_badge(username: str, field: str, count: int):
 
     # Example: beach_posts_count → Beach Lv.2
     base = field.replace("_posts_count", "").replace("_", " ").title()
-    badge_name = f"{base} Lv.{level}"
+    badge_name = f"{base} {badge_level_label(level, len(BADGE_THRESHOLDS))}"
 
     try:
         supabase.table("user_badges").upsert({
@@ -397,7 +401,7 @@ def check_pillar_badge(username: str, field: str, count: int):
     if level == 0:
         return
     base = field.replace("_posts_count", "").replace("_", " ").title()
-    badge_name = f"{base} Lv.{level}"
+    badge_name = f"{base} {badge_level_label(level, len(PILLAR_THRESHOLDS))}"
     supabase.table("user_badges").upsert({
         "username": username,
         "badge": badge_name,
@@ -413,7 +417,7 @@ def check_meta_badge(username: str, total_count: int):
     level = sum(1 for t in META_THRESHOLDS if total_count >= t)
     if level == 0:
         return
-    badge_name = META_TITLES[level - 1]
+    badge_name = f"{META_TITLES[level - 1]} {badge_level_label(level, len(META_THRESHOLDS))}"
     supabase.table("user_badges").upsert({
         "username": username,
         "badge": badge_name,
@@ -456,21 +460,54 @@ def check_seasonal_and_rare(username: str, row: dict):
 # =========================
 def format_weekly_achievements(rows):
     if not rows:
-        return None  # skip posting if no achievements
+        return None
 
-    lines = []
+    locations, pillars, meta, rare = [], [], [], []
+
     for row in rows:
         u = row["username"]
         badge = row["badge"]
-        when = row.get("unlocked_on", "")[:10]
-        # sprinkle emojis into each badge line
-        decorated_badge = sprinkle_emojis(badge, count=2)
-        lines.append(f"👤 u/{u} → **{decorated_badge}** _(unlocked {when})_")
 
-    header = sprinkle_emojis("🌟 This Week’s Naturist Achievements 🌟", count=4)
-    footer = sprinkle_emojis("Keep sharing your naturist journey!", count=3)
+        # Format line
+        line = f"• u/{u} → {badge}"
 
-    return f"{header}\n\n" + "\n".join(lines) + f"\n\n{footer}"
+        # Categorize based on badge text
+        if any(loc in badge for loc in [
+            "Beach","Forest","Lake","Mountain","Meadow","River",
+            "Pool","Backyard","Camping","Sauna","Resort","Island",
+            "Countryside","Cave","Tropical","Nordic","Festival"
+        ]):
+            locations.append(line)
+        elif "Lv." in badge and not any(meta_kw in badge for meta_kw in [
+            "Seed","Explorer","Adventurer","Voice","Friend","Root",
+            "Chaser","Spirit","Child","Legend"
+        ]):
+            pillars.append(line)
+        elif any(meta_kw in badge for meta_kw in [
+            "Seed","Explorer","Adventurer","Voice","Friend","Root",
+            "Chaser","Spirit","Child","Legend"
+        ]):
+            meta.append(line)
+        else:
+            rare.append(line)
+
+    parts = []
+    # Big Header
+    parts.append("🌟🌿🌞🌿🌟\n✨ Weekly Naturist Achievements ✨\n🌟🌿🌞🌿🌟\n")
+
+    if locations:
+        parts.append("🏖️ **Location Achievements**\n" + "\n".join(locations) + "\n\n🌿🌿🌿🌿🌿")
+    if pillars:
+        parts.append("🧘 **Pillar Progress**\n" + "\n".join(pillars) + "\n\n🌿🌿🌿🌿🌿")
+    if meta:
+        parts.append("👑 **Meta Ladder**\n" + "\n".join(meta) + "\n\n🌿🌿🌿🌿🌿")
+    if rare:
+        parts.append("🎉 **Special Unlocks**\n" + "\n".join(rare) + "\n\n🌿🌿🌿🌿🌿")
+
+    parts.append("🌞💚 Keep shining, sharing, and celebrating naturism! ✨🌿")
+
+    return "\n\n".join(parts)
+
 
 # =========================
 # Decay Warning Helpers
