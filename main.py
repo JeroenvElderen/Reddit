@@ -137,9 +137,21 @@ REJECTION_REASONS = {
     "✏️": "Custom reason (to be filled manually)",
 
 }
+# =========================
+# 🌿 Naturist emoji pool for creative posts
+# =========================
+NATURIST_EMOJIS = [
+    "🌿", "🌞", "🌊", "✨", "🍂", "❄️", "🌸", "☀️",
+    "👣", "🌍", "💚", "🌴", "🏕️", "🧘", "🌳", "🏖️", "🔥"
+]
+
+def sprinkle_emojis(text: str, count: int = 3) -> str:
+    """Randomly add naturist emojis to the start/end of a message."""
+    chosen = random.sample(NATURIST_EMOJIS, k=min(count, len(NATURIST_EMOJIS)))
+    return f"{' '.join(chosen)} {text} {' '.join(chosen)}"
 
 # =========================
-# Flair ladder + user flair templates
+# Flair ladder + user flair templates 
 # =========================
 flair_ladder = [
     ("Cover Curious", 0),
@@ -153,6 +165,7 @@ flair_ladder = [
     ("Bare Master", 5000),
     ("Naturist Legend", 10000),
 ]
+
 flair_templates = {
     "Needs Growth": "75c23a86-7f6d-11f0-8745-f666d1d62ce4",
     "Cover Curious": "ae791af4-7d22-11f0-934a-2e3446070201",
@@ -167,6 +180,52 @@ flair_templates = {
     "Naturist Legend": "a3f1f8fc-7dd7-11f0-b2c1-227301a06778",
     "Daily Prompt": "8b04873e-80d8-11f0-81d2-260f76f8fd83",
 }
+
+# =========================
+# location flair -> supabase Mapping
+# =========================
+FLAIR_TO_FIELD = {
+    "Beach": "beach_posts_count",
+    "Lake": "lake_posts_count",
+    "River": "river_posts_count",
+    "Hot Spring": "hotspring_posts_count",
+    "Poolside": "pool_posts_count",
+    "Forest": "forest_posts_count",
+    "Mountain": "mountain_posts_count",
+    "Meadow": "meadow_posts_count",
+    "Desert": "desert_posts_count",
+    "Cave": "cave_posts_count",
+    "Tropical": "tropical_posts_count",
+    "Nordic / Cold": "nordic_posts_count",
+    "Island": "island_posts_count",
+    "Urban": "urban_posts_count",
+    "Countryside": "countryside_posts_count",
+    "Festival": "festival_posts_count",
+    "Resort / Club": "resort_posts_count",
+    "Camping": "camping_posts_count",
+    "Backyard / Home": "backyard_posts_count",
+    "Sauna / Spa": "sauna_posts_count",
+}
+# badge thresholds
+BADGE_THRESHOLDS = [3, 7, 15, 30, 50]
+
+# pillar thresholds
+PILLAR_THRESHOLDS = [1, 3, 5, 10, 15, 25, 40, 60, 80, 100]
+
+# ultimate ladder
+META_THRESHOLDS = [10, 25, 50, 100, 150, 200, 300, 400, 500, 1000]
+META_TITLES = [
+    "Curious Explorer 🌱",
+    "Bare Adventurer 👣",
+    "Naturist Voice 🗣️",
+    "Nature Friend 🌿",
+    "Community Root 🌳",
+    "Sun Chaser 🌞",
+    "Open Spirit ✨",
+    "Earth Child 🌍",
+    "Naturist Sage 🧘",
+    "Naturist Legend 👑"
+]
 
 # =========================
 # State
@@ -272,6 +331,146 @@ def get_last_approved_item(username: str):
         print(f"⚠️ Could not fetch last approved item for {username}: {e}")
 
     return None, None
+
+# =========================
+# Location flair counters + badges
+# =========================
+def increment_location_counter(submission, author_name: str):
+    """Increment Supabase counter based on post flair."""
+    flair = submission.link_flair_text
+    if not flair or flair not in FLAIR_TO_FIELD:
+        return
+
+    field = FLAIR_TO_FIELD[flair]
+    try:
+        res = supabase.table("user_karma").select("*").eq("username", author_name).execute()
+        row = res.data[0] if res.data else {}
+        current = int(row.get(field, 0))
+        new_val = current + 1
+
+        supabase.table("user_karma").upsert({
+            "username": author_name,
+            field: new_val
+        }).execute()
+
+        print(f"🏷️ Incremented {field} for u/{author_name} → {new_val}")
+        check_and_award_badge(author_name, field, new_val)
+
+    except Exception as e:
+        print(f"⚠️ Failed to increment location counter: {e}")
+
+
+def check_and_award_badge(username: str, field: str, count: int):
+    """Check if a user unlocked a new badge level."""
+    level = sum(1 for t in BADGE_THRESHOLDS if count >= t)
+    if level == 0:
+        return
+
+    # Example: beach_posts_count → Beach Lv.2
+    base = field.replace("_posts_count", "").replace("_", " ").title()
+    badge_name = f"{base} Lv.{level}"
+
+    try:
+        supabase.table("user_badges").upsert({
+            "username": username,
+            "badge": badge_name,
+            "unlocked_on": datetime.utcnow().isoformat()
+        }).execute()
+        print(f"🌟 Badge unlocked: {badge_name} for u/{username}")
+
+        # Optional: DM user from owner account
+        try:
+            reddit_owner.redditor(username).message(
+                "🌟 New Naturist Achievement!",
+                f"Congrats u/{username}! You just reached **{badge_name}** 🏆\n\n"
+                f"Keep exploring naturism and sharing your journey 🌞"
+            )
+        except Exception as e:
+            print(f"⚠️ Could not DM badge to {username}: {e}")
+
+    except Exception as e:
+        print(f"⚠️ Could not save badge for {username}: {e}")
+
+def check_pillar_badge(username: str, field: str, count: int):
+    """Check 10-level naturist pillar ladders (body positivity, travel, etc)."""
+    level = sum(1 for t in PILLAR_THRESHOLDS if count >= t)
+    if level == 0:
+        return
+    base = field.replace("_posts_count", "").replace("_", " ").title()
+    badge_name = f"{base} Lv.{level}"
+    supabase.table("user_badges").upsert({
+        "username": username,
+        "badge": badge_name,
+        "unlocked_on": datetime.utcnow().isoformat()
+    }).execute()
+    print(f"🌟 Pillar badge unlocked: {badge_name} for u/{username}")
+
+# =========================
+# Meta badge, seasonal, rare badges
+# =========================
+def check_meta_badge(username: str, total_count: int):
+    """Check 10-level ultimate naturist ladder (meta)."""
+    level = sum(1 for t in META_THRESHOLDS if total_count >= t)
+    if level == 0:
+        return
+    badge_name = META_TITLES[level - 1]
+    supabase.table("user_badges").upsert({
+        "username": username,
+        "badge": badge_name,
+        "unlocked_on": datetime.utcnow().isoformat()
+    }).execute()
+    print(f"👑 Meta badge unlocked: {badge_name} for u/{username}")
+
+
+def check_seasonal_and_rare(username: str, row: dict):
+    """Check seasonal & rare single-unlock badges."""
+    # Seasonal
+    if all([row.get("posted_in_spring"), row.get("posted_in_summer"),
+            row.get("posted_in_autumn"), row.get("posted_in_winter")]):
+        supabase.table("user_badges").upsert({
+            "username": username,
+            "badge": "Seasonal Naturist 🍂❄️🌸☀️",
+            "unlocked_on": datetime.utcnow().isoformat()
+        }).execute()
+        print(f"🌟 Seasonal badge unlocked for u/{username}")
+
+    # Rare
+    if row.get("festivals_attended", 0) >= 1:
+        supabase.table("user_badges").upsert({
+            "username": username,
+            "badge": "Festival Free Spirit 🎶",
+            "unlocked_on": datetime.utcnow().isoformat()
+        }).execute()
+        print(f"🎶 Festival badge unlocked for u/{username}")
+
+    if row.get("countries_posted", 0) >= 5:
+        supabase.table("user_badges").upsert({
+            "username": username,
+            "badge": "Naturist Traveler 🌍",
+            "unlocked_on": datetime.utcnow().isoformat()
+        }).execute()
+        print(f"🌍 Traveler badge unlocked for u/{username}")
+
+# =========================
+# Weekly achievements digest formatter
+# =========================
+def format_weekly_achievements(rows):
+    if not rows:
+        return None  # skip posting if no achievements
+
+    lines = []
+    for row in rows:
+        u = row["username"]
+        badge = row["badge"]
+        when = row.get("unlocked_on", "")[:10]
+        # sprinkle emojis into each badge line
+        decorated_badge = sprinkle_emojis(badge, count=2)
+        lines.append(f"👤 u/{u} → **{decorated_badge}** _(unlocked {when})_")
+
+    header = sprinkle_emojis("🌟 This Week’s Naturist Achievements 🌟", count=4)
+    footer = sprinkle_emojis("Keep sharing your naturist journey!", count=3)
+
+    return f"{header}\n\n" + "\n".join(lines) + f"\n\n{footer}"
 
 # =========================
 # Decay Warning Helpers
@@ -1125,9 +1324,9 @@ def on_first_approval_welcome(item, author_name: str, old_karma: int):
             "Thanks for contributing. Please remember:\n"
             "• Be respectful & follow our community rules\n"
             "• Blur faces / remove location data if needed\n"
-            "• Use clear titles and context for photos\n\n"
+            "• Use clear titles and context for photos\n"
+            "• Try `!help` in a DM to me for commands\n\n"
             "Happy posting! 🌿"
-            "• Try `!help` in a DM to me for commands"
         )
         item.reply(text)
         print(f"👋 Welcome reply posted for u/{author_name}")
@@ -1212,6 +1411,51 @@ def apply_approval_awards(item, is_manual: bool):
             auto_set_post_flair_if_missing(item)
     except Exception:
         pass
+
+    try:
+        if hasattr(item, "title"):  # only posts, not comments
+            increment_location_counter(item, name)
+
+            # Increment Pillars (simple keyword-based example)
+            title_body = (getattr(item, "title", "") + " " + getattr(item, "selftext", "")).lower()
+            pillar_fields = {
+                "body": "bodypositivity_posts_count",
+                "travel": "travel_posts_count",
+                "mind": "mindfulness_posts_count",
+                "advocacy": "advocacy_posts_count",
+            }
+            for kw, field in pillar_fields.items():
+                if kw in title_body:
+                    res = supabase.table("user_karma").select("*").eq("username", name).execute()
+                    row = res.data[0] if res.data else {}
+                    current = int(row.get(field, 0))
+                    new_val = current + 1
+                    supabase.table("user_karma").upsert({"username": name, field: new_val}).execute()
+                    check_pillar_badge(name, field, new_val)
+
+            # Meta ladder → total naturist posts
+            res = supabase.table("user_karma").select("*").eq("username", name).execute()
+            row = res.data[0] if res.data else {}
+            total = int(row.get("naturist_total_posts", 0)) + 1
+            supabase.table("user_karma").upsert({"username": name, "naturist_total_posts": total}).execute()
+            check_meta_badge(name, total)
+
+            # Seasonal (detect by post flair or month)
+            month = datetime.utcnow().month
+            field_map = {12: "posted_in_winter", 1: "posted_in_winter", 2: "posted_in_winter",
+                         3: "posted_in_spring", 4: "posted_in_spring", 5: "posted_in_spring",
+                         6: "posted_in_summer", 7: "posted_in_summer", 8: "posted_in_summer",
+                         9: "posted_in_autumn", 10: "posted_in_autumn", 11: "posted_in_autumn"}
+            season_field = field_map.get(month)
+            if season_field:
+                supabase.table("user_karma").update({season_field: True}).eq("username", name).execute()
+
+            # Check Seasonal & Rare
+            row = supabase.table("user_karma").select("*").eq("username", name).execute().data[0]
+            check_seasonal_and_rare(name, row)
+    except Exception as e:
+        print(f"⚠️ Achievement ladder failed: {e}")
+
 
     return old_k2, new_k, flair, total_delta, ("; ".join(extras) if extras else "")
 
@@ -1426,6 +1670,46 @@ def feedback_loop():
 
         time.sleep(86400)  # run once per day
 
+# =========================
+# Weekly Achievements Loop
+# =========================
+def get_weekly_achievements():
+    """Fetch all badges unlocked in the past 7 days."""
+    week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+    res = supabase.table("user_badges").select("*").gte("unlocked_on", week_ago).execute()
+    return res.data or []
+
+def post_weekly_achievements():
+    rows = get_weekly_achievements()
+    if not rows:
+        print("ℹ️ No achievements this week — skipping weekly post.")
+        return
+    
+    text = format_weekly_achievements(rows)
+    if not text:
+        return
+
+    title = "🌟 Weekly Naturist Achievements 🌿✨"
+    try:
+        submission = subreddit.submit(title, selftext=text)
+        submission.mod.approve()
+        print("✅ Weekly achievements post auto-approved")
+    except Exception as e:
+        print(f"⚠️ Could not post weekly achievements: {e}")
+
+def weekly_achievements_loop():
+    print("🕒 Weekly achievements loop started...")
+    while True:
+        try:
+            now = datetime.now(current_tz())
+            # Run every Sunday at 12:00
+            if now.weekday() == 6 and now.hour == 12 and now.minute == 0:
+                post_weekly_achievements()
+                time.sleep(60)  # avoid duplicate run in same minute
+        except Exception as e:
+            print(f"⚠️ Weekly achievements loop error: {e}")
+        time.sleep(30)
+
 
 def decay_loop():
     print("🕒 Decay loop started...")
@@ -1624,6 +1908,7 @@ async def on_ready():
     threading.Thread(target=daily_prompt_poster, daemon=True).start()
     threading.Thread(target=daily_fact_poster, daemon=True).start()
     threading.Thread(target=feedback_loop, daemon=True).start()
+    threading.Thread(target=weekly_achievements_loop, daemon=True).start()
 
 @bot.event
 async def on_reaction_add(reaction, user):
