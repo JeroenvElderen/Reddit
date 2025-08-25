@@ -284,7 +284,7 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
     if user_or_name is None:
         return 0, 0, "Cover Curious"
 
-    name = str(user_or_name).lower()
+    name = str(user_or_name)
 
     # 🔒 Special case: bot account always keeps fixed flair
     if name == BOT_USERNAME:
@@ -296,7 +296,7 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
         return 0, 0, "Bot"
 
     # --- Normal user flow ---
-    res = supabase.table("user_karma").select("*").eq("username", name).execute()
+    res = supabase.table("user_karma").select("*").ilike("username", name).execute()
     row = res.data[0] if res.data else {}
     old = int(row.get("karma", 0))
 
@@ -394,7 +394,7 @@ def increment_location_counter(submission, author_name: str):
 
     field = FLAIR_TO_FIELD[flair]
     try:
-        res = supabase.table("user_karma").select("*").eq("username", author_name).execute()
+        res = supabase.table("user_karma").select("*").ilike("username", author_name).execute()
         row = res.data[0] if res.data else {}
         current = int(row.get(field, 0))
         new_val = current + 1
@@ -794,7 +794,7 @@ def image_flag_label(sub) -> str:
 # ---------- Shadow flags ----------
 def get_shadow_flag(username: str) -> str | None:
     try:
-        res = supabase.table("shadow_flags").select("note").eq("username", username).execute()
+        res = supabase.table("shadow_flags").select("note").ilike("username", username).execute()
         if res.data:
             note = (res.data[0].get("note") or "").strip()
             return note or None
@@ -808,7 +808,7 @@ def get_shadow_flag(username: str) -> str | None:
 def get_user_stats(username: str):
     """Fetch stats for a given user from Supabase."""
     try:
-        res = supabase.table("user_karma").select("*").eq("username", username).execute()
+        res = supabase.table("user_karma").select("*").ilike("username", username).execute()
         if not res.data:
             return None
         row = res.data[0]
@@ -1167,7 +1167,7 @@ def generate_naturist_fact():
         
 # ---------- About snapshot ----------
 def about_user_block(name: str):
-    res = supabase.table("user_karma").select("*").eq("username", name).execute()
+    res = supabase.table("user_karma").select("*").ilike("username", name).execute()
     sub_karma = int(res.data[0]["karma"]) if res.data else 0
     try:
         rd = reddit.redditor(name)
@@ -1504,7 +1504,7 @@ def apply_approval_points_and_flair(item, total_delta: int):
 def apply_approval_awards(item, is_manual: bool):
     author = item.author
     name = str(author)
-    res = supabase.table("user_karma").select("*").eq("username", name).execute()
+    res = supabase.table("user_karma").select("*").ilike("username", name).execute()
     row = res.data[0] if res.data else {}
     old_k = int(row.get("karma", 0))
     last_date_s = row.get("last_approved_date")
@@ -1590,7 +1590,7 @@ def apply_approval_awards(item, is_manual: bool):
             }
             for kw, field in pillar_fields.items():
                 if kw in title_body:
-                    res = supabase.table("user_karma").select("*").eq("username", name).execute()
+                    res = supabase.table("user_karma").select("*").ilike("username", name).execute()
                     row = res.data[0] if res.data else {}
                     current = int(row.get(field, 0))
                     new_val = current + 1
@@ -1598,7 +1598,7 @@ def apply_approval_awards(item, is_manual: bool):
                     check_pillar_badge(name, field, new_val)
 
             # Meta ladder → total naturist posts
-            res = supabase.table("user_karma").select("*").eq("username", name).execute()
+            res = supabase.table("user_karma").select("*").ilike("username", name).execute()
             row = res.data[0] if res.data else {}
             total = int(row.get("naturist_total_posts", 0)) + 1
             supabase.table("user_karma").upsert({"username": name, "naturist_total_posts": total}).execute()
@@ -1612,10 +1612,10 @@ def apply_approval_awards(item, is_manual: bool):
                          9: "posted_in_autumn", 10: "posted_in_autumn", 11: "posted_in_autumn"}
             season_field = field_map.get(month)
             if season_field:
-                supabase.table("user_karma").update({season_field: True}).eq("username", name).execute()
+                supabase.table("user_karma").update({season_field: True}).ilike("username", name).execute()
 
             # Check Seasonal & Rare
-            row = supabase.table("user_karma").select("*").eq("username", name).execute().data[0]
+            row = supabase.table("user_karma").select("*").ilike("username", name).execute().data[0]
             check_seasonal_and_rare(name, row)
 
         # 🌙 Observer contribution + support
@@ -1668,7 +1668,7 @@ def handle_new_item(item):
         print(f"🤖 skipping queue for bot's own post/comment {item.id}")
         return
 
-    res = supabase.table("user_karma").select("*").eq("username", author_name).execute()
+    res = supabase.table("user_karma").select("*").ilike("username", author_name).execute()
     karma = int(res.data[0]["karma"]) if res.data else 0
 
     # Language hinting
@@ -1845,7 +1845,7 @@ def feedback_loop():
                     )
                     supabase.table("user_karma").update(
                         {"feedback_1m_sent": True}
-                    ).eq("username", name).execute()
+                    ).ilike("username", name).execute()
 
                 # 1 Week Rule Opinion
                 if days_active >= 7 and not row.get("feedback_1w_rule_sent"):
@@ -1854,7 +1854,7 @@ def feedback_loop():
                     )
                     supabase.table("user_karma").update(
                         {"feedback_1w_rule_sent": True}
-                    ).eq("username", name).execute()
+                    ).ilike("username", name).execute()
 
                 # 1 Week Prompt Opinion
                 if days_active >= 7 and not row.get("feedback_1w_prompt_sent"):
@@ -1863,7 +1863,7 @@ def feedback_loop():
                     )
                     supabase.table("user_karma").update(
                         {"feedback_1w_prompt_sent": True}
-                    ).eq("username", name).execute()
+                    ).ilike("username", name).execute()
 
         except Exception as e:
             print(f"⚠️ Feedback loop error: {e}")
