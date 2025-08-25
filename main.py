@@ -1109,6 +1109,7 @@ def on_first_approval_welcome(item, author_name: str, old_karma: int):
             "• Blur faces / remove location data if needed\n"
             "• Use clear titles and context for photos\n\n"
             "Happy posting! 🌿"
+            "• Try `!help` in a DM to me for commands"
         )
         item.reply(text)
         print(f"👋 Welcome reply posted for u/{author_name}")
