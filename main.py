@@ -299,11 +299,16 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
     res = supabase.table("user_karma").select("*").eq("username", name).execute()
     row = res.data[0] if res.data else {}
     old = int(row.get("karma", 0))
-    new = old + delta
-    if not allow_negative:
-        new = max(0, new)
 
-    # 🌿 Special case: if karma drops below 10 → reset to 0 and give Quiet Observer flair
+    # 🌙 Quiet Observer never goes negative
+    if row.get("last_flair") == "Quiet Observer":
+        new = max(0, old + delta)
+    else:
+        new = old + delta
+        if not allow_negative:
+            new = max(0, new)
+
+    # 🌿 Drop into Quiet Observer if karma falls below 10
     if new < 10 and old >= 10:
         new = 0
         flair = "Quiet Observer"
@@ -318,7 +323,21 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
         print(f"🌙 Quiet Observer → {name} reset to 0 karma and given Quiet Observer flair")
         return old, new, flair
 
-    # Otherwise → normal flair ladder
+    # 🌅 Exit Quiet Observer once they climb back to 5+
+    if row.get("last_flair") == "Quiet Observer" and new >= 5:
+        flair = get_flair_for_karma(new)
+        flair_id = flair_templates.get(flair)
+        if flair_id:
+            subreddit.flair.set(redditor=name, flair_template_id=flair_id)
+        supabase.table("user_karma").upsert({
+            "username": name,
+            "karma": new,
+            "last_flair": flair
+        }).execute()
+        print(f"🌅 {name} climbed out of Quiet Observer → {flair} ({new} karma)")
+        return old, new, flair
+
+    # 🪶 Otherwise → normal flair ladder
     flair = get_flair_for_karma(new)
     supabase.table("user_karma").upsert({
         "username": name,
@@ -828,24 +847,25 @@ def cmd_help(author: str, message):
     )
 
 def cmd_observer(author: str, message):
-    """Let users self-assign the Quiet Observer flair."""
+    """Let users self-assign the Quiet Observer flair (karma reset to 0)."""
     flair_id = flair_templates.get("Quiet Observer")
     if flair_id:
         try:
             subreddit.flair.set(redditor=author, flair_template_id=flair_id)
             supabase.table("user_karma").upsert({
                 "username": author,
+                "karma": 0,   # 👈 reset karma
                 "last_flair": "Quiet Observer"
             }).execute()
             message.reply(
                 "🌙 You are now a **Quiet Observer 🌿**.\n\n"
+                "Your karma has been reset to 0. "
                 "You can still earn karma and climb back into the flair ladder anytime you contribute 🌞"
             )
-            print(f"🌙 u/{author} set themselves to Quiet Observer")
+            print(f"🌙 u/{author} set themselves to Quiet Observer (karma reset to 0)")
         except Exception as e:
             message.reply("⚠️ Sorry, I couldn’t set your Observer flair right now.")
             print(f"⚠️ Failed to set Quiet Observer flair for {author}: {e}")
-
 
 # Map of available commands
 COMMANDS = {
