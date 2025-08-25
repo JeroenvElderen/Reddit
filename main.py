@@ -118,6 +118,7 @@ POST_FLAIR_TEXT_ID = os.getenv("POST_FLAIR_TEXT_ID", "")
 POST_FLAIR_LINK_ID = os.getenv("POST_FLAIR_LINK_ID", "")
 POST_FLAIR_KEYWORDS = os.getenv("POST_FLAIR_KEYWORDS", "")
 
+OWNER_USERNAME = os.getenv("OWNER_REDDIT_USERNAME", "").lower()
 
 # =========================
 # Rejection reasons (1–10 + extra)
@@ -329,7 +330,7 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
         flair_id = flair_templates.get(flair)
         if flair_id:
             subreddit.flair.set(redditor=name, flair_template_id=flair_id)
-                # increment exit counter
+        # increment exit counter
         exits = int(row.get("observer_exits_count", 0)) + 1
         supabase.table("user_karma").upsert({
             "username": name,
@@ -1691,17 +1692,18 @@ def handle_new_item(item):
         )
         return
 
-    # AUTO-APPROVE path
-        # AUTO-APPROVE path (either high karma OR bot itself)
+    # AUTO-APPROVE path (either high karma OR bot itself)
     bot_username = os.getenv("REDDIT_USERNAME", "").lower()
-    if karma >= 500 or author_name.lower() == bot_username:
+    
+    # AUTO-APPROVE path (either high karma OR bot/owner)
+    if karma >= 500 or author_name.lower() in (bot_username, OWNER_USERNAME):
         item.mod.approve()
         old_k, new_k, flair, total_delta, extras = apply_approval_awards(item, is_manual=False)
 
-        # Option: prevent karma changes for the bot itself
+        # Prevent karma/flair only for the bot itself
         if author_name.lower() == bot_username:
             old_k, new_k, flair, total_delta, extras = 0, 0, "—", 0, ""
-
+    
         note = f"+{total_delta}" + (f" ({extras})" if extras else "")
         print(f"✅ Auto-approved u/{author_name} ({old_k}→{new_k}) {note}")
 
