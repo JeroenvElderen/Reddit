@@ -5,6 +5,7 @@ import threading
 import asyncio
 import openai
 import random
+import re
 from datetime import datetime, date, timedelta, timezone, time as dtime
 from urllib.parse import urlparse
 
@@ -12,6 +13,22 @@ import praw
 import discord
 from discord.ext import commands
 from supabase import create_client, Client
+
+def _normalize_flair_key(s: str) -> str:
+    # strip emoji/non-ASCII, normalize spaces & slash spacing, casefold
+    s = (s or "").encode("ascii", "ignore").decode()
+    s = re.sub(r"\s*/\s*", " / ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s.casefold()
+
+def _text_flair_without_emoji(submission) -> str:
+    # prefer richtext so emojis are split from text
+    rt = getattr(submission, "link_flair_richtext", None) or []
+    if isinstance(rt, list) and rt:
+        txt = " ".join(p.get("t","") for p in rt if p.get("e") == "text").strip()
+        if txt:
+            return txt
+    return (getattr(submission, "link_flair_text", "") or "").strip()
 
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -60,6 +77,7 @@ DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
 DISCORD_DECAY_LOG_CHANNEL_ID = int(os.getenv("DISCORD_DECAY_LOG_CHANNEL_ID", "1408406356582731776"))
 DISCORD_APPROVAL_LOG_CHANNEL_ID = int(os.getenv("DISCORD_APPROVAL_LOG_CHANNEL_ID", "1408406760322240572"))
 DISCORD_REJECTION_LOG_CHANNEL_ID = int(os.getenv("DISCORD_REJECTION_LOG_CHANNEL_ID", "1408406824453148725"))
+DISCORD_ACHIEVEMENTS_CHANNEL_ID = int(os.getenv("DISCORD_ACHIEVEMENTS_CHANNEL_ID", "1409902857947185202"))
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -208,6 +226,11 @@ FLAIR_TO_FIELD = {
     "Backyard / Home": "backyard_posts_count",
     "Sauna / Spa": "sauna_posts_count",
 }
+
+# build a normalized lookup so you don't have to edit your existing dict
+FLAIR_TO_FIELD_NORM = { _normalize_flair_key(k): v for k, v in FLAIR_TO_FIELD.items() }
+
+
 # badge thresholds
 BADGE_THRESHOLDS = [3, 7, 15, 30, 50]
 
@@ -229,9 +252,28 @@ META_TITLES = [
     "Naturist Legend 👑"
 ]
 
+# =========================
+# Badge level label
+# =========================
 def badge_level_label(level: int, max_level: int) -> str:
     """Return Lv.MAX if level is the last one, otherwise Lv.{n}"""
     return "Lv.MAX" if level == max_level else f"Lv.{level}"
+
+# =========================
+# Badge existence check
+# =========================
+def _badge_exists(username: str, badge_name: str) -> bool:
+    """Check if this exact badge already exists in Supabase."""
+    try:
+        res = supabase.table("user_badges") \
+            .select("badge") \
+            .eq("username", username) \
+            .eq("badge", badge_name) \
+            .execute()
+        return bool(res.data)
+    except Exception:
+        return False
+
 
 # =========================
 # State
@@ -388,49 +430,117 @@ def get_last_approved_item(username: str):
 # Location flair counters + badges
 # =========================
 def increment_location_counter(submission, author_name: str):
-    """Increment Supabase counter based on post flair."""
-    flair = submission.link_flair_text
-    if not flair or flair not in FLAIR_TO_FIELD:
+    flair_text = _text_flair_without_emoji(submission)
+    key = _normalize_flair_key(flair_text)
+    field = FLAIR_TO_FIELD_NORM.get(key)
+    if not field:
+        print(f"ℹ️ Unmapped flair: '{flair_text}' (norm='{key}') on {submission.id}")
         return
 
-    field = FLAIR_TO_FIELD[flair]
     try:
         res = supabase.table("user_karma").select("*").ilike("username", author_name).execute()
         row = res.data[0] if res.data else {}
         current = int(row.get(field, 0))
         new_val = current + 1
-
-        supabase.table("user_karma").upsert({
-            "username": author_name,
-            field: new_val
-        }).execute()
-
+        supabase.table("user_karma").upsert({"username": author_name, field: new_val}).execute()
         print(f"🏷️ Incremented {field} for u/{author_name} → {new_val}")
         check_and_award_badge(author_name, field, new_val)
-
     except Exception as e:
         print(f"⚠️ Failed to increment location counter: {e}")
 
+# ========================
+# Backfill location counts
+# =========================
+def backfill_location_counts(username: str):
+    """Rescan approved submissions for a user, update counts, and award badges."""
+    redditor = reddit.redditor(username)
 
+    # location counts
+    loc_counts = {v: 0 for v in FLAIR_TO_FIELD.values()}
+
+    # pillars (same simple keyword logic you use on approval)
+    pillar_fields = {
+        "body": "bodypositivity_posts_count",
+        "travel": "travel_posts_count",
+        "mind": "mindfulness_posts_count",
+        "advocacy": "advocacy_posts_count",
+    }
+    pillar_counts = {v: 0 for v in pillar_fields.values()}
+
+    total_posts = 0
+
+    try:
+        for sub in redditor.submissions.new(limit=500):
+            if str(sub.subreddit).lower() != SUBREDDIT_NAME.lower():
+                continue
+            if not getattr(sub, "approved", False):
+                continue
+
+            total_posts += 1
+
+            # --- location flair tally
+            flair_text = _text_flair_without_emoji(sub)
+            key = _normalize_flair_key(flair_text)
+            field = FLAIR_TO_FIELD_NORM.get(key)
+            if field:
+                loc_counts[field] += 1
+
+            # --- pillars (keyword-based)
+            tb = ((getattr(sub, "title", "") or "") + " " + (getattr(sub, "selftext", "") or "")).lower()
+            for kw, fld in pillar_fields.items():
+                if kw in tb:
+                    pillar_counts[fld] += 1
+
+        # upsert totals to Supabase
+        payload = {"username": username, **loc_counts, **pillar_counts, "naturist_total_posts": total_posts}
+        supabase.table("user_karma").upsert(payload).execute()
+        print(f"✅ Recounted for u/{username}: locations={loc_counts}, pillars={pillar_counts}, total={total_posts}")
+
+        # award/refresh badges (these functions delete older levels, insert latest, and log to Discord)
+        for field, c in loc_counts.items():
+            if c > 0:
+                check_and_award_badge(username, field, c)
+        for field, c in pillar_counts.items():
+            if c > 0:
+                check_pillar_badge(username, field, c)
+        check_meta_badge(username, total_posts)
+
+        return {"locations": loc_counts, "pillars": pillar_counts, "total": total_posts}
+
+    except Exception as e:
+        print(f"⚠️ Recount failed for {username}: {e}")
+        return None
+
+
+# ========================
+# Location badges
+# =========================
 def check_and_award_badge(username: str, field: str, count: int):
-    """Check if a user unlocked a new badge level."""
+    """Check if a user unlocked a new badge level, replacing old levels and logging to Discord."""
     level = sum(1 for t in BADGE_THRESHOLDS if count >= t)
     if level == 0:
         return
 
-    # Example: beach_posts_count → Beach Lv.2
     base = field.replace("_posts_count", "").replace("_", " ").title()
     badge_name = f"{base} {badge_level_label(level, len(BADGE_THRESHOLDS))}"
 
+    # 🚫 avoid duplicate re-log
+    if _badge_exists(username, badge_name):
+        return
+
     try:
+        supabase.table("user_badges").delete().eq("username", username).ilike("badge", f"{base} %").execute()
         supabase.table("user_badges").upsert({
             "username": username,
             "badge": badge_name,
             "unlocked_on": datetime.utcnow().isoformat()
         }).execute()
-        print(f"🌟 Badge unlocked: {badge_name} for u/{username}")
+        print(f"🌟 Badge updated: {badge_name} for u/{username}")
 
-        # Optional: DM user from owner account
+        # log
+        asyncio.run_coroutine_threadsafe(log_achievement(username, badge_name), bot.loop)
+
+        # optional DM
         try:
             reddit_owner.redditor(username).message(
                 "🌟 New Naturist Achievement!",
@@ -443,65 +553,122 @@ def check_and_award_badge(username: str, field: str, count: int):
     except Exception as e:
         print(f"⚠️ Could not save badge for {username}: {e}")
 
+# =========================
+# Pillar badges
+# =========================
 def check_pillar_badge(username: str, field: str, count: int):
-    """Check 10-level naturist pillar ladders (body positivity, travel, etc)."""
+    """Check pillar ladders, keep only highest level, log once."""
     level = sum(1 for t in PILLAR_THRESHOLDS if count >= t)
     if level == 0:
         return
+
     base = field.replace("_posts_count", "").replace("_", " ").title()
     badge_name = f"{base} {badge_level_label(level, len(PILLAR_THRESHOLDS))}"
-    supabase.table("user_badges").upsert({
-        "username": username,
-        "badge": badge_name,
-        "unlocked_on": datetime.utcnow().isoformat()
-    }).execute()
-    print(f"🌟 Pillar badge unlocked: {badge_name} for u/{username}")
+
+    if _badge_exists(username, badge_name):
+        return
+
+    try:
+        supabase.table("user_badges").delete().eq("username", username).ilike("badge", f"{base} %").execute()
+        supabase.table("user_badges").upsert({
+            "username": username,
+            "badge": badge_name,
+            "unlocked_on": datetime.utcnow().isoformat()
+        }).execute()
+        print(f"🌟 Pillar badge updated: {badge_name} for u/{username}")
+
+        asyncio.run_coroutine_threadsafe(log_achievement(username, badge_name), bot.loop)
+
+        try:
+            reddit_owner.redditor(username).message(
+                "🌟 New Naturist Achievement!",
+                f"Congrats u/{username}! You just reached **{badge_name}** 🏆\n\n"
+                f"Keep growing your naturist journey 🌿"
+            )
+        except Exception as e:
+            print(f"⚠️ Could not DM pillar badge to {username}: {e}")
+
+    except Exception as e:
+        print(f"⚠️ Could not save pillar badge for {username}: {e}")
 
 # =========================
 # Meta badge, seasonal, rare badges
 # =========================
 def check_meta_badge(username: str, total_count: int):
-    """Check 10-level ultimate naturist ladder (meta)."""
+    """Check meta ladder, keep only highest level, log once."""
     level = sum(1 for t in META_THRESHOLDS if total_count >= t)
     if level == 0:
         return
-    badge_name = f"{META_TITLES[level - 1]} {badge_level_label(level, len(META_THRESHOLDS))}"
-    supabase.table("user_badges").upsert({
-        "username": username,
-        "badge": badge_name,
-        "unlocked_on": datetime.utcnow().isoformat()
-    }).execute()
-    print(f"👑 Meta badge unlocked: {badge_name} for u/{username}")
 
+    base_title = META_TITLES[level - 1]
+    badge_name = f"{base_title} {badge_level_label(level, len(META_THRESHOLDS))}"
 
-def check_seasonal_and_rare(username: str, row: dict):
-    """Check seasonal & rare single-unlock badges."""
-    # Seasonal
-    if all([row.get("posted_in_spring"), row.get("posted_in_summer"),
-            row.get("posted_in_autumn"), row.get("posted_in_winter")]):
+    if _badge_exists(username, badge_name):
+        return
+
+    try:
+        for t in META_TITLES:
+            supabase.table("user_badges").delete().eq("username", username).ilike("badge", f"{t} %").execute()
         supabase.table("user_badges").upsert({
             "username": username,
-            "badge": "Seasonal Naturist 🍂❄️🌸☀️",
+            "badge": badge_name,
+            "unlocked_on": datetime.utcnow().isoformat()
+        }).execute()
+        print(f"👑 Meta badge updated: {badge_name} for u/{username}")
+
+        asyncio.run_coroutine_threadsafe(log_achievement(username, badge_name), bot.loop)
+
+        try:
+            reddit_owner.redditor(username).message(
+                "👑 Meta Achievement Unlocked!",
+                f"Awesome work u/{username}! You just reached **{badge_name}** 🎉"
+            )
+        except Exception as e:
+            print(f"⚠️ Could not DM meta badge to {username}: {e}")
+
+    except Exception as e:
+        print(f"⚠️ Could not save meta badge for {username}: {e}")
+
+# =========================
+# Seasonal & Rare badges
+# =========================
+def check_seasonal_and_rare(username: str, row: dict):
+    """Check seasonal & rare single-unlock badges (with duplicate guard + logging)."""
+
+    # Seasonal
+    seasonal_badge = "Seasonal Naturist 🍂❄️🌸☀️"
+    if all([row.get("posted_in_spring"), row.get("posted_in_summer"),
+            row.get("posted_in_autumn"), row.get("posted_in_winter")]) \
+            and not _badge_exists(username, seasonal_badge):
+        supabase.table("user_badges").upsert({
+            "username": username,
+            "badge": seasonal_badge,
             "unlocked_on": datetime.utcnow().isoformat()
         }).execute()
         print(f"🌟 Seasonal badge unlocked for u/{username}")
+        asyncio.run_coroutine_threadsafe(log_achievement(username, seasonal_badge), bot.loop)
 
-    # Rare
-    if row.get("festivals_attended", 0) >= 1:
+    # Rare: Festival
+    fest_badge = "Festival Free Spirit 🎶"
+    if row.get("festivals_attended", 0) >= 1 and not _badge_exists(username, fest_badge):
         supabase.table("user_badges").upsert({
             "username": username,
-            "badge": "Festival Free Spirit 🎶",
+            "badge": fest_badge,
             "unlocked_on": datetime.utcnow().isoformat()
         }).execute()
         print(f"🎶 Festival badge unlocked for u/{username}")
+        asyncio.run_coroutine_threadsafe(log_achievement(username, fest_badge), bot.loop)
 
-    if row.get("countries_posted", 0) >= 5:
+    # Rare: Traveler
+    travel_badge = "Naturist Traveler 🌍"
+    if row.get("countries_posted", 0) >= 5 and not _badge_exists(username, travel_badge):
         supabase.table("user_badges").upsert({
             "username": username,
-            "badge": "Naturist Traveler 🌍",
+            "badge": travel_badge,
             "unlocked_on": datetime.utcnow().isoformat()
         }).execute()
         print(f"🌍 Traveler badge unlocked for u/{username}")
+        asyncio.run_coroutine_threadsafe(log_achievement(username, travel_badge), bot.loop)
 
 # =========================
 # Observer Ladder Badges
@@ -538,7 +705,10 @@ def check_observer_badges(username: str, row: dict):
 
 
 def award_badge(username: str, badge_name: str):
-    """Generic badge award helper (to keep code DRY)."""
+    """Generic badge award helper (Observer ladder), now with duplicate guard + logging."""
+    if _badge_exists(username, badge_name):
+        return
+
     try:
         supabase.table("user_badges").upsert({
             "username": username,
@@ -546,6 +716,9 @@ def award_badge(username: str, badge_name: str):
             "unlocked_on": datetime.utcnow().isoformat()
         }).execute()
         print(f"🌙 Observer badge unlocked: {badge_name} for u/{username}")
+
+        # ✅ Log to Discord
+        asyncio.run_coroutine_threadsafe(log_achievement(username, badge_name), bot.loop)
 
         # Optional: DM user from owner account
         try:
@@ -827,6 +1000,33 @@ def get_user_stats(username: str):
 # =========================
 # Reddit DM Commands
 # =========================
+def cmd_recount(author: str, message):
+    """Recalculate location & pillar counters + meta; update badges; reply with a summary."""
+    result = backfill_location_counts(author)
+    if not result:
+        message.reply("⚠️ Sorry, I couldn’t recount your posts right now.")
+        return
+
+    loc_counts = result["locations"]
+    pillar_counts = result["pillars"]
+    total = result["total"]
+
+    def fmt_counts(d: dict) -> str:
+        lines = [
+            f"- {k.replace('_posts_count','').replace('_',' ').title()}: {v}"
+            for k, v in d.items() if v > 0
+        ]
+        return "\n".join(lines) if lines else "None"
+
+    reply = (
+        f"🔄 **Recount complete** for u/{author}\n\n"
+        f"**Locations:**\n{fmt_counts(loc_counts)}\n\n"
+        f"**Pillars:**\n{fmt_counts(pillar_counts)}\n\n"
+        f"**Naturist total posts:** {total}\n\n"
+        "I also checked & updated your achievements. 🎉"
+    )
+    message.reply(reply)
+
 
 def cmd_stats(author: str, message):
     stats = get_user_stats(author)
@@ -904,6 +1104,7 @@ def cmd_help(author: str, message):
         "!safety": "Naturist safety tips",
         "!observer": "Get Quiet Observer flair",
         "!help": "Show this menu",
+        "!recount": "Recalculate your location post counts",
     }
     message.reply(
         "🤖 **Available Commands** 🌿\n\n"
@@ -942,6 +1143,7 @@ COMMANDS = {
     "!safety": cmd_safety,
     "!observer": cmd_observer,
     "!help": cmd_help,
+    "!recount": cmd_recount,
 }
 
 # Dispatcher loop for DM commands
@@ -1466,6 +1668,21 @@ async def log_rejection(item, old_k: int, new_k: int, flair: str, reason_text: s
 
     await channel.send(embed=embed)
 
+async def log_achievement(username: str, badge_name: str):
+    """Send an achievement unlock to the Achievements Discord channel."""
+    channel = bot.get_channel(DISCORD_ACHIEVEMENTS_CHANNEL_ID)
+    if not channel:
+        print("⚠️ Achievements channel not found")
+        return
+
+    embed = discord.Embed(
+        title="🌟 New Achievement Unlocked",
+        description=f"u/{username} → **{badge_name}**",
+        color=discord.Color.gold(),
+        timestamp=datetime.now(timezone.utc)   # 👈 aware timestamp
+    )
+    await channel.send(embed=embed)
+
 # =========================
 # Approval bookkeeping
 # =========================
@@ -1480,6 +1697,97 @@ def calc_quality_bonus_for_post(submission) -> int:
     bonus = min(QV_MAX_BONUS, steps * QV_BONUS_PER_STEP)
     return max(0, bonus)
 
+# =========================
+# Upvote credit bookkeeping
+# =========================
+def credit_upvotes_for_submission(submission):
+    """
+    Convert net upvotes → karma for OP at a rate of 0.5 per upvote (1 per 2 upvotes).
+    Uses Supabase table post_upvote_credits to avoid double-paying.
+    """
+    try:
+        post_id = submission.id
+        author = submission.author
+        if author is None:
+            return
+
+        name = str(author)
+
+        # fetch tracking row
+        res = supabase.table("post_upvote_credits").select("*").eq("post_id", post_id).execute()
+        row = res.data[0] if res.data else None
+        credited = int(row.get("credited_upvotes", 0)) if row else 0
+
+        # current net score (floor at 0)
+        try:
+            score = int(getattr(submission, "score", 0) or 0)
+        except Exception:
+            score = 0
+        score = max(0, score)
+
+        delta_upvotes = score - credited
+        if delta_upvotes <= 0:
+            # just bump last_checked_at
+            if row:
+                supabase.table("post_upvote_credits").update({
+                    "last_checked_at": datetime.utcnow().isoformat()
+                }).eq("post_id", post_id).execute()
+            return
+
+        # 0.5 karma per upvote => 1 karma per 2 upvotes (integer)
+        award = delta_upvotes // 2
+        if award <= 0:
+            # not enough new upvotes to grant a whole point yet
+            supabase.table("post_upvote_credits").upsert({
+                "post_id": post_id,
+                "username": name,
+                "credited_upvotes": credited,  # unchanged
+                "last_checked_at": datetime.utcnow().isoformat()
+            }).execute()
+            return
+
+        # grant karma
+        old_k, new_k, flair = apply_karma_and_flair(name, award, allow_negative=False)
+
+        # save new credited count (consume exactly award*2 upvotes)
+        new_credited = credited + award * 2
+        supabase.table("post_upvote_credits").upsert({
+            "post_id": post_id,
+            "username": name,
+            "credited_upvotes": new_credited,
+            "last_checked_at": datetime.utcnow().isoformat()
+        }).execute()
+
+        print(f"🏅 Upvote credit: u/{name} +{award} karma for {delta_upvotes} new upvotes (now credited {new_credited})")
+
+        # optional: log to approvals channel for visibility
+        try:
+            channel = bot.get_channel(DISCORD_APPROVAL_LOG_CHANNEL_ID)
+            if channel:
+                embed = discord.Embed(
+                    title="🏅 Upvote Reward",
+                    description=f"u/{name} gained **+{award}** karma from post upvotes",
+                    color=discord.Color.gold()
+                )
+                embed.add_field(name="Post", value=f"https://reddit.com{submission.permalink}", inline=False)
+                embed.add_field(name="Upvotes credited", value=f"{new_credited}", inline=True)
+                embed.add_field(name="Karma", value=f"{old_k} → {new_k}", inline=True)
+                embed.add_field(name="Flair", value=flair, inline=True)
+                awaitable = channel.send(embed=embed)
+                # If we are in a non-async context, schedule it:
+                try:
+                    asyncio.run_coroutine_threadsafe(awaitable, bot.loop)
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"⚠️ Upvote reward log failed: {e}")
+
+    except Exception as e:
+        print(f"⚠️ credit_upvotes_for_submission failed: {e}")
+
+# ========================
+# Main approval flow
+# ========================
 def on_first_approval_welcome(item, author_name: str, old_karma: int):
     if not WELCOME_ENABLED or old_karma != 0:
         return
@@ -1882,71 +2190,140 @@ def get_weekly_achievements():
     return res.data or []
 
 def post_weekly_achievements():
-    """Post weekly digest with new + all-time + observer achievements."""
-    week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+    """Post a lifetime snapshot of everyone's latest badges (only highest level per ladder)."""
+    try:
+        all_rows = supabase.table("user_badges").select("*").execute().data or []
+    except Exception as e:
+        print(f"⚠️ Could not fetch badges: {e}")
+        return
 
-    # fetch new badges (last 7 days)
-    recent_rows = supabase.table("user_badges").select("*").gte("unlocked_on", week_ago).execute().data or []
+    if not all_rows:
+        text = (
+            "🌟🌿🌞🌿🌟\n"
+            "✨ Naturist Achievements Snapshot ✨\n"
+            "🌟🌿🌞🌿🌟\n\n"
+            "No achievements yet — be the first to unlock one! 🌱"
+        )
+        title = "🌟 Naturist Achievements Snapshot 🌿✨"
+        try:
+            submission = reddit_owner.subreddit(SUBREDDIT_NAME).submit(title, selftext=text)
+            submission.mod.approve()
+            print("✅ Empty achievements snapshot posted")
+        except Exception as e:
+            print(f"⚠️ Could not post empty achievements snapshot: {e}")
+        return
 
-    # fetch all-time badges
-    all_rows = supabase.table("user_badges").select("*").execute().data or []
-
-    parts = []
-    parts.append("🌟🌿🌞🌿🌟\n✨ Weekly Naturist Achievements ✨\n🌟🌿🌞🌿🌟\n")
-
-    # --- Section 1: New achievements ---
-    if recent_rows:
-        parts.append("🎉 **New Achievements This Week**")
-        for row in recent_rows:
-            u = row["username"]
-            badge = row["badge"]
-            parts.append(f"• u/{u} → {badge}")
-    else:
-        parts.append("🎉 **New Achievements This Week**\nThis week there are no new achievements reached 🌱")
-
-    parts.append("\n🌿🌿🌿🌿🌿\n")
-
-    # --- Section 2: Quiet Observer achievements ---
-    observer_rows = [r for r in all_rows if any(obs_kw in r["badge"] for obs_kw in [
+    # --- Categorization helpers ---
+    meta_titles = set(META_TITLES)
+    observer_keys = [
         "Still Waters", "Deep Reflection", "Silent Strength",
         "Quiet Voice", "Gentle Helper", "Guiding Light",
         "First Step", "Comeback Trail", "Resilient Spirit",
         "Friendly Observer", "Encourager", "Community Whisper"
-    ])]
+    ]
+    seasonal_rare = ["Seasonal Naturist", "Festival Free Spirit", "Naturist Traveler"]
 
-    if observer_rows:
-        observer_badges = {}
-        for row in observer_rows:
-            observer_badges.setdefault(row["username"], []).append(row["badge"])
-        parts.append("🌙 **Quiet Observer Achievements**")
-        for u, badges in sorted(observer_badges.items()):
-            badges_text = ", ".join(sorted(badges))
-            parts.append(f"• u/{u} → {badges_text}")
+    location_keywords = [
+        "Beach","Forest","Lake","Mountain","Meadow","River",
+        "Pool","Backyard","Camping","Sauna","Resort","Island",
+        "Countryside","Cave","Tropical","Nordic","Festival"
+    ]
 
+    def is_meta(b: str) -> bool:
+        return any(t in b for t in meta_titles)
+
+    def is_observer(b: str) -> bool:
+        return any(k in b for k in observer_keys)
+
+    def is_seasonal_or_rare(b: str) -> bool:
+        return any(k in b for k in seasonal_rare)
+
+    def is_location(b: str) -> bool:
+        return any(k in b for k in location_keywords)
+
+    # --- Bucketize by user, then by section ---
+    users = {}
+    for row in all_rows:
+        u = row["username"]
+        b = row["badge"]
+        users.setdefault(u, {"meta": [], "locations": [], "pillars": [], "observer": [], "special": []})
+        if is_meta(b):
+            users[u]["meta"].append(b)
+        elif is_observer(b):
+            users[u]["observer"].append(b)
+        elif is_seasonal_or_rare(b):
+            users[u]["special"].append(b)
+        elif is_location(b):
+            users[u]["locations"].append(b)
+        else:
+            # default bucket: pillars (10-level ladders like bodypositivity/travel/mindfulness/advocacy)
+            users[u]["pillars"].append(b)
+
+    # --- Build the post body ---
+    parts = []
+    parts.append("🌟🌿🌞🌿🌟\n✨ Naturist Achievements — Lifetime Snapshot ✨\n🌟🌿🌞🌿🌟\n")
+
+    # Meta first (show strongest titles prominently)
+    meta_lines = []
+    for u, bags in users.items():
+        if bags["meta"]:
+            meta_lines.append(f"• u/{u} → {', '.join(sorted(bags['meta']))}")
+    if meta_lines:
+        parts.append("👑 **Meta Ladder**")
+        parts.extend(meta_lines)
         parts.append("\n🌿🌿🌿🌿🌿\n")
 
-    # --- Section 3: All-time achievements per user ---
-    if all_rows:
-        user_badges = {}
-        for row in all_rows:
-            user_badges.setdefault(row["username"], []).append(row["badge"])
+    # Locations
+    loc_lines = []
+    for u, bags in users.items():
+        if bags["locations"]:
+            loc_lines.append(f"• u/{u} → {', '.join(sorted(bags['locations']))}")
+    if loc_lines:
+        parts.append("🏖️ **Location Achievements**")
+        parts.extend(loc_lines)
+        parts.append("\n🌿🌿🌿🌿🌿\n")
 
-        parts.append("📜 **All-Time Achievements (per user)**")
-        for u, badges in sorted(user_badges.items()):
-            badges_text = ", ".join(sorted(badges))
-            parts.append(f"• u/{u} → {badges_text}")
+    # Pillars
+    pillar_lines = []
+    for u, bags in users.items():
+        if bags["pillars"]:
+            pillar_lines.append(f"• u/{u} → {', '.join(sorted(bags['pillars']))}")
+    if pillar_lines:
+        parts.append("🧘 **Pillar Progress**")
+        parts.extend(pillar_lines)
+        parts.append("\n🌿🌿🌿🌿🌿\n")
 
-    parts.append("\n🌞💚 Keep shining, sharing, and celebrating naturism! ✨🌿")
+    # Observer
+    obs_lines = []
+    for u, bags in users.items():
+        if bags["observer"]:
+            obs_lines.append(f"• u/{u} → {', '.join(sorted(bags['observer']))}")
+    if obs_lines:
+        parts.append("🌙 **Quiet Observer Achievements**")
+        parts.extend(obs_lines)
+        parts.append("\n🌿🌿🌿🌿🌿\n")
 
+    # Special (Seasonal / Rare)
+    special_lines = []
+    for u, bags in users.items():
+        if bags["special"]:
+            special_lines.append(f"• u/{u} → {', '.join(sorted(bags['special']))}")
+    if special_lines:
+        parts.append("🎉 **Special Unlocks**")
+        parts.extend(special_lines)
+        parts.append("\n🌿🌿🌿🌿🌿\n")
+
+    parts.append("🌞💚 Keep shining, sharing, and celebrating naturism! ✨🌿")
     text = "\n".join(parts)
 
-    title = "🌟 Weekly Naturist Achievements 🌿✨"
+    title = "🌟 Naturist Achievements — Lifetime Snapshot 🌿✨"
     try:
         submission = reddit_owner.subreddit(SUBREDDIT_NAME).submit(title, selftext=text)
         submission.mod.approve()
-        print("✅ Weekly achievements post auto-approved (by owner account)")
+        print("✅ Lifetime achievements snapshot posted")
     except Exception as e:
-        print(f"⚠️ Could not post weekly achievements: {e}")
+        print(f"⚠️ Could not post lifetime achievements snapshot: {e}")
+
 
 def weekly_achievements_loop():
     print("🕒 Weekly achievements loop started...")
@@ -2144,6 +2521,31 @@ def daily_fact_poster():
             print(f"⚠️ Daily fact error: {e}")
 
         time.sleep(30)
+
+# =========================
+# Upvote Reward Loop (every 2 minutes)
+# =========================
+def upvote_reward_loop():
+    print("🕒 Upvote reward loop started...")
+    while True:
+        try:
+            # Pull a reasonable window of fresh posts; adjust as needed
+            for sub in subreddit.new(limit=100):
+                try:
+                    # only process approved posts (avoid queueing/removals)
+                    if not getattr(sub, "approved", False):
+                        continue
+                    # credit upvotes to OP
+                    credit_upvotes_for_submission(sub)
+                except Exception as e:
+                    print(f"⚠️ Upvote credit per-post error: {e}")
+
+        except Exception as e:
+            print(f"⚠️ Upvote reward loop error: {e}")
+
+        # Sleep a bit; tune for your load
+        time.sleep(120)
+
 # =========================
 # Discord events
 # =========================
@@ -2160,6 +2562,7 @@ async def on_ready():
     threading.Thread(target=daily_fact_poster, daemon=True).start()
     threading.Thread(target=feedback_loop, daemon=True).start()
     threading.Thread(target=weekly_achievements_loop, daemon=True).start()
+    threading.Thread(target=upvote_reward_loop, daemon=True).start()
 
 @bot.event
 async def on_reaction_add(reaction, user):
