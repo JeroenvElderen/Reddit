@@ -2009,6 +2009,19 @@ def handle_new_item(item):
     author_name = str(item.author)
     bot_username = os.getenv("REDDIT_USERNAME", "").lower()
 
+    # 👇 NEW: ensure user exists in Supabase immediately
+    try:
+        supabase.table("user_karma").upsert({
+            "username": author_name,
+            "karma": 0,
+            "last_flair": "Needs Growth"
+        }).execute()
+    except Exception as e:
+        print(f"⚠️ Failed to ensure user row for {author_name}: {e}")
+
+    author_name = str(item.author)
+    bot_username = os.getenv("REDDIT_USERNAME", "").lower()
+
     if author_name.lower() == bot_username:
         print(f"🤖 skipping queue for bot's own post/comment {item.id}")
         return
