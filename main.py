@@ -965,6 +965,41 @@ def image_flag_label(sub) -> str:
         return "External"
     return "No"
 
+
+def _get_permalink_from_embed(msg: discord.Message) -> str | None:
+    try:
+        emb = msg.embeds[0] if msg.embeds else None
+        if not emb or not emb.fields:
+            return None
+        for f in emb.fields:
+            if f.name.lower() == "link":
+                return (f.value or "").strip()
+    except Exception:
+        pass
+    return None
+
+def _fetch_item_from_permalink(url: str):
+    """
+    Given a permalink like https://reddit.com/r/sub/comments/POSTID/title/COMMENTID/
+    return the PRAW object (submission or comment).
+    """
+    try:
+        p = urlparse(url)
+        parts = [x for x in p.path.split("/") if x]
+        # Expect: r/<sub>/comments/<post_id>/...[/<comment_id>/]
+        if "comments" in parts:
+            i = parts.index("comments")
+            post_id = parts[i + 1]
+            # If there's a trailing comment id, it will usually be at the end
+            comment_id = parts[-1] if len(parts) > i + 3 else None
+            # comment id must not equal post_id and usually is not "title" etc.
+            if comment_id and comment_id != post_id and len(comment_id) in (7, 8):
+                return reddit.comment(id=comment_id)
+            return reddit.submission(id=post_id)
+    except Exception:
+        pass
+    return None
+    
 # ---------- Shadow flags ----------
 def get_shadow_flag(username: str) -> str | None:
     try:
@@ -1557,6 +1592,7 @@ async def send_discord_approval(item, lang_label=None, note=None, night_guard_pi
     msg = await channel.send(content=mention.strip() or None, embed=embed)
     await msg.add_reaction("✅")
     await msg.add_reaction("❌")
+    await msg.add_reaction("🔄")
 
     pending_reviews[msg.id] = {
         "item": item,
@@ -2574,8 +2610,38 @@ async def on_reaction_add(reaction, user):
 
     # Check if the message is still tracked
     if msg_id not in pending_reviews:
-        print("⚠️ Reaction ignored — no pending review entry for this message.")
-        await reaction.message.channel.send("⚠️ This review card is no longer active.")
+        print("⚠️ Reaction on stale card.")
+
+        # If moderator clicked refresh, try to rebuild and repost the card
+        if str(reaction.emoji) == "🔄":
+            link = _get_permalink_from_embed(reaction.message)
+            if not link:
+                await reaction.message.channel.send("⚠️ I can't find the original link on this card.")
+                return
+            item = _fetch_item_from_permalink(link)
+            if not item:
+                await reaction.message.channel.send("⚠️ I couldn't reconstruct the original item from the link.")
+                return
+            if already_moderated(item):
+                await reaction.message.channel.send("ℹ️ This item is already moderated — no need to refresh.")
+                return
+
+            # Repost a fresh card at base priority with a note
+            await send_discord_approval(
+                item,
+                lang_label="English",
+                note="↻ Refreshed stale card",
+                night_guard_ping=False,
+                priority_level=0,
+            )
+            try:
+                await reaction.message.delete()
+            except Exception:
+                pass
+            return
+
+        # For ✅/❌ on stale cards, guide moderator to use 🔄
+        await reaction.message.channel.send("⛔ This review card is no longer active. Click 🔄 on the card to refresh it.")
         return
 
     entry = pending_reviews.pop(msg_id, None)
@@ -2586,6 +2652,20 @@ async def on_reaction_add(reaction, user):
 
     item = entry["item"]
     author_name = str(item.author)
+
+    # 🔄 REFRESH (repost the same item, keep the current priority level)
+    if str(reaction.emoji) == "🔄":
+        level = entry.get("level", 0)
+        await send_discord_approval(
+            item,
+            lang_label="English",
+            note="↻ Manual refresh",
+            night_guard_ping=False,
+            priority_level=level,
+        )
+        await _lock_and_delete_message(reaction.message)
+        print(f"🔄 Card refreshed for u/{author_name} (level={level})")
+        return
 
     try:
         # ✅ APPROVE
