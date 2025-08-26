@@ -2011,11 +2011,33 @@ def handle_new_item(item):
 
     # 👇 NEW: ensure user exists in Supabase immediately
     try:
+        res = supabase.table("user_karma").select("username").ilike("username", author_name).execute()
+        is_new = not res.data
+
         supabase.table("user_karma").upsert({
             "username": author_name,
             "karma": 0,
             "last_flair": "Needs Growth"
         }).execute()
+
+        if is_new:
+            # Log to Discord channel 1410002767497527316
+            channel = bot.get_channel(1410002767497527316)
+            if channel:
+                embed = discord.Embed(
+                    title="👤 New User Detected",
+                    description=f"u/{author_name} just made their first contribution!",
+                    color=discord.Color.blue(),
+                    timestamp=datetime.now(timezone.utc)
+                )
+                awaitable = channel.send(embed=embed)
+                try:
+                    asyncio.run_coroutine_threadsafe(awaitable, bot.loop)
+                except Exception:
+                    pass
+
+            print(f"🆕 New user logged: u/{author_name}")
+
     except Exception as e:
         print(f"⚠️ Failed to ensure user row for {author_name}: {e}")
 
