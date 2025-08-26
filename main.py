@@ -1762,7 +1762,7 @@ def credit_upvotes_for_submission(submission):
 
         # optional: log to approvals channel for visibility
         try:
-            channel = bot.get_channel(DISCORD_APPROVAL_LOG_CHANNEL_ID)
+            channel = bot.get_channel(1409916507609235556)
             if channel:
                 embed = discord.Embed(
                     title="🏅 Upvote Reward",
