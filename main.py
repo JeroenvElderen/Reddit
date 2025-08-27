@@ -78,7 +78,7 @@ DISCORD_DECAY_LOG_CHANNEL_ID = int(os.getenv("DISCORD_DECAY_LOG_CHANNEL_ID", "14
 DISCORD_APPROVAL_LOG_CHANNEL_ID = int(os.getenv("DISCORD_APPROVAL_LOG_CHANNEL_ID", "1408406760322240572"))
 DISCORD_REJECTION_LOG_CHANNEL_ID = int(os.getenv("DISCORD_REJECTION_LOG_CHANNEL_ID", "1408406824453148725"))
 DISCORD_ACHIEVEMENTS_CHANNEL_ID = int(os.getenv("DISCORD_ACHIEVEMENTS_CHANNEL_ID", "1409902857947185202"))
-
+DISCORD_UPVOTE_LOG_CHANNEL_ID = int(os.getenv("DISCORD_UPVOTE_LOG_CHANNEL_ID", "1409916507609235556"))
 intents = discord.Intents.default()
 intents.messages = True
 intents.reactions = True
@@ -1738,8 +1738,9 @@ def calc_quality_bonus_for_post(submission) -> int:
 # =========================
 def credit_upvotes_for_submission(submission):
     """
-    Convert net upvotes → karma for OP at a rate of 0.5 per upvote (1 per 2 upvotes).
-    Uses Supabase table post_upvote_credits to avoid double-paying.
+    Convert net upvotes → karma for OP at a rate of 1 per 5 upvotes.
+    Tracks credited_upvotes in Supabase to avoid double-paying.
+    Also stores the post title for reference.
     """
     try:
         post_id = submission.id
@@ -1748,6 +1749,7 @@ def credit_upvotes_for_submission(submission):
             return
 
         name = str(author)
+        title_val = submission.title[:255] if hasattr(submission, "title") and submission.title else None
 
         # fetch tracking row
         res = supabase.table("post_upvote_credits").select("*").eq("post_id", post_id).execute()
@@ -1763,42 +1765,47 @@ def credit_upvotes_for_submission(submission):
 
         delta_upvotes = score - credited
         if delta_upvotes <= 0:
-            # just bump last_checked_at
-            if row:
-                supabase.table("post_upvote_credits").update({
-                    "last_checked_at": datetime.utcnow().isoformat()
-                }).eq("post_id", post_id).execute()
-            return
-
-        # 0.5 karma per upvote => 1 karma per 2 upvotes (integer)
-        award = delta_upvotes // 5
-        if award <= 0:
-            # not enough new upvotes to grant a whole point yet
+            # nothing new → just refresh last_checked_at and store title
             supabase.table("post_upvote_credits").upsert({
                 "post_id": post_id,
                 "username": name,
-                "credited_upvotes": credited,  # unchanged
-                "last_checked_at": datetime.utcnow().isoformat()
+                "credited_upvotes": credited,
+                "last_checked_at": datetime.utcnow().isoformat(),
+                "post_title": title_val,
+            }).execute()
+            return
+
+        # 1 karma per 5 upvotes
+        award = delta_upvotes // 5
+        if award <= 0:
+            # not enough to reach a new multiple of 5 yet → just refresh
+            supabase.table("post_upvote_credits").upsert({
+                "post_id": post_id,
+                "username": name,
+                "credited_upvotes": credited,
+                "last_checked_at": datetime.utcnow().isoformat(),
+                "post_title": title_val,
             }).execute()
             return
 
         # grant karma
         old_k, new_k, flair = apply_karma_and_flair(name, award, allow_negative=False)
 
-        # save new credited count (consume exactly award*2 upvotes)
-        new_credited = credited + award * 2
+        # save new credited count (consume award*5 upvotes)
+        new_credited = credited + award * 5
         supabase.table("post_upvote_credits").upsert({
             "post_id": post_id,
             "username": name,
             "credited_upvotes": new_credited,
-            "last_checked_at": datetime.utcnow().isoformat()
+            "last_checked_at": datetime.utcnow().isoformat(),
+            "post_title": title_val,
         }).execute()
 
-        print(f"🏅 Upvote credit: u/{name} +{award} karma for {delta_upvotes} new upvotes (now credited {new_credited})")
+        print(f"🏅 Upvote credit: u/{name} +{award} karma for {delta_upvotes} new upvotes (credited {new_credited})")
 
-        # optional: log to approvals channel for visibility
+        # optional: log to Discord channel
         try:
-            channel = bot.get_channel(1409916507609235556)
+            channel = bot.get_channel(DISCORD_UPVOTE_LOG_CHANNEL_ID)
             if channel:
                 embed = discord.Embed(
                     title="🏅 Upvote Reward",
@@ -1809,18 +1816,14 @@ def credit_upvotes_for_submission(submission):
                 embed.add_field(name="Upvotes credited", value=f"{new_credited}", inline=True)
                 embed.add_field(name="Karma", value=f"{old_k} → {new_k}", inline=True)
                 embed.add_field(name="Flair", value=flair, inline=True)
-                awaitable = channel.send(embed=embed)
-                # If we are in a non-async context, schedule it:
-                try:
-                    asyncio.run_coroutine_threadsafe(awaitable, bot.loop)
-                except Exception:
-                    pass
+                embed.add_field(name="Title", value=title_val or "—", inline=False)
+                asyncio.run_coroutine_threadsafe(channel.send(embed=embed), bot.loop)
         except Exception as e:
             print(f"⚠️ Upvote reward log failed: {e}")
 
     except Exception as e:
         print(f"⚠️ credit_upvotes_for_submission failed: {e}")
-
+        
 # ========================
 # Main approval flow
 # ========================
