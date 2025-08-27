@@ -79,6 +79,8 @@ DISCORD_APPROVAL_LOG_CHANNEL_ID = int(os.getenv("DISCORD_APPROVAL_LOG_CHANNEL_ID
 DISCORD_REJECTION_LOG_CHANNEL_ID = int(os.getenv("DISCORD_REJECTION_LOG_CHANNEL_ID", "1408406824453148725"))
 DISCORD_ACHIEVEMENTS_CHANNEL_ID = int(os.getenv("DISCORD_ACHIEVEMENTS_CHANNEL_ID", "1409902857947185202"))
 DISCORD_UPVOTE_LOG_CHANNEL_ID = int(os.getenv("DISCORD_UPVOTE_LOG_CHANNEL_ID", "1409916507609235556"))
+DISCORD_AUTO_APPROVAL_CHANNEL_ID = int(os.getenv("DISCORD_AUTO_APPROVAL_CHANNEL_ID", "1408406760322240572"))
+
 intents = discord.Intents.default()
 intents.messages = True
 intents.reactions = True
@@ -1604,9 +1606,12 @@ async def send_discord_approval(item, lang_label=None, note=None, night_guard_pi
     print(f"📨 Sent {item_type} by u/{author} to Discord (priority={priority_level}, ETA={eta_text}, night_ping={bool(mention)})")
     
 async def send_discord_auto_log(item, old_k, new_k, flair, awarded_points, extras_note=""):
-    channel = bot.get_channel(DISCORD_CHANNEL_ID)
+    channel = bot.get_channel(DISCORD_AUTO_APPROVAL_CHANNEL_ID)
     if not channel:
-        return
+        try:
+            channel = await bot.fetch_channel(DISCORD_AUTO_APPROVAL_CHANNEL_ID)
+        except Exception:
+            return
     
     author = str(item.author)
     sub_karma, acct_days = about_user_block(author)
