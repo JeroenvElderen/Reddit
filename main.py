@@ -44,6 +44,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # =========================
 # Reddit (PRAW, sync)
 # =========================
+
 # This is the bot account
 reddit = praw.Reddit(
     client_id=os.getenv("REDDIT_CLIENT_ID"),
@@ -156,6 +157,25 @@ POST_FLAIR_LINK_ID = os.getenv("POST_FLAIR_LINK_ID", "")
 POST_FLAIR_KEYWORDS = os.getenv("POST_FLAIR_KEYWORDS", "")
 
 OWNER_USERNAME = os.getenv("OWNER_REDDIT_USERNAME", "").lower()
+
+# =========================
+# Seasonal pack schedule (month/day)
+# =========================
+PACK_SCHEDULE = {
+    "spring": {"start": (3, 1), "end": (5, 31)},    # Mar 1 – May 31
+    "summer": {"start": (6, 1), "end": (8, 31)},    # Jun 1 – Aug 31
+    "autumn": {"start": (9, 1), "end": (11, 30)},   # Sep 1 – Nov 30
+    "winter": {"start": (12, 1), "end": (2, 28)},   # Dec 1 – Feb 28 (ignore leap day for simplicity)
+    "halloween": {"start": (10, 25), "end": (11, 1)},   # late Oct → Nov 1
+    "christmas": {"start": (12, 20), "end": (12, 27)},
+    "newyear": {"start": (12, 30), "end": (1, 2)},
+    "easter": {"start": (3, 25), "end": (4, 5)},     # varies yearly, pick approx
+    "midsummer": {"start": (6, 20), "end": (6, 25)},
+    "pride": {"start": (6, 1), "end": (6, 30)},
+    "stpatricks": {"start": (3, 15), "end": (3, 18)},
+    "valentines": {"start": (2, 13), "end": (2, 15)},
+    "earthday": {"start": (4, 22), "end": (4, 23)},
+}
 
 # =========================
 # Rejection reasons (1–10 + extra)
@@ -1222,7 +1242,12 @@ async def cahnow(ctx):
         "🎲 New Round (manual)",
         f"Black card: **{black}**\n[Reddit link](https://reddit.com{submission.permalink})"
     )
-    await ctx.send("✅ Manual CAH round started.")
+    await log_cah_event("🎲 New Round (manual)", f"Black card: **{black}**\n[Reddit link](https://reddit.com{submission.permalink})")
+    try:
+        await ctx.message.delete()   # ✅ delete your !cahnow message
+    except:
+        pass
+
 
 # =========================
 # List CAH Black Cards - Discord Bot Command
@@ -1322,7 +1347,6 @@ async def listcards(ctx, pack_key: str = None, page: str = "1"):
 @bot.command(name="addcard")
 async def addcard(ctx):
     """Interactive flow to add a CAH black card to Supabase."""
-    # Step 1: show instructions
     rows = supabase.table("cah_packs").select("key, name, enabled").execute().data or []
     pack_lines = [
         f"- **{r['key']}** ({r['name']}) → {'ENABLED ✅' if r['enabled'] else 'disabled ❌'}"
@@ -1340,9 +1364,8 @@ async def addcard(ctx):
         ),
         color=discord.Color.blurple()
     )
-    await ctx.send(embed=embed)
+    prompt_msg = await ctx.send(embed=embed)
 
-    # Step 2: wait for reply
     def check(m):
         return m.author == ctx.author and "|" in m.content and m.channel == ctx.channel
 
@@ -1350,30 +1373,38 @@ async def addcard(ctx):
         msg = await bot.wait_for("message", timeout=120.0, check=check)
         pack_key, card_text = [p.strip() for p in msg.content.split("|", 1)]
 
-        # validate pack
         pack = supabase.table("cah_packs").select("*").eq("key", pack_key).execute()
         if not pack.data:
-            await ctx.send(f"⚠️ Pack '{pack_key}' not found. Run `!addcard` again and pick a valid key.")
+            await ctx.send(f"⚠️ Pack '{pack_key}' not found.")
             return
 
-        # validate blank
         if "____" not in card_text:
             await ctx.send("⚠️ Card text must contain at least one `____` blank.")
             return
 
-        # insert
         res = supabase.table("cah_black_cards").insert({
             "pack_key": pack_key,
             "text": card_text
         }).execute()
+
         if res.data:
-            await ctx.send(f"✅ Card added to **{pack_key}**:\n> {card_text}")
             await log_cah_event("🆕 Card Added", f"Pack: **{pack_key}**\nText: {card_text}")
         else:
-            await ctx.send("⚠️ Could not add card (unknown error).")
+            await log_cah_event("⚠️ Add Card Failed", f"Pack: **{pack_key}**\nText: {card_text}")
 
     except asyncio.TimeoutError:
-        await ctx.send("⌛ Timed out — run `!addcard` again when ready.")
+        await log_cah_event("⌛ Add Card Timeout", f"No reply from {ctx.author.mention}")
+
+    finally:
+        # ✅ clean up both prompt + user reply
+        try:
+            await prompt_msg.delete()
+        except:
+            pass
+        try:
+            await msg.delete()
+        except:
+            pass
 
 # =========================
 # Remove CAH Black Card - Discord Bot Command
@@ -1402,25 +1433,38 @@ async def removecard(ctx, pack_key: str = None, card_id: str = None):
             res = supabase.table("cah_black_cards").delete() \
                 .eq("pack_key", pack_key).eq("id", cid).execute()
             if getattr(res, "data", None) is not None:
-                return await ctx.send(f"🗑️ Deleted card `{cid}` from `{pack_key}`.")
+                await log_cah_event("🗑️ Card Removed", f"Pack: **{pack_key}**\nCard ID: {cid}")
+                await ctx.send(f"✅ Deleted card `{cid}` from `{pack_key}`")
             else:
-                return await ctx.send(f"⚠️ Couldn’t delete card `{cid}` (not found?).")
+                await ctx.send(f"⚠️ Couldn’t delete card `{cid}` (not found?).")
+            return
 
         # --- Interactive mode ---
-        await ctx.send("📦 Which pack do you want to browse? (type the exact `pack_key`)")
+        prompt_msg = await ctx.send("📦 Which pack do you want to browse? (type the exact `pack_key`)")
 
         def check_pack(m): 
             return m.author == ctx.author and m.channel == ctx.channel
 
-        msg_pack = await bot.wait_for("message", timeout=60.0, check=check_pack)
-        pack = msg_pack.content.strip()
+        try:
+            msg_pack = await bot.wait_for("message", timeout=60.0, check=check_pack)
+        except asyncio.TimeoutError:
+            await log_cah_event("⌛ Remove Card Timeout", f"No pack reply from {ctx.author.mention}")
+            try: await prompt_msg.delete()
+            except: pass
+            return
 
+        pack = msg_pack.content.strip()
         if not _cah_pack_exists(pack):
-            return await ctx.send(f"❌ Unknown pack `{pack}`. Cancelled.")
+            await ctx.send(f"❌ Unknown pack `{pack}`. Cancelled.")
+            try:
+                await prompt_msg.delete()
+                await msg_pack.delete()
+            except: pass
+            return
 
         page = 1
         await _cah_render_page_embed(ctx, pack, page)
-        await ctx.send(
+        instr_msg = await ctx.send(
             "➡️ Type one of:\n"
             "• a **card ID** to delete\n"
             "• `next` / `prev`\n"
@@ -1435,17 +1479,30 @@ async def removecard(ctx, pack_key: str = None, card_id: str = None):
             try:
                 reply = await bot.wait_for("message", timeout=120.0, check=check_nav)
             except asyncio.TimeoutError:
-                return await ctx.send("⏳ Timed out. Cancelled.")
+                await log_cah_event("⌛ Remove Card Timeout", f"No reply from {ctx.author.mention}")
+                try:
+                    await instr_msg.delete()
+                    await msg_pack.delete()
+                    await prompt_msg.delete()
+                except: pass
+                return
 
             content = reply.content.strip().lower()
             if content in ("cancel", "stop", "exit"):
-                return await ctx.send("❎ Cancelled.")
+                await ctx.send("❎ Cancelled.")
+                try:
+                    await instr_msg.delete()
+                    await msg_pack.delete()
+                    await prompt_msg.delete()
+                    await reply.delete()
+                except: pass
+                return
 
             if content in ("next", "n", ">"):
-                # move forward
                 _, total, total_pages = await _cah_fetch_page(pack, page)
                 if total_pages == 0:
-                    return await ctx.send("ℹ️ No cards.")
+                    await ctx.send("ℹ️ No cards.")
+                    continue
                 page = min(page + 1, total_pages)
                 await _cah_render_page_embed(ctx, pack, page)
                 continue
@@ -1463,7 +1520,8 @@ async def removecard(ctx, pack_key: str = None, card_id: str = None):
                     continue
                 _, total, total_pages = await _cah_fetch_page(pack, want)
                 if total_pages == 0:
-                    return await ctx.send("ℹ️ No cards.")
+                    await ctx.send("ℹ️ No cards.")
+                    continue
                 page = max(1, min(want, total_pages))
                 await _cah_render_page_embed(ctx, pack, page)
                 continue
@@ -1475,23 +1533,68 @@ async def removecard(ctx, pack_key: str = None, card_id: str = None):
                 await ctx.send("⚠️ Not understood. Reply with a card ID, `next`, `prev`, `page <n>`, or `cancel`.")
                 continue
 
-            # delete attempt
             res = supabase.table("cah_black_cards").delete() \
                 .eq("pack_key", pack).eq("id", cid).execute()
             if getattr(res, "data", None) is not None:
-                await ctx.send(f"🗑️ Deleted card `{cid}` from `{pack}`.")
+                await log_cah_event("🗑️ Card Removed", f"Pack: **{pack}**\nCard ID: {cid}")
+                await ctx.send(f"✅ Deleted card `{cid}` from `{pack}`")
+                # ✅ cleanup
+                try:
+                    await instr_msg.delete()
+                    await msg_pack.delete()
+                    await prompt_msg.delete()
+                    await reply.delete()
+                except: pass
                 return
             else:
-                await ctx.send(f"⚠️ Couldn’t delete card `{cid}` (not found on this page/pack). Try again.")
+                await ctx.send(f"⚠️ Couldn’t delete card `{cid}` (not found?). Try again.")
 
-    except asyncio.TimeoutError:
-        await ctx.send("⏳ Timed out. Cancelled.")
     except commands.MissingPermissions:
         await ctx.send("🚫 You need `Manage Server` to remove cards.")
     except Exception as e:
         print(f"⚠️ removecard error: {e}")
         await ctx.send("⚠️ Couldn’t remove cards right now.")
 
+# =========================
+# Enable/Disable CAH Pack - Discord Bot Command
+# =========================
+@bot.command(name="enablepack")
+@commands.has_permissions(manage_guild=True)
+async def enablepack(ctx, pack_key: str = None):
+    """Enable a CAH pack (so its cards can be used)."""
+    try:
+        if not pack_key:
+            return await ctx.send("⚠️ Usage: `!enablepack <pack_key>`")
+
+        res = supabase.table("cah_packs").update({"enabled": True}).eq("key", pack_key).execute()
+        if res.data:
+            await log_cah_event("📦 Pack Enabled", f"Pack: **{pack_key}**")
+        else:
+            await log_cah_event("⚠️ Enable Pack Failed", f"Pack: **{pack_key}** not found.")
+    finally:
+        try:
+            await ctx.message.delete()   # ✅ cleanup
+        except:
+            pass
+
+@bot.command(name="disablepack")
+@commands.has_permissions(manage_guild=True)
+async def disablepack(ctx, pack_key: str = None):
+    """Disable a CAH pack (its cards won’t be picked)."""
+    try:
+        if not pack_key:
+            return await ctx.send("⚠️ Usage: `!disablepack <pack_key>`")
+
+        res = supabase.table("cah_packs").update({"enabled": False}).eq("key", pack_key).execute()
+        if res.data:
+            await log_cah_event("📦 Pack Disabled", f"Pack: **{pack_key}**")
+        else:
+            await log_cah_event("⚠️ Disable Pack Failed", f"Pack: **{pack_key}** not found.")
+    finally:
+        try:
+            await ctx.message.delete()   # ✅ cleanup
+        except:
+            pass
 
 # =========================
 # Quiet Observer Flair Command
@@ -2138,6 +2241,65 @@ async def log_cah_event(title:str, desc:str, color=discord.Color.blurple()):
         except: return
     embed=discord.Embed(title=title,description=desc,color=color,timestamp=datetime.now(timezone.utc))
     await channel.send(embed=embed)
+
+# =========================
+# CAH pack enable/disable prompt
+# =========================
+async def prompt_pack_toggle(pack_key: str, action: str, when: str):
+    """
+    Prompt in Discord CAH channel to enable/disable a pack.
+    action = 'enable' or 'disable'
+    when = human-readable date (e.g. 'Dec 1')
+    """
+    channel = bot.get_channel(DISCORD_CAH_CHANNEL_ID)
+    if not channel:
+        try:
+            channel = await bot.fetch_channel(DISCORD_CAH_CHANNEL_ID)
+        except Exception:
+            return
+
+    embed = discord.Embed(
+        title=f"📦 {pack_key.title()} Pack {action.capitalize()}?",
+        description=f"The **{pack_key.title()}** pack is scheduled to {action} on **{when}**.\n\n"
+                    f"React ✅ to {action}, ❌ to skip.",
+        color=discord.Color.gold(),
+        timestamp=datetime.now(timezone.utc)
+    )
+    msg = await channel.send(embed=embed)
+    await msg.add_reaction("✅")
+    await msg.add_reaction("❌")
+
+    def check(reaction, user):
+        return (
+            reaction.message.id == msg.id
+            and not user.bot
+            and str(reaction.emoji) in ["✅", "❌"]
+        )
+
+    try:
+        reaction, user = await bot.wait_for("reaction_add", timeout=86400.0, check=check)
+        if str(reaction.emoji) == "✅":
+            if action == "enable":
+                supabase.table("cah_packs").update({"enabled": True}).eq("key", pack_key).execute()
+                await log_cah_event("📦 Pack Enabled", f"Pack: **{pack_key}**")
+            else:
+                supabase.table("cah_packs").update({"enabled": False}).eq("key", pack_key).execute()
+                await log_cah_event("📦 Pack Disabled", f"Pack: **{pack_key}**")
+        else:
+            await log_cah_event("⏳ Pack Change Skipped", f"Pack: **{pack_key}** left unchanged.")
+
+        # ✅ Clean up the original prompt
+        try:
+            await msg.delete()
+        except Exception:
+            pass
+
+    except asyncio.TimeoutError:
+        await log_cah_event("⌛ No Response", f"Pack: **{pack_key}** unchanged.")
+        try:
+            await msg.delete()
+        except Exception:
+            pass
 
 # =========================
 # Approval bookkeeping
@@ -3154,6 +3316,48 @@ def cah_loop():
             time.sleep(60)
 
 # =========================
+# Pack Schedule Loop (daily)
+# =========================
+def pack_schedule_loop():
+    print("🕒 Pack schedule loop started...")
+    while True:
+        try:
+            today = datetime.now(current_tz()).date()
+            m, d = today.month, today.day
+
+            for pack_key, schedule in PACK_SCHEDULE.items():
+                start_m, start_d = schedule["start"]
+                end_m, end_d = schedule["end"]
+
+                # Handle wrap-around packs like winter/newyear
+                start = date(today.year, start_m, start_d)
+                end = date(today.year, end_m, end_d)
+                if end < start:
+                    # crosses year boundary
+                    if m >= start_m:   # late in year
+                        end = date(today.year + 1, end_m, end_d)
+                    else:
+                        start = date(today.year - 1, start_m, start_d)
+
+                # Notify 3 days before start
+                if (start - today).days == 3:
+                    asyncio.run_coroutine_threadsafe(
+                        prompt_pack_toggle(pack_key, "enable", start.strftime("%b %d")),
+                        bot.loop
+                    )
+
+                # Notify 3 days before end
+                if (end - today).days == 3:
+                    asyncio.run_coroutine_threadsafe(
+                        prompt_pack_toggle(pack_key, "disable", end.strftime("%b %d")),
+                        bot.loop
+                    )
+
+        except Exception as e:
+            print(f"⚠️ Pack schedule loop error: {e}")
+        time.sleep(86400)  # check daily
+
+# =========================
 # Discord events
 # =========================
 @bot.event
@@ -3171,6 +3375,7 @@ async def on_ready():
     threading.Thread(target=weekly_achievements_loop, daemon=True).start()
     threading.Thread(target=upvote_reward_loop, daemon=True).start()
     threading.Thread(target=cah_loop, daemon=True).start()
+    threading.Thread(target=pack_schedule_loop, daemon=True).start()
 
 @bot.event
 async def on_reaction_add(reaction, user):
