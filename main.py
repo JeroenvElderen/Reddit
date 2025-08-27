@@ -6,6 +6,7 @@ import asyncio
 import openai
 import random
 import re
+import uuid
 from datetime import datetime, date, timedelta, timezone, time as dtime
 from urllib.parse import urlparse
 
@@ -80,6 +81,7 @@ DISCORD_REJECTION_LOG_CHANNEL_ID = int(os.getenv("DISCORD_REJECTION_LOG_CHANNEL_
 DISCORD_ACHIEVEMENTS_CHANNEL_ID = int(os.getenv("DISCORD_ACHIEVEMENTS_CHANNEL_ID", "1409902857947185202"))
 DISCORD_UPVOTE_LOG_CHANNEL_ID = int(os.getenv("DISCORD_UPVOTE_LOG_CHANNEL_ID", "1409916507609235556"))
 DISCORD_AUTO_APPROVAL_CHANNEL_ID = int(os.getenv("DISCORD_AUTO_APPROVAL_CHANNEL_ID", "1408406760322240572"))
+DISCORD_CAH_CHANNEL_ID = int(os.getenv("DISCORD_CAH_CHANNEL_ID", "1410224656526610432"))
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -91,6 +93,21 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # =========================
 # Config (ENV)
 # =========================
+
+
+# =========================
+# CAH (Cards Against Humanity) game
+# =========================
+CAH_PAGE_SIZE = int(os.getenv("CAH_PAGE_SIZE","20"))
+CAH_ENABLED = os.getenv("CAH_ENABLED","0") == "1"
+CAH_POST_HOUR = int(os.getenv("CAH_POST_HOUR","12"))
+CAH_ROUND_DURATION_H = int(os.getenv("CAH_ROUND_DURATION_H","24"))
+CAH_EXTENSION_H = int(os.getenv("CAH_EXTENSION_H","24"))
+CAH_INCLUDE_BASE = os.getenv("CAH_INCLUDE_BASE","1") == "1"
+CAH_BASE_PACK_KEY = os.getenv("CAH_BASE_PACK_KEY","base")
+CAH_POST_FLAIR_ID = os.getenv("CAH_POST_FLAIR_ID") or None
+DISCORD_CAH_CHANNEL_ID = int(os.getenv("DISCORD_CAH_CHANNEL_ID","0"))
+
 # Night Guard + ping
 TZ_NAME = os.getenv("TZ", "Europe/Dublin")
 NIGHT_GUARD_ENABLED = os.getenv("NIGHT_GUARD_ENABLED", "1") == "1"
@@ -339,6 +356,18 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
         except Exception as e:
             print(f"⚠️ Failed to set bot flair: {e}")
         return 0, 0, "Bot"
+
+    # owner account -> always naturist legend
+    if name == OWNER_USERNAME:
+        try:
+            flair_id = flair_templates.get("Naturist Legend")
+            if flair_id:
+                subreddit.flair.set(redditor=name, flair_template_id=flair_id)
+                print(f"👑 Owner account flair forced to Naturist Legend")
+        except Exception as e:
+            print(f"⚠️ Failed to set owner flair: {e}")
+        return 0, 0, "Owner"
+        
 
     # --- Normal user flow ---
     res = supabase.table("user_karma").select("*").ilike("username", name).execute()
@@ -1130,6 +1159,7 @@ def cmd_safety(author: str, message):
         "- Tag NSFW correctly\n"
         "- Report creepy or unsafe behavior to mods"
     )
+    
 
 def cmd_help(author: str, message):
     commands = {
@@ -1149,6 +1179,323 @@ def cmd_help(author: str, message):
         + "\n\nType any command in DM (e.g., `!stats`)."
     )
 
+# =========================
+# Cards Against Humanity (CAH) - Discord Bot Command
+# =========================
+@bot.command(name="cahnow")
+async def cahnow(ctx):
+    """Force start a CAH round immediately."""
+    # check: do we have any cards in enabled packs?
+    active = cah_enabled_packs()
+    if not active:
+        await ctx.send("⚠️ No enabled packs found.")
+        return
+    total_cards = 0
+    for p in active:
+        cnt = supabase.table("cah_black_cards").select("id", count="exact").eq("pack_key", p["key"]).execute()
+        total_cards += cnt.count or 0
+    if total_cards <= 0:
+        await ctx.send("⚠️ No black cards available in enabled packs.")
+        return
+
+    black = cah_pick_black_card()
+    title = "🎲 CAH Round — Fill in the Blank!"
+    submission = reddit_owner.subreddit(SUBREDDIT_NAME).submit(title, selftext=f"**Black card:** {black}")
+    if CAH_POST_FLAIR_ID:
+        try:
+            submission.flair.select(CAH_POST_FLAIR_ID)
+        except:
+            pass
+    submission.mod.approve()
+    round_id = str(uuid.uuid4())
+    start_ts = datetime.utcnow()
+    lock_after = start_ts + timedelta(hours=CAH_ROUND_DURATION_H)
+    supabase.table("cah_rounds").insert({
+        "round_id": round_id,
+        "post_id": submission.id,
+        "black_text": black,
+        "start_ts": start_ts.isoformat(),
+        "status": "open",
+        "lock_after_ts": lock_after.isoformat()
+    }).execute()
+    await log_cah_event(
+        "🎲 New Round (manual)",
+        f"Black card: **{black}**\n[Reddit link](https://reddit.com{submission.permalink})"
+    )
+    await ctx.send("✅ Manual CAH round started.")
+
+# =========================
+# List CAH Black Cards - Discord Bot Command
+# =========================
+async def _cah_fetch_page(pack_key: str, page: int, page_size: int = CAH_PAGE_SIZE):
+    """
+    Returns (rows, total_count, total_pages) for a page of black cards in a pack.
+    rows: list of dicts with keys id,text
+    """
+    try:
+        # get total
+        cnt = supabase.table("cah_black_cards") \
+            .select("id", count="exact") \
+            .eq("pack_key", pack_key) \
+            .execute()
+        total = int(cnt.count or 0)
+        if total == 0:
+            return [], 0, 0
+
+        total_pages = max(1, (total + page_size - 1) // page_size)
+        page = max(1, min(page, total_pages))
+
+        start = (page - 1) * page_size
+        end = start + page_size - 1
+
+        rows = supabase.table("cah_black_cards") \
+            .select("id, text") \
+            .eq("pack_key", pack_key) \
+            .order("id", desc=False) \
+            .range(start, end) \
+            .execute().data or []
+
+        return rows, total, total_pages
+    except Exception as e:
+        print(f"⚠️ _cah_fetch_page failed: {e}")
+        return [], 0, 0
+
+
+def _cah_pack_exists(pack_key: str) -> bool:
+    try:
+        res = supabase.table("cah_packs").select("key").eq("key", pack_key).execute()
+        return bool(res.data)
+    except Exception:
+        return False
+
+
+async def _cah_render_page_embed(ctx, pack_key: str, page: int):
+    rows, total, total_pages = await _cah_fetch_page(pack_key, page)
+    if total == 0:
+        return await ctx.send(f"ℹ️ No cards found for pack `{pack_key}`.")
+
+    lines = []
+    for r in rows:
+        t = (r['text'] or '').replace("\n", " ")
+        if len(t) > 120:
+            t = t[:117] + "..."
+        lines.append(f"`{r['id']}` — {t}")
+
+    embed = discord.Embed(
+        title=f"🗂️ Cards in `{pack_key}` — page {page}/{total_pages}",
+        description="\n".join(lines) or "—",
+        color=discord.Color.blurple()
+    )
+    embed.set_footer(text=f"{total} total cards • use !listcards {pack_key} <page> • remove with !removecard {pack_key} <id>")
+    await ctx.send(embed=embed)
+
+# =========================
+# List CAH Black Cards - Discord Bot Command
+# =========================
+@bot.command(name="listcards")
+async def listcards(ctx, pack_key: str = None, page: str = "1"):
+    """Browse all cards in a pack with paging: !listcards <pack_key> [page]"""
+    try:
+        if DISCORD_CAH_CHANNEL_ID and ctx.channel.id != DISCORD_CAH_CHANNEL_ID:
+            return await ctx.send(f"⚠️ Please use this in <#{DISCORD_CAH_CHANNEL_ID}>.")
+
+        if not pack_key:
+            return await ctx.send("Usage: `!listcards <pack_key> [page]`")
+
+        if not _cah_pack_exists(pack_key):
+            return await ctx.send(f"❌ Unknown pack `{pack_key}`.")
+
+        try:
+            p = int(page)
+        except ValueError:
+            return await ctx.send("⚠️ Page must be a number.")
+
+        await _cah_render_page_embed(ctx, pack_key, p)
+    except Exception as e:
+        print(f"⚠️ listcards error: {e}")
+        await ctx.send("⚠️ Couldn’t list cards right now.")
+
+
+# =========================
+# Add CAH Black Card - Discord Bot Command
+# =========================
+@bot.command(name="addcard")
+async def addcard(ctx):
+    """Interactive flow to add a CAH black card to Supabase."""
+    # Step 1: show instructions
+    rows = supabase.table("cah_packs").select("key, name, enabled").execute().data or []
+    pack_lines = [
+        f"- **{r['key']}** ({r['name']}) → {'ENABLED ✅' if r['enabled'] else 'disabled ❌'}"
+        for r in rows
+    ]
+    embed = discord.Embed(
+        title="📝 Add a new CAH Black Card",
+        description=(
+            "Reply in this channel with:\n\n"
+            "`pack_key | card text`\n\n"
+            "**Example:**\n"
+            "`summer | Nothing says naturism like ____.`\n\n"
+            "⚠️ Use `____` for blanks!\n\n"
+            "**Available Packs:**\n" + "\n".join(pack_lines)
+        ),
+        color=discord.Color.blurple()
+    )
+    await ctx.send(embed=embed)
+
+    # Step 2: wait for reply
+    def check(m):
+        return m.author == ctx.author and "|" in m.content and m.channel == ctx.channel
+
+    try:
+        msg = await bot.wait_for("message", timeout=120.0, check=check)
+        pack_key, card_text = [p.strip() for p in msg.content.split("|", 1)]
+
+        # validate pack
+        pack = supabase.table("cah_packs").select("*").eq("key", pack_key).execute()
+        if not pack.data:
+            await ctx.send(f"⚠️ Pack '{pack_key}' not found. Run `!addcard` again and pick a valid key.")
+            return
+
+        # validate blank
+        if "____" not in card_text:
+            await ctx.send("⚠️ Card text must contain at least one `____` blank.")
+            return
+
+        # insert
+        res = supabase.table("cah_black_cards").insert({
+            "pack_key": pack_key,
+            "text": card_text
+        }).execute()
+        if res.data:
+            await ctx.send(f"✅ Card added to **{pack_key}**:\n> {card_text}")
+            await log_cah_event("🆕 Card Added", f"Pack: **{pack_key}**\nText: {card_text}")
+        else:
+            await ctx.send("⚠️ Could not add card (unknown error).")
+
+    except asyncio.TimeoutError:
+        await ctx.send("⌛ Timed out — run `!addcard` again when ready.")
+
+# =========================
+# Remove CAH Black Card - Discord Bot Command
+# =========================
+@bot.command(name="removecard")
+@commands.has_permissions(manage_guild=True)
+async def removecard(ctx, pack_key: str = None, card_id: str = None):
+    """
+    Remove a card by ID.
+    - Direct: !removecard <pack_key> <card_id>
+    - Interactive: !removecard  (then follow prompts: pack -> page -> id)
+    """
+    try:
+        if DISCORD_CAH_CHANNEL_ID and ctx.channel.id != DISCORD_CAH_CHANNEL_ID:
+            return await ctx.send(f"⚠️ Please use this in <#{DISCORD_CAH_CHANNEL_ID}>.")
+
+        # --- Direct mode ---
+        if pack_key and card_id:
+            if not _cah_pack_exists(pack_key):
+                return await ctx.send(f"❌ Unknown pack `{pack_key}`.")
+            try:
+                cid = int(card_id)
+            except ValueError:
+                return await ctx.send("⚠️ card_id must be a number.")
+
+            res = supabase.table("cah_black_cards").delete() \
+                .eq("pack_key", pack_key).eq("id", cid).execute()
+            if getattr(res, "data", None) is not None:
+                return await ctx.send(f"🗑️ Deleted card `{cid}` from `{pack_key}`.")
+            else:
+                return await ctx.send(f"⚠️ Couldn’t delete card `{cid}` (not found?).")
+
+        # --- Interactive mode ---
+        await ctx.send("📦 Which pack do you want to browse? (type the exact `pack_key`)")
+
+        def check_pack(m): 
+            return m.author == ctx.author and m.channel == ctx.channel
+
+        msg_pack = await bot.wait_for("message", timeout=60.0, check=check_pack)
+        pack = msg_pack.content.strip()
+
+        if not _cah_pack_exists(pack):
+            return await ctx.send(f"❌ Unknown pack `{pack}`. Cancelled.")
+
+        page = 1
+        await _cah_render_page_embed(ctx, pack, page)
+        await ctx.send(
+            "➡️ Type one of:\n"
+            "• a **card ID** to delete\n"
+            "• `next` / `prev`\n"
+            "• `page <n>` (e.g. `page 3`)\n"
+            "• `cancel`"
+        )
+
+        while True:
+            def check_nav(m):
+                return m.author == ctx.author and m.channel == ctx.channel
+
+            try:
+                reply = await bot.wait_for("message", timeout=120.0, check=check_nav)
+            except asyncio.TimeoutError:
+                return await ctx.send("⏳ Timed out. Cancelled.")
+
+            content = reply.content.strip().lower()
+            if content in ("cancel", "stop", "exit"):
+                return await ctx.send("❎ Cancelled.")
+
+            if content in ("next", "n", ">"):
+                # move forward
+                _, total, total_pages = await _cah_fetch_page(pack, page)
+                if total_pages == 0:
+                    return await ctx.send("ℹ️ No cards.")
+                page = min(page + 1, total_pages)
+                await _cah_render_page_embed(ctx, pack, page)
+                continue
+
+            if content in ("prev", "p", "<"):
+                page = max(1, page - 1)
+                await _cah_render_page_embed(ctx, pack, page)
+                continue
+
+            if content.startswith("page "):
+                try:
+                    want = int(content.split()[1])
+                except Exception:
+                    await ctx.send("⚠️ Usage: `page <number>`")
+                    continue
+                _, total, total_pages = await _cah_fetch_page(pack, want)
+                if total_pages == 0:
+                    return await ctx.send("ℹ️ No cards.")
+                page = max(1, min(want, total_pages))
+                await _cah_render_page_embed(ctx, pack, page)
+                continue
+
+            # otherwise, try to parse as ID and delete
+            try:
+                cid = int(content)
+            except ValueError:
+                await ctx.send("⚠️ Not understood. Reply with a card ID, `next`, `prev`, `page <n>`, or `cancel`.")
+                continue
+
+            # delete attempt
+            res = supabase.table("cah_black_cards").delete() \
+                .eq("pack_key", pack).eq("id", cid).execute()
+            if getattr(res, "data", None) is not None:
+                await ctx.send(f"🗑️ Deleted card `{cid}` from `{pack}`.")
+                return
+            else:
+                await ctx.send(f"⚠️ Couldn’t delete card `{cid}` (not found on this page/pack). Try again.")
+
+    except asyncio.TimeoutError:
+        await ctx.send("⏳ Timed out. Cancelled.")
+    except commands.MissingPermissions:
+        await ctx.send("🚫 You need `Manage Server` to remove cards.")
+    except Exception as e:
+        print(f"⚠️ removecard error: {e}")
+        await ctx.send("⚠️ Couldn’t remove cards right now.")
+
+
+# =========================
+# Quiet Observer Flair Command
+# =========================
 def cmd_observer(author: str, message):
     """Let users self-assign the Quiet Observer flair (karma reset to 0)."""
     flair_id = flair_templates.get("Quiet Observer")
@@ -1226,6 +1573,55 @@ def save_pending_review(msg_id: int, item, level: int):
     except Exception as e:
         print(f"⚠️ Failed to save pending review {msg_id}: {e}")
 
+
+# =========================
+# Cards Against Humanity black card picker (Supabase)
+# =========================
+def cah_enabled_packs():
+    try:
+        return supabase.table("cah_packs").select("*").eq("enabled",True).execute().data or []
+    except:
+        return [{"key":CAH_BASE_PACK_KEY,"weight":100}]
+
+# =========================
+# Random black card picker
+# =========================
+def _random_card_for_pack(key:str) -> str|None:
+    try:
+        cnt = supabase.table("cah_black_cards").select("id",count="exact").eq("pack_key",key).limit(1).execute()
+        total = int(cnt.count or 0)
+        if total<=0: return None
+        offset = random.randint(0,total-1)
+        row = supabase.table("cah_black_cards").select("text").eq("pack_key",key).range(offset,offset).execute().data
+        if row: return row[0]["text"]
+    except: pass
+    return None
+
+# =========================
+# Main random black card picker with fallback
+# =========================
+def cah_pick_black_card() -> str:
+    active = cah_enabled_packs()
+    if not active: active=[{"key":CAH_BASE_PACK_KEY,"weight":100}]
+    weighted=[(p["key"],int(p.get("weight",100))) for p in active]
+    total=sum(w for _,w in weighted)
+    r=random.uniform(0,total)
+    upto=0; chosen=weighted[-1][0]
+    for key,w in weighted:
+        if upto+w>=r: chosen=key; break
+        upto+=w
+    txt=_random_card_for_pack(chosen)
+    if txt: return txt
+    txt=_random_card_for_pack(CAH_BASE_PACK_KEY)
+    if txt: return txt
+    return random.choice([
+        "Nothing says naturism like ____.",
+        "The best naturist activity is ____."
+    ])
+
+# =========================
+# Restore pending reviews on startup
+# =========================
 def delete_pending_review(msg_id: int):
     try:
         supabase.table("pending_reviews").delete().eq("msg_id", msg_id).execute()
@@ -1640,7 +2036,9 @@ async def send_discord_auto_log(item, old_k, new_k, flair, awarded_points, extra
     embed.add_field(name="Link", value=f"https://reddit.com{item.permalink}", inline=False)
     await channel.send(embed=embed)
 
-
+# =========================
+# Approval / rejection logging
+# =========================
 async def log_approval(item, old_k: int, new_k: int, flair: str, note: str, extras: str = ""):
     """Log full approval info to the approval log channel."""
     channel = bot.get_channel(DISCORD_APPROVAL_LOG_CHANNEL_ID)
@@ -1675,7 +2073,9 @@ async def log_approval(item, old_k: int, new_k: int, flair: str, note: str, extr
 
     await channel.send(embed=embed)
 
-
+# =========================
+# Rejection logging (with reason)
+# =========================
 async def log_rejection(item, old_k: int, new_k: int, flair: str, reason_text: str):
     """Log full rejection info (with reason) to the rejection log channel."""
     channel = bot.get_channel(DISCORD_REJECTION_LOG_CHANNEL_ID)
@@ -1709,6 +2109,9 @@ async def log_rejection(item, old_k: int, new_k: int, flair: str, reason_text: s
 
     await channel.send(embed=embed)
 
+# =========================
+# Achievement logging
+# =========================
 async def log_achievement(username: str, badge_name: str):
     """Send an achievement unlock to the Achievements Discord channel."""
     channel = bot.get_channel(DISCORD_ACHIEVEMENTS_CHANNEL_ID)
@@ -1722,6 +2125,18 @@ async def log_achievement(username: str, badge_name: str):
         color=discord.Color.gold(),
         timestamp=datetime.now(timezone.utc)   # 👈 aware timestamp
     )
+    await channel.send(embed=embed)
+
+# =========================
+# General CAH event logging
+# =========================
+async def log_cah_event(title:str, desc:str, color=discord.Color.blurple()):
+    if not DISCORD_CAH_CHANNEL_ID: return
+    channel=bot.get_channel(DISCORD_CAH_CHANNEL_ID)
+    if not channel:
+        try: channel=await bot.fetch_channel(DISCORD_CAH_CHANNEL_ID)
+        except: return
+    embed=discord.Embed(title=title,description=desc,color=color,timestamp=datetime.now(timezone.utc))
     await channel.send(embed=embed)
 
 # =========================
@@ -2541,7 +2956,10 @@ def daily_prompt_poster():
             print(f"⚠️ Daily prompt error: {e}")
 
         time.sleep(30)
-        
+
+# =========================
+# Daily Fact Poster (Naturist Fact of the Day)
+# =========================        
 def daily_fact_poster():
     print("🕒 Daily fact loop started...")
     while True:
@@ -2626,6 +3044,116 @@ def upvote_reward_loop():
         time.sleep(120)
 
 # =========================
+# Cards Against Humanity Loop (every minute)
+# =========================
+def cah_loop():
+    print("🕒 CAH loop started...")
+    while True:
+        try:
+            if not CAH_ENABLED: time.sleep(60); continue
+            now=datetime.now(current_tz())
+
+            # Post new round
+            if now.hour == CAH_POST_HOUR and now.minute == 0:
+                # check cards available
+                active = cah_enabled_packs()
+                total_cards = 0
+                for p in active:
+                    cnt = supabase.table("cah_black_cards").select("id", count="exact").eq("pack_key", p["key"]).execute()
+                    total_cards += cnt.count or 0
+                if total_cards <= 0:
+                    print("⚠️ Skipping CAH round — no cards available.")
+                    time.sleep(60)
+                    continue
+
+                black = cah_pick_black_card()
+                title = f"🎲 CAH Round — Fill in the Blank!"
+                submission = reddit_owner.subreddit(SUBREDDIT_NAME).submit(
+                    title, selftext=f"**Black card:** {black}"
+                )
+
+
+                if CAH_POST_FLAIR_ID:
+                    try: submission.flair.select(CAH_POST_FLAIR_ID)
+                    except: pass
+                submission.mod.approve()
+                round_id=str(uuid.uuid4())
+                start_ts=datetime.utcnow()
+                lock_after=start_ts+timedelta(hours=CAH_ROUND_DURATION_H)
+                supabase.table("cah_rounds").insert({
+                    "round_id":round_id,
+                    "post_id":submission.id,
+                    "black_text":black,
+                    "start_ts":start_ts.isoformat(),
+                    "status":"open",
+                    "lock_after_ts":lock_after.isoformat()
+                }).execute()
+                asyncio.run_coroutine_threadsafe(
+                    log_cah_event("🎲 New Round Posted",
+                                  f"Black card: **{black}**\n[Reddit link](https://reddit.com{submission.permalink})"),
+                    bot.loop)
+                time.sleep(60)
+
+            # Check open rounds
+            rows=supabase.table("cah_rounds").select("*").eq("status","open").execute().data or []
+            for r in rows:
+                post=reddit.submission(id=r["post_id"])
+                lock_after=datetime.fromisoformat(r["lock_after_ts"].replace("Z","+00:00"))
+                if datetime.utcnow()>=lock_after:
+                    post.comments.replace_more(limit=0)
+                    comments=list(post.comments)
+
+                    if r.get("comments_at_24h") is None:
+                        if comments:
+                            # close now
+                            winner=None; top=-1
+                            for c in comments:
+                                if c.score>top: winner=(c.author.name,c.id,c.score); top=c.score
+                            post.mod.lock()
+                            supabase.table("cah_rounds").update({
+                                "status":"closed",
+                                "comments_at_24h":len(comments),
+                                "winner_username":winner[0] if winner else None,
+                                "winner_comment_id":winner[1] if winner else None,
+                                "winner_score":winner[2] if winner else None
+                            }).eq("round_id",r["round_id"]).execute()
+                            asyncio.run_coroutine_threadsafe(
+                                log_cah_event("🏆 Round Closed",
+                                              f"Winner: u/{winner[0]} (+{winner[2]} upvotes)" if winner else "No winner"),
+                                bot.loop)
+                        else:
+                            # extend 24h
+                            new_lock=datetime.utcnow()+timedelta(hours=CAH_EXTENSION_H)
+                            supabase.table("cah_rounds").update({
+                                "status":"extended",
+                                "comments_at_24h":0,
+                                "lock_after_ts":new_lock.isoformat()
+                            }).eq("round_id",r["round_id"]).execute()
+                            asyncio.run_coroutine_threadsafe(
+                                log_cah_event("⏳ Round Extended","No comments yet, extended 24h"),
+                                bot.loop)
+                    else:
+                        # was extended → close anyway
+                        winner=None; top=-1
+                        for c in comments:
+                            if c.score>top: winner=(c.author.name,c.id,c.score); top=c.score
+                        post.mod.lock()
+                        supabase.table("cah_rounds").update({
+                            "status":"closed",
+                            "winner_username":winner[0] if winner else None,
+                            "winner_comment_id":winner[1] if winner else None,
+                            "winner_score":winner[2] if winner else None
+                        }).eq("round_id",r["round_id"]).execute()
+                        asyncio.run_coroutine_threadsafe(
+                            log_cah_event("🏆 Round Closed (after extension)",
+                                          f"Winner: u/{winner[0]} (+{winner[2]} upvotes)" if winner else "No winner"),
+                            bot.loop)
+            time.sleep(60)
+        except Exception as e:
+            print(f"⚠️ CAH loop error: {e}")
+            time.sleep(60)
+
+# =========================
 # Discord events
 # =========================
 @bot.event
@@ -2642,6 +3170,7 @@ async def on_ready():
     threading.Thread(target=feedback_loop, daemon=True).start()
     threading.Thread(target=weekly_achievements_loop, daemon=True).start()
     threading.Thread(target=upvote_reward_loop, daemon=True).start()
+    threading.Thread(target=cah_loop, daemon=True).start()
 
 @bot.event
 async def on_reaction_add(reaction, user):
