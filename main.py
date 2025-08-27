@@ -1771,7 +1771,7 @@ def credit_upvotes_for_submission(submission):
             return
 
         # 0.5 karma per upvote => 1 karma per 2 upvotes (integer)
-        award = delta_upvotes // 2
+        award = delta_upvotes // 5
         if award <= 0:
             # not enough new upvotes to grant a whole point yet
             supabase.table("post_upvote_credits").upsert({
