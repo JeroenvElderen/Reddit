@@ -6,6 +6,20 @@ from datetime import datetime, timezone
 from app.clients.supabase import supabase
 from app.clients.reddit_bot import reddit
 
+# ---------- Ensure user now ---------
+def ensure_user_row(username: str) -> bool:
+    """Ensure a user row exists in Supabase; return True if created."""
+    res = (
+        supabase.table("user_karma")
+        .select("username")
+        .ilike("username", username)
+        .execute()
+    )
+    if res.data:
+        return False
+    supabase.table("user_karma").insert({"username": username, "karma": 0}).execute()
+    return True
+
 
 # ---------- About snapshot ----------
 def about_user_block(name: str):

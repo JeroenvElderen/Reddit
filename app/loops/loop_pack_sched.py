@@ -6,7 +6,7 @@ import time, asyncio
 from datetime import datetime, date
 from app.clients.discord_bot import bot
 from app.models.schedules import PACK_SCHEDULE
-from app.cah.packs_toggle import prompt_pack_toggle
+from app.cah.logs import prompt_pack_toggle
 from app.utils.tz import current_tz
 
 

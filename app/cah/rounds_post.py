@@ -3,9 +3,11 @@ CAH round creation (scheduled/manual).
 """
 
 import uuid
+import asyncio
 from datetime import datetime, timedelta
 from app.clients.supabase import supabase
 from app.clients.reddit_owner import reddit_owner
+from app.clients.discord_bot import bot
 from app.models.state import SUBREDDIT_NAME
 from app.config import CAH_POST_FLAIR_ID, CAH_ROUND_DURATION_H
 from app.cah.picker import cah_pick_black_card
@@ -47,3 +49,43 @@ def create_cah_round(manual: bool = False):
     event_title = "🎲 New Round (manual)" if manual else "🎲 New Round Posted"
     log_text = f"Black card: **{black}**\n[Reddit link](https://reddit.com{submission.permalink})"
     return submission, event_title, log_text
+
+
+
+def maybe_post_new_round(now: datetime):
+    """Post a new round if none are currently active."""
+    try:
+        open_rows = (
+            supabase.table("cah_rounds")
+            .select("round_id")
+            .eq("status", "open")
+            .execute()
+            .data
+            or []
+        )
+    except Exception:
+        open_rows = []
+
+    if open_rows:
+        return
+
+    try:
+        extended_rows = (
+            supabase.table("cah_rounds")
+            .select("round_id")
+            .eq("status", "extended")
+            .execute()
+            .data
+            or []
+        )
+    except Exception:
+        extended_rows = []
+
+    if extended_rows:
+        return
+
+    submission, event_title, log_text = create_cah_round()
+    asyncio.run_coroutine_threadsafe(
+        log_cah_event(event_title, log_text),
+        bot.loop,
+    )

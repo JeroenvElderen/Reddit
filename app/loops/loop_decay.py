@@ -16,8 +16,8 @@ from app.config import (
     DECAY_AFTER_DAYS,
     DECAY_PER_DAY,
 )
-from app.moderation.flair_text import get_flair_for_karma
-from app.events.discord_messages import send_decay_warning
+from app.utils.flair_text import get_flair_for_karma
+from app.moderation.approval_base import send_decay_warning
 
 
 def apply_decay_once():

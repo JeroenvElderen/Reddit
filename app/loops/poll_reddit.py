@@ -19,7 +19,7 @@ from app.utils.text_lang import likely_english
 from app.utils.text_misc import item_text
 from app.utils.tz import current_tz
 from app.utils.night_window import in_night_guard_window
-from app.moderation.approval_base import already_moderated
+from app.persistence.users_row import already_moderated
 from app.config import OWNER_USERNAME, NIGHT_GUARD_MIN_KARMA, SUBREDDIT_NAME
 
 

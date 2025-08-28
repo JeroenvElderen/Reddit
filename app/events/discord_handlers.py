@@ -14,7 +14,7 @@ from app.moderation.logs_approval import log_approval
 from app.moderation.logs_rejection import log_rejection
 from app.moderation.cards_send import send_discord_approval, _lock_and_delete_message
 from app.moderation.queue_eta_record import record_mod_decision
-from app.moderation.approval_base import already_moderated
+from app.persistence.users_row import already_moderated
 from app.models.ruleset import REJECTION_REASONS
 from app.utils.url_parts import _get_permalink_from_embed, _fetch_item_from_permalink
 
