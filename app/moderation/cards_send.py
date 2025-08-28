@@ -7,7 +7,7 @@ from app.clients.discord_bot import bot
 from app.models.state import pending_reviews
 from app.models.ruleset import REJECTION_REASONS
 from app.moderation.queue_eta_calc import compute_eta_text
-from app.moderation.persistence import save_pending_review
+from app.persistence.pending_save import save_pending_review
 from app.moderation.logs_auto import send_discord_auto_log
 from app.persistence.users_row import about_user_block
 from app.moderation.logs_auto import get_shadow_flag
