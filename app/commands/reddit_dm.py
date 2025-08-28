@@ -3,7 +3,8 @@ Reddit DM command handlers.
 """
 
 from datetime import date
-from app.models.state import subreddit, SUBREDDIT_NAME
+
+from app.models.state import SUBREDDIT_NAME, subreddit
 from app.models.flair_ladder import flair_ladder, flair_templates
 from app.models.ruleset import REJECTION_REASONS
 from app.moderation.counters_backfill import backfill_location_counts
