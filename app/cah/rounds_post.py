@@ -12,12 +12,18 @@ from app.models.state import SUBREDDIT_NAME
 from app.config import CAH_POST_FLAIR_ID, CAH_ROUND_DURATION_H
 from app.cah.picker import cah_pick_black_card
 from app.cah.logs import log_cah_event
+from app.cah.templates import format_cah_body
+
 
 
 def create_cah_round(manual: bool = False):
     """Create a new CAH round and post to Reddit."""
+    rows = supabase.table("cah_rounds").select("Round_id").execute()
+    next_round = len(rows.data or []) + 1
     black = cah_pick_black_card()
-    title = "🎲 CAH Round — Fill in the Blank!"
+    title = "🎲 CAH Round {next_round} — Fill in the Blank!"
+    selftext = format_cah_body(next_round, black, CAH_ROUND_DURATION_H)
+    
     submission = reddit_owner.subreddit(SUBREDDIT_NAME).submit(
         title, selftext=f"**Black card:** {black}"
     )
@@ -39,6 +45,7 @@ def create_cah_round(manual: bool = False):
 
     supabase.table("cah_rounds").insert({
         "round_id": round_id,
+        "round_number": next_round,
         "post_id": submission.id,
         "black_text": black,
         "start_ts": start_ts.isoformat(),
