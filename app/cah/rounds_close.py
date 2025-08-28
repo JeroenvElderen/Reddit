@@ -8,6 +8,7 @@ from app.clients.reddit_bot import reddit
 from app.clients.supabase import supabase
 from app.clients.discord_bot import bot
 from app.cah.logs import log_cah_event
+from app.cah.highlight import update_cah_highlight
 from app.config import CAH_EXTENSION_H
 
 
@@ -118,6 +119,9 @@ def _close_with_winner(r, post, comments):
         ),
         bot.loop
     )
+
+    # clear highlight entry for the finished round
+    update_cah_highlight(None)
 
 
 def _parse_iso(latxt: str):
