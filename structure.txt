@@ -1,0 +1,109 @@
+# This is my current setup #
+
+REDDITBOT/
+├─ main.py
+├─ requirements.txt
+├─ start.sh
+├─ app/
+│  ├─ __init__.py
+│  ├─ config.py                          # all env + constants (no side effects)
+│  ├─ clients/
+│  │  ├─ __init__.py
+│  │  ├─ reddit_bot.py                   # reddit (bot)
+│  │  ├─ reddit_owner.py                 # reddit (owner)
+│  │  ├─ discord_bot.py                  # discord client + intents
+│  │  ├─ supabase.py                     # supabase client
+│  │  └─ openai_client.py                # openai setup
+│  ├─ models/
+│  │  ├─ __init__.py
+│  │  ├─ state.py                        # pending_reviews, seen_ids, samples, mod_activity
+│  │  ├─ flair_ladder.py                 # flair ladder arrays + helpers
+│  │  ├─ badges_meta.py                  # META_TITLES + thresholds
+│  │  ├─ badges_location.py              # location mapping + thresholds
+│  │  ├─ badges_pillars.py               # pillar thresholds/names
+│  │  ├─ badges_observer.py              # observer thresholds/names
+│  │  ├─ ruleset.py                      # REJECTION_REASONS
+│  │  └─ schedules.py                    # PACK_SCHEDULE
+│  ├─ utils/
+│  │  ├─ __init__.py
+│  │  ├─ tz.py                           # current_tz(), parse window
+│  │  ├─ night_window.py                 # in_night_guard_window()
+│  │  ├─ text_lang.py                    # likely_english()
+│  │  ├─ text_misc.py                    # item_text(), sprinkle_emojis()
+│  │  ├─ url_parts.py                    # url host, _get_permalink_from_embed()
+│  │  ├─ reddit_images.py                # image detection/flags
+│  │  └─ flair_text.py                   # flair text normalize/read (richtext first)
+│  ├─ moderation/
+│  │  ├─ __init__.py
+│  │  ├─ karma_apply.py                  # apply_karma_and_flair()
+│  │  ├─ karma_stats.py                  # get_user_stats()
+│  │  ├─ badges_award.py                 # award_badge() generic
+│  │  ├─ badges_location_award.py        # check_and_award_badge()
+│  │  ├─ badges_pillar_award.py          # check_pillar_badge()
+│  │  ├─ badges_meta_award.py            # check_meta_badge()
+│  │  ├─ badges_seasonal_rare.py         # check_seasonal_and_rare()
+│  │  ├─ badges_observer_award.py        # check_observer_badges()
+│  │  ├─ counters_locations.py           # increment_location_counter()
+│  │  ├─ counters_backfill.py            # backfill_location_counts()
+│  │  ├─ approval_base.py                # base & welcome reply
+│  │  ├─ approval_quality.py             # calc_quality_bonus_for_post()
+│  │  ├─ approval_awards.py              # apply_approval_awards() (orchestrates)
+│  │  ├─ auto_tagger.py                  # auto_set_post_flair_if_missing()
+│  │  ├─ queue_eta_calc.py               # compute_eta_text(), helpers
+│  │  ├─ queue_eta_record.py             # record_mod_decision()
+│  │  ├─ cards_build.py                  # embed content/fields (no I/O)
+│  │  ├─ cards_send.py                   # send_discord_approval(), lock/delete
+│  │  ├─ logs_approval.py                # log_approval()
+│  │  ├─ logs_rejection.py               # log_rejection()
+│  │  ├─ logs_auto.py                    # send_discord_auto_log()
+│  │  └─ logs_achievement.py             # log_achievement()
+│  ├─ commands/
+│  │  ├─ __init__.py
+│  │  └─ reddit_dm.py                    # !stats, !rules, !decay, !top, !observer, !recount, !help
+│  ├─ features/
+│  │  ├─ __init__.py
+│  │  ├─ route_language.py               # non-English → manual
+│  │  ├─ route_night_guard.py            # night guard rule
+│  │  └─ upvote_credit.py                # credit_upvotes_for_submission()
+│  ├─ cah/
+│  │  ├─ __init__.py
+│  │  ├─ packs_list.py                   # listpacks
+│  │  ├─ packs_toggle.py                 # enable/disable
+│  │  ├─ cards_add.py                    # addcard (interactive)
+│  │  ├─ cards_remove.py                 # removecard (interactive/direct)
+│  │  ├─ cards_list.py                   # listcards + page render
+│  │  ├─ picker.py                       # cah_pick_black_card(), _random_card_for_pack()
+│  │  ├─ rounds_post.py                  # new round creation (scheduled/manual)
+│  │  ├─ rounds_close.py                 # close/extend/winner logic
+│  │  └─ logs.py                         # log_cah_event()
+│  ├─ posters/
+│  │  ├─ __init__.py
+│  │  ├─ gen_trivia.py                   # generate_trivia()
+│  │  ├─ gen_body_positive.py            # generate_body_positive()
+│  │  ├─ gen_mindfulness.py              # generate_mindfulness()
+│  │  ├─ gen_fact.py                     # generate_naturist_fact()
+│  │  ├─ post_prompt.py                  # daily_prompt_poster()
+│  │  ├─ post_fact.py                    # daily_fact_poster()
+│  │  ├─ post_feedback.py                # feedback_loop() + DMs
+│  │  ├─ post_achievements_weekly.py     # weekly_achievements_loop() + formatter
+│  │  └─ post_achievements_snapshot.py   # post_weekly_achievements() lifetime snapshot
+│  ├─ persistence/
+│  │  ├─ __init__.py
+│  │  ├─ pending_save.py                 # save_pending_review()
+│  │  ├─ pending_delete.py               # delete_pending_review()
+│  │  ├─ pending_restore.py              # restore_pending_reviews()
+│  │  └─ users_row.py                    # ensure user row, about_user_block()
+│  ├─ loops/
+│  │  ├─ __init__.py
+│  │  ├─ poll_reddit.py                  # reddit_polling()
+│  │  ├─ poll_dm.py                      # reddit_dm_polling()
+│  │  ├─ loop_decay.py                   # decay_loop() + apply_decay_once()
+│  │  ├─ loop_sla.py                     # sla_loop() + _escalate_card()
+│  │  ├─ loop_upvotes.py                 # upvote_reward_loop()
+│  │  ├─ loop_cah.py                     # cah_loop() (orchestrates rounds_* modules)
+│  │  ├─ loop_pack_sched.py              # pack_schedule_loop() + prompt scheduling
+│  │  ├─ loop_daily_prompt.py            # wrapper around posters.post_prompt
+│  │  └─ loop_daily_fact.py              # wrapper around posters.post_fact
+│  └─ events/
+│     ├─ __init__.py
+│     └─ discord_handlers.py             # on_ready (start threads), on_reaction_add
