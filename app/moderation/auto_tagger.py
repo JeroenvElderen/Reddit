@@ -8,7 +8,7 @@ from app.config import (
     POST_FLAIR_LINK_ID,
     POST_FLAIR_KEYWORDS,
 )
-from app.moderation.utils import is_native_reddit_image, submission_has_any_image
+from app.utils.reddit_images import is_native_reddit_image, submission_has_any_image
 
 
 def parse_keyword_map(raw: str) -> dict[str, str]:
