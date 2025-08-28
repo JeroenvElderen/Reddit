@@ -6,7 +6,6 @@ Flair text helpers:
 """
 
 import re
-from app.models.flair_ladder import flair_ladder
 
 def _normalize_flair_key(s: str) -> str:
     # strip emoji/non-ASCII, normalize spaces & slash spacing, casefold
@@ -25,6 +24,7 @@ def _text_flair_without_emoji(submission) -> str:
     return (getattr(submission, "link_flair_text", "") or "").strip()
 
 def get_flair_for_karma(karma: int) -> str:
+    from app.modals.flair_ladder import flair_ladder
     if karma < 0:
         return "Needs Growth"   # special fallback flair
     unlocked = "Cover Curious"
