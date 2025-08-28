@@ -59,6 +59,7 @@ REDDITBOT/
 │  │  └─ logs_achievement.py             # log_achievement()
 │  ├─ commands/
 │  │  ├─ __init__.py
+|  |  ├─ discord_cah.py
 │  │  └─ reddit_dm.py                    # !stats, !rules, !decay, !top, !observer, !recount, !help
 │  ├─ features/
 │  │  ├─ __init__.py
