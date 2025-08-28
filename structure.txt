@@ -86,6 +86,7 @@ REDDITBOT/
 │  │  ├─ post_prompt.py                  # daily_prompt_poster()
 │  │  ├─ post_fact.py                    # daily_fact_poster()
 │  │  ├─ post_feedback.py                # feedback_loop() + DMs
+│  │  ├─ post_upvotes.py                  
 │  │  ├─ post_achievements_weekly.py     # weekly_achievements_loop() + formatter
 │  │  └─ post_achievements_snapshot.py   # post_weekly_achievements() lifetime snapshot
 │  ├─ persistence/
