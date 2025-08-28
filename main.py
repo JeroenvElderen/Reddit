@@ -3,8 +3,14 @@ Entry point for RedditBot.
 """
 
 import os
-from app.clients.discord_bot import bot  
-import app.events.discord_handlers      
+from app.clients.discord_bot import bot
+import app.events.discord_handlers
+import app.commands.discord_cah
+import app.cah.cards_add 
+import app.cah.cards_remove 
+import app.cah.cards_list 
+import app.cah.packs_list 
+import app.cah.packs_toggle
 
 def main():
     token = os.getenv("DISCORD_TOKEN")
