@@ -35,7 +35,7 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
                 print(f"👑 Owner account flair forced to Naturist Legend")
         except Exception as e:
             print(f"⚠️ Failed to set owner flair: {e}")
-        return 0, 0, "Owner"
+        return 0, 0, "Naturist Legend"
 
     # --- Normal user flow ---
     res = supabase.table("user_karma").select("*").ilike("username", name).execute()
