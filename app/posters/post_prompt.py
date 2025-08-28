@@ -9,7 +9,7 @@ from app.clients.discord_bot import bot
 from app.models.state import subreddit
 from app.posters.gen_body_positive import generate_body_positive
 from app.moderation.logs_auto import send_discord_auto_log
-from app.models.state import flair_templates
+from app.models.flair_ladder import flair_templates
 
 
 def post_daily_prompt():
@@ -17,7 +17,12 @@ def post_daily_prompt():
     today = datetime.utcnow().date().isoformat()
 
     # Check if already posted today
-    res = supabase.table("daily_bodypositive").select("*").eq("date_posted", today).execute()
+    res = (
+        supabase.table("daily_bodypositive")
+        .select("*")
+        .eq("date_posted", today)
+        .execute()
+    )
     if res.data:
         print("ℹ️ Body positivity already posted today, skipping.")
         return
@@ -40,12 +45,13 @@ def post_daily_prompt():
         asyncio.run_coroutine_threadsafe(
             send_discord_auto_log(
                 submission,
-                old_k=0, new_k=0,
+                old_k=0, 
+                new_k=0,
                 flair="Daily Prompt",
                 awarded_points=0,
                 extras_note="Bot daily body positivity post"
             ),
-            bot.loop
+            bot.loop,
         )
     except Exception as e:
         print(f"⚠️ Failed to log daily prompt: {e}")

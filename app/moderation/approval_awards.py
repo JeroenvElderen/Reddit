@@ -7,7 +7,7 @@ import discord
 from datetime import datetime, timedelta, date
 from app.clients.supabase import supabase
 from app.clients.discord_bot import bot
-from app.models.state import current_tz
+from app.utils.tz import current_tz
 from app.moderation.karma_apply import apply_karma_and_flair
 from app.moderation.auto_tagger import auto_set_post_flair_if_missing
 from app.moderation.counters_locations import increment_location_counter

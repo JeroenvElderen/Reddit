@@ -6,7 +6,8 @@ import asyncio
 from datetime import datetime
 from app.clients.supabase import supabase
 from app.clients.discord_bot import bot
-from app.models.state import subreddit, flair_templates
+from app.models.state import subreddit
+from app.models.flair_ladder import flair_templates
 from app.posters.gen_fact import generate_naturist_fact
 from app.moderation.logs_auto import send_discord_auto_log
 
@@ -37,12 +38,13 @@ def post_daily_fact():
         asyncio.run_coroutine_threadsafe(
             send_discord_auto_log(
                 submission,
-                old_k=0, new_k=0,
+                old_k=0, 
+                new_k=0,
                 flair="Daily Prompt",  # reuse if you want, or make "Daily Fact"
                 awarded_points=0,
                 extras_note="Bot daily fact post"
             ),
-            bot.loop
+            bot.loop,
         )
     except Exception as e:
         print(f"⚠️ Failed to log daily fact: {e}")
