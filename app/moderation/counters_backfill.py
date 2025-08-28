@@ -4,7 +4,7 @@ Backfill location & pillar counts for a user.
 
 from app.clients.supabase import supabase
 from app.clients.reddit_bot import reddit
-from app.models.badges_location import FLAIR_TO_FIELD, FLAIR_TO_FIELD_NORM
+from app.models.flair_ladder import FLAIR_TO_FIELD, FLAIR_TO_FIELD_NORM
 from app.models.state import SUBREDDIT_NAME
 from app.utils.flair_text import _normalize_flair_key, _text_flair_without_emoji
 from app.moderation.badges_location_award import check_and_award_badge

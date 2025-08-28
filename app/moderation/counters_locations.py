@@ -3,7 +3,7 @@ Location flair counters.
 """
 
 from app.clients.supabase import supabase
-from app.models.badges_location import FLAIR_TO_FIELD_NORM
+from app.models.flair_ladder import FLAIR_TO_FIELD_NORM
 from app.utils.flair_text import _normalize_flair_key, _text_flair_without_emoji
 from app.moderation.badges_location_award import check_and_award_badge
 
