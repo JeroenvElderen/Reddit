@@ -3,8 +3,8 @@ Entry point for RedditBot.
 """
 
 import os
-from app.clients.discord_bot import bot  # loads the discord client + intents
-import app.events.discord_handlers       # registers on_ready, on_reaction_add
+from app.clients.discord_bot import bot  
+import app.events.discord_handlers      
 
 def main():
     token = os.getenv("DISCORD_TOKEN")
