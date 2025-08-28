@@ -3,8 +3,8 @@ Shared in-memory state and subreddit reference.
 """
 
 from app.clients.reddit_bot import reddit
+from app.config import SUBREDDIT_NAME
 
-SUBREDDIT_NAME = "PlanetNaturists"
 subreddit = reddit.subreddit(SUBREDDIT_NAME)
 
 # Shared in-memory state

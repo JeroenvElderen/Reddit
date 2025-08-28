@@ -20,7 +20,7 @@ from app.utils.text_misc import item_text
 from app.utils.tz import current_tz
 from app.utils.night_window import in_night_guard_window
 from app.moderation.approval_base import already_moderated
-from app.config import OWNER_USERNAME, NIGHT_GUARD_MIN_KARMA
+from app.config import OWNER_USERNAME, NIGHT_GUARD_MIN_KARMA, SUBREDDIT_NAME
 
 
 # =========================
@@ -123,7 +123,7 @@ def handle_new_item(item):
 def reddit_polling():
     """Continuously poll Reddit inbox & subreddit for new items."""
     print("📡 Reddit polling started...")
-    sub = reddit.subreddit(os.getenv("SUBREDDIT_NAME"))
+    sub = reddit.subreddit(SUBREDDIT_NAME)
     for item in sub.stream.submissions(skip_existing=True):
         try:
             handle_new_item(item)
