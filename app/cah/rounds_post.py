@@ -23,9 +23,9 @@ def create_cah_round(manual: bool = False):
     black = cah_pick_black_card()
     title = "🎲 CAH Round {next_round} — Fill in the Blank!"
     selftext = format_cah_body(next_round, black, CAH_ROUND_DURATION_H)
-    
+
     submission = reddit_owner.subreddit(SUBREDDIT_NAME).submit(
-        title, selftext=f"**Black card:** {black}"
+        title, selftext=selftext
     )
 
     if CAH_POST_FLAIR_ID:

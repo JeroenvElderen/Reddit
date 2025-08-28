@@ -1,5 +1,9 @@
+from app.cah.picker import _fetch_last_winner_block
+
+
 def format_cah_body(round_number: int, black: str, duration_h: int) -> str:
     """Return the styled body text for a CAH round."""
+    winner_block = _fetch_last_winner_block
     return f"""
 🎲 CAH Round {round_number} — Fill in the Blank!
 
@@ -8,6 +12,8 @@ def format_cah_body(round_number: int, black: str, duration_h: int) -> str:
 🎲 Cards Against Humanity: Naturist Edition
 
 🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿
+
+{winner_block}
 
 ✨ Black Card of the Day
 
