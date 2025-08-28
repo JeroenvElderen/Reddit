@@ -76,6 +76,7 @@ REDDITBOT/
 │  │  ├─ picker.py                       # cah_pick_black_card(), _random_card_for_pack()
 │  │  ├─ rounds_post.py                  # new round creation (scheduled/manual)
 │  │  ├─ rounds_close.py                 # close/extend/winner logic
+│  │  ├─ tempplates.py                   # templates (CAH post)
 │  │  └─ logs.py                         # log_cah_event()
 │  ├─ posters/
 │  │  ├─ __init__.py

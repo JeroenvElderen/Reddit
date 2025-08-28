@@ -9,7 +9,7 @@ from app.clients.discord_bot import bot
 from app.clients.supabase import supabase
 from app.models.state import SUBREDDIT_NAME
 from app.utils.tz import current_tz
-from app.config import DISCORD_DECAY_LOG_CHANNEL_ID
+from app.config import DISCORD_FEEDBACK_LOG_CHANNEL_ID
 
 
 # =========================
@@ -46,7 +46,7 @@ async def send_owner_feedback(username: str, feedback_type: str):
         print(f"📩 Owner feedback DM ({feedback_type}) sent to u/{username}")
 
         # Optional: log to Discord
-        channel = bot.get_channel(DISCORD_DECAY_LOG_CHANNEL_ID)  # reuse decay log or create dedicated channel
+        channel = bot.get_channel(DISCORD_FEEDBACK_LOG_CHANNEL_ID)
         if channel:
             embed = discord.Embed(
                 title="📩 Owner Feedback Sent",

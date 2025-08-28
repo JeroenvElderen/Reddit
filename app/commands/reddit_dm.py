@@ -112,6 +112,38 @@ def cmd_safety(author: str, message):
         "- Report creepy or unsafe behavior to mods"
     )
 
+def cmd_badges(author: str, message):
+    """Fetch badge rows from Supabase and reply with thresholds."""
+    try:
+        res = (
+            supabase.table("user_badges")
+            .select("badge")
+            .eq("username", author)
+            .execute()
+        )
+        earned = [row["badge"] for row in (res.data or [])]
+    except Exception:
+        message.reply("⚠️ Sorry, I couldn’t fetch your badges right now.")
+        return
+
+    if not earned:
+        message.reply(f"🌿 u/{author}, you haven’t earned any badges yet. Keep participating!")
+        return
+
+    catalog = {}
+    for table in ["badges_meta", "badges_location", "badges_pillars", "badges_observer"]:
+        try:
+            rows = supabase.table(table).select("badge, threshold").execute().data or []
+            catalog.update({r["badge"]: r.get("threshold") for r in rows})
+        except Exception:
+            continue
+
+    lines = []
+    for b in earned:
+        thr = catalog.get(b)
+        lines.append(f"- {b} — {thr}" if thr is not None else f"- {b}")
+
+    message.reply("🏅 **Your Badges** 🌿\n\n" + "\n".join(lines))
 
 def cmd_help(author: str, message):
     commands = {
@@ -121,6 +153,7 @@ def cmd_help(author: str, message):
         "!decay": "Check if you’re close to decay",
         "!top": "See this week’s top posts",
         "!safety": "Naturist safety tips",
+        "!badges": "List your earned badges",
         "!observer": "Get Quiet Observer flair",
         "!help": "Show this menu",
         "!recount": "Recalculate your location post counts",
@@ -167,6 +200,7 @@ COMMANDS = {
     "!decay": cmd_decay,
     "!top": cmd_top,
     "!safety": cmd_safety,
+    "!badges": cmd_badges,
     "!observer": cmd_observer,
     "!help": cmd_help,
     "!recount": cmd_recount,

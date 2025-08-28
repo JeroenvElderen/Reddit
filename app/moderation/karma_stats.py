@@ -1,9 +1,13 @@
 """
 Karma stats helpers.
 """
+from collections import defaultdict 
+import asyncio
 
 from app.clients.supabase import supabase
 from app.clients.reddit_bot import reddit
+from app.clients.discord_bot import bot 
+from app.config import DIS
 
 
 # =========================
