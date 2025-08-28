@@ -25,6 +25,7 @@ async def addcard(ctx):
         description=(
             "Reply in this channel with:\n\n"
             "`pack_key | card text`\n\n"
+            "`You can send multiple lines to add several cards at once.\n\n"
             "**Example:**\n"
             "`summer | Nothing says naturism like ____.`\n\n"
             "⚠️ Use `____` for blanks!\n\n"
@@ -39,26 +40,51 @@ async def addcard(ctx):
 
     try:
         msg = await bot.wait_for("message", timeout=120.0, check=check)
-        pack_key, card_text = [p.strip() for p in msg.content.split("|", 1)]
+        lines = [l.strip() for l in msg.content.splitlines() if l.strip()]
+        records = []
+        failed = []
 
-        pack = supabase.table("cah_packs").select("*").eq("key", pack_key).execute()
-        if not pack.data:
-            await ctx.send(f"⚠️ Pack '{pack_key}' not found.")
-            return
+        for idx, line in enumerate(lines, start=1):
+            if "|" not in line:
+                failed.append(f"Line {idx}: Missinng '|'.")
+                continue
+            pack_key, card_text = [p.strip() for p in line.split("|", 1)]
 
-        if "____" not in card_text:
-            await ctx.send("⚠️ Card text must contain at least one `____` blank.")
-            return
+            pack = (
+                supabase.table("cah_packs")
+                .select("*")
+                .eq("key", pack_key)
+                .execute()
+            )
+            if not pack.data:
+                failed.append(f"Line {idx}: '{pack_key}' not found.")
+                continue
 
-        res = supabase.table("cah_black_cards").insert({
-            "pack_key": pack_key,
-            "text": card_text
-        }).execute()
+            if "____" not in card_text:
+                failed.append(
+                    f"Line {idx}: Card text must contain at least one'____' blank."
+                )
+                continue
+            records.append({"pack_key": pack_key, "text": card_text})
 
-        if res.data:
-            await log_cah_event("🆕 Card Added", f"Pack: **{pack_key}**\nText: {card_text}")
-        else:
-            await log_cah_event("⚠️ Add Card Failed", f"Pack: **{pack_key}**\nText: {card_text}")
+        res = None
+        if records:
+            res = supabase.table("cah_black_cards").insert(records).execute()
+            for rec in records:
+                await log_cah_event(
+                    "🆕 Card Added", f"Pack: **{rec['pack_key']}**\nText: {rec['text']}"
+                )
+        
+        if failed:
+            for msg_text in failed:
+                await log_cah_event("⚠️ Add Card Failed", msg_text)
+        
+        summary = []
+        if records:
+            summary.append(f"✅ Added {len(records)} card(s).")
+        if failed:
+            summary.append("⚠️ Failed lines:\n" + "\n".join(failed))
+        await ctx.send("\n".join(summary) or "No valid lines provided.")
 
     except asyncio.TimeoutError:
         await log_cah_event("⌛ Add Card Timeout", f"No reply from {ctx.author.mention}")

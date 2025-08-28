@@ -77,8 +77,8 @@ def _maybe_final_close(r):
 
 
 def _close_with_winner(r, post, comments):
-    winner = None
-    top = -1
+    winners = []
+    top = float("-inf")
     for c in comments:
         try:
             sc = int(getattr(c, "score", 0) or 0)
@@ -86,24 +86,35 @@ def _close_with_winner(r, post, comments):
             sc = 0
         if sc > top:
             top = sc
-            winner = (c.author.name if c.author else None, c.id, sc)
+            winners = [(c.author.name if c.author else "[deleted]", c.id, sc)]
+        elif sc == top:
+            winners.append((c.author.name if c.author else "[deleted]", c.id, sc))
 
     try:
         post.mod.lock()
     except Exception:
         pass
 
+    names = [w[0] for w in winners]
+    ids = [w[1] for w in winners]
     supabase.table("cah_rounds").update({
         "status": "closed",
-        "winner_username": winner[0] if winner else None,
-        "winner_comment_id": winner[1] if winner else None,
-        "winner_score": winner[2] if winner else None,
+        "winner_username": ",".join(names) if winners else None,
+        "winner_comment_id": ",".join(ids) if winners else None,
+        "winner_score": top if winners else None,
     }).eq("round_id", r["round_id"]).execute()
+
+    if winners:
+        title = "winners" if len(winners) > 1 else "Winner"
+        formatted_names = ", ".join(f"u/{n}" for n in names)
+        desc = f"{title}: {formatted_names} (+{top})"
+    else:
+        desc = "No winner"
 
     asyncio.run_coroutine_threadsafe(
         log_cah_event(
             "🏆 Round Closed",
-            f"Winner: u/{winner[0]} (+{winner[2]})" if winner and winner[0] else "No winner"
+            desc
         ),
         bot.loop
     )
@@ -112,7 +123,7 @@ def _close_with_winner(r, post, comments):
 def _parse_iso(latxt: str):
     try:
         dt = (
-            datetime.fromisoformat(latxtt.replace("Z", "+00:00"))
+            datetime.fromisoformat(latxt.replace("Z", "+00:00"))
             if "Z" in latxt
             else datetime.fromisoformat(latxt)
         )
