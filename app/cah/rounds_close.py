@@ -3,7 +3,7 @@ Close or extend CAH rounds after their lock period.
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app.clients.reddit_bot import reddit
 from app.clients.supabase import supabase
 from app.clients.discord_bot import bot
@@ -31,7 +31,7 @@ def _maybe_close_or_extend(r):
         return
 
     lock_after_dt = _parse_iso(r.get("lock_after_ts", ""))
-    if datetime.utcnow() < lock_after_dt:
+    if datetime.now(timezone.utc) < lock_after_dt:
         return
 
     try:
@@ -45,7 +45,7 @@ def _maybe_close_or_extend(r):
             _close_with_winner(r, post, comments)
         else:
             # Extend round
-            new_lock = datetime.utcnow() + timedelta(hours=CAH_EXTENSION_H)
+            new_lock = datetime.now(timezone.utc) + timedelta(hours=CAH_EXTENSION_H)
             supabase.table("cah_rounds").update({
                 "status": "extended",
                 "comments_at_24h": 0,
@@ -64,7 +64,7 @@ def _maybe_final_close(r):
         return
 
     lock_after_dt = _parse_iso(r.get("lock_after_ts", ""))
-    if datetime.utcnow() < lock_after_dt:
+    if datetime.now(timezone.utc) < lock_after_dt:
         return
 
     try:
@@ -111,6 +111,11 @@ def _close_with_winner(r, post, comments):
 
 def _parse_iso(latxt: str):
     try:
-        return datetime.fromisoformat(latxt.replace("Z", "+00:00")) if "Z" in latxt else datetime.fromisoformat(latxt)
+        dt = (
+            datetime.fromisoformat(latxtt.replace("Z", "+00:00"))
+            if "Z" in latxt
+            else datetime.fromisoformat(latxt)
+        )
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
     except Exception:
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)

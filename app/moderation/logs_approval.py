@@ -17,6 +17,13 @@ async def log_approval(item, old_k: int, new_k: int, flair: str, note: str, extr
     """Log full approval info to the approval log channel."""
     channel = bot.get_channel(DISCORD_APPROVAL_LOG_CHANNEL_ID)
     if not channel:
+        try:
+            channel = await bot.fetch_channel(DISCORD_APPROVAL_LOG_CHANNEL_ID)
+        except Exception as e:
+            print(f"⚠️ Could not fetch approval log channel: {e}")
+            return
+    if not channel:
+        print("⚠️ Approval log channel not found.")
         return
 
     author = str(item.author)

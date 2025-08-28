@@ -3,7 +3,7 @@ Reddit polling loop: fetch new submissions and comments,
 route them to auto-approval or manual review.
 """
 
-import os, asyncio, discord
+import os, asyncio, discord, threading
 from datetime import datetime, timezone
 
 from app.clients.reddit_bot import reddit
@@ -13,6 +13,7 @@ from app.clients.supabase import supabase
 from app.models.state import seen_ids
 from app.moderation.approval_awards import apply_approval_awards
 from app.moderation.logs_approval import log_approval
+from app.moderation.logs_auto import send_discord_auto_log
 from app.moderation.cards_send import send_discord_approval
 from app.persistence.users_row import ensure_user_row
 from app.utils.text_lang import likely_english
@@ -107,6 +108,10 @@ def handle_new_item(item):
             log_approval(item, old_k, new_k, flair, note),
             bot.loop,
         )
+        asyncio.run_coroutine_threadsafe(
+            send_discord_auto_log(item, old_k, new_k, flair, total_delta, extras),
+            bot.loop,
+        )
         return
 
     # Otherwise: manual review
@@ -124,13 +129,30 @@ def reddit_polling():
     """Continuously poll Reddit inbox & subreddit for new items."""
     print("📡 Reddit polling started...")
     sub = reddit.subreddit(SUBREDDIT_NAME)
-    for item in sub.stream.submissions(skip_existing=True):
-        try:
-            handle_new_item(item)
-        except Exception as e:
-            print(f"⚠️ Error handling submission {getattr(item, 'id', '?')}: {e}")
-    for item in sub.stream.comments(skip_existing=True):
-        try:
-            handle_new_item(item)
-        except Exception as e:
-            print(f"⚠️ Error handling comment {getattr(item, 'id', '?')}: {e}")
+    def _submission_stream():
+        for item in sub.stream.submissions(skip_existing=True):
+            try:
+                handle_new_item(item)
+            except Exception as e:
+                print(
+                    f"⚠️ Error handling submission {getattr(item, 'id', '?')}: {e}"
+                )
+    
+    def _comment_stream():
+        for item in sub.stream.comments(skip_existing=True):
+            try:
+                handle_new_item(item)
+            except Exception as e:
+                print(
+                    f"⚠️ Error handling comment {getattr(item, 'id', '?')} {e}"
+                )
+    
+    threads = [
+        threading.Thread(target=_submission_stream, daemon=True),
+        threading.Thread(target=_comment_stream, daemon=True),
+    ]
+
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()

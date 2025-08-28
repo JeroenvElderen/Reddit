@@ -4,7 +4,7 @@ CAH round creation (scheduled/manual).
 
 import uuid
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app.clients.supabase import supabase
 from app.clients.reddit_owner import reddit_owner
 from app.clients.discord_bot import bot
@@ -34,7 +34,7 @@ def create_cah_round(manual: bool = False):
         pass
 
     round_id = str(uuid.uuid4())
-    start_ts = datetime.utcnow()
+    start_ts = datetime.now(timezone.utc)
     lock_after = start_ts + timedelta(hours=CAH_ROUND_DURATION_H)
 
     supabase.table("cah_rounds").insert({
