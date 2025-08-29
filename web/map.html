@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Nudist Spots Map</title>
+
+  <!-- Mapbox GL & Geocoder -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.min.js"></script>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    // ↓ Replace with your own credentials
+    const SUPABASE_URL = 'https://YOUR_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    const MAPBOX_TOKEN = 'YOUR_MAPBOX_TOKEN';
+
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v11',
+      center: [0, 0],
+      zoom: 2
+    });
+    map.addControl(new mapboxgl.NavigationControl());
+    map.addControl(new MapboxGeocoder({ accessToken: MAPBOX_TOKEN, mapboxgl }));
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    function addMarker(s) {
+      new mapboxgl.Marker({ color: s.official ? 'green' : 'orange' })
+        .setLngLat([s.longitude, s.latitude])
+        .setPopup(new mapboxgl.Popup().setHTML(
+          `<strong>${s.name}</strong><p>${s.description || ''}</p>`
+        ))
+        .addTo(map);
+    }
+
+    async function loadSpots() {
+      const { data, error } = await supabase.from('spots').select('*');
+      if (error) return console.error(error);
+      data.forEach(addMarker);
+    }
+
+    loadSpots();
+
+    // Live updates when new spots are inserted
+    supabase.channel('public:spots')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'spots' }, payload => {
+        addMarker(payload.new);
+      })
+      .subscribe();
+  </script>
+
+  <style>
+    body, html, #map { margin: 0; padding: 0; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+</body>
+</html>

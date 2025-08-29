@@ -5,7 +5,7 @@ Discord events: startup and reaction handling.
 import asyncio, threading
 from app.clients.discord_bot import bot
 from app.clients.reddit_bot import reddit
-from app.models.state import pending_reviews, SUBREDDIT_NAME
+from app.models.state import pending_reviews, pending_spots, SUBREDDIT_NAME
 from app.persistence.pending_restore import restore_pending_reviews
 from app.persistence.pending_delete import delete_pending_review
 from app.moderation.approval_awards import apply_approval_awards
@@ -17,6 +17,7 @@ from app.moderation.queue_eta_record import record_mod_decision
 from app.persistence.users_row import already_moderated
 from app.models.ruleset import REJECTION_REASONS
 from app.utils.url_parts import _get_permalink_from_embed, _fetch_item_from_permalink
+from app.moderation.spots import approve_spot, reject_spot
 
 # loops
 from app.loops.poll_reddit import reddit_polling
@@ -59,6 +60,16 @@ async def on_reaction_add(reaction, user):
     msg_id = reaction.message.id
     print(f"➡️ Reaction received: {reaction.emoji} by {user} on msg {msg_id}")
 
+     # Spot submissions moderation
+    if msg_id in pending_spots:
+        entry = pending_spots.pop(msg_id)
+        spot = entry["spot"]
+        if str(reaction.emoji) == "✅":
+            await approve_spot(reaction.message, user, spot)
+        elif str(reaction.emoji) == "❌":
+            await reject_spot(reaction.message, user, spot)
+        return
+    
     # Stale card
     if msg_id not in pending_reviews:
         print("⚠️ Reaction on stale card.")

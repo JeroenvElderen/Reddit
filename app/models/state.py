@@ -16,6 +16,9 @@ subreddit = reddit.subreddit(SUBREDDIT_NAME)
 # }
 pending_reviews = {}
 
+# pending_spots[msg_id] = {"spot": SpotSubmission, "created_ts": float}
+pending_spots = {}
+
 # Track seen Reddit IDs to avoid reprocessing
 seen_ids = set()
 
