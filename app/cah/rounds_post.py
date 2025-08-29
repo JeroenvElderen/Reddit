@@ -22,7 +22,7 @@ def create_cah_round(manual: bool = False):
     rows = supabase.table("cah_rounds").select("round_id").execute()
     next_round = len(rows.data or []) + 1
     black = cah_pick_black_card()
-    title = "🎲 CAH Round {next_round} — Fill in the Blank!"
+    title = f"🎲 CAH Round {next_round} — Fill in the Blank!"
     selftext = format_cah_body(next_round, black, CAH_ROUND_DURATION_H)
 
     submission = reddit_client.subreddit(SUBREDDIT_NAME).submit(
