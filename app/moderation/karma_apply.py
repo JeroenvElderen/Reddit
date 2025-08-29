@@ -15,7 +15,7 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
     if user_or_name is None:
         return 0, 0, "Cover Curious"
 
-    name = str(user_or_name)
+    name = str(user_or_name).lower()
 
     # 🔒 Special case: bot account always keeps fixed flair
     if name == BOT_USERNAME:
