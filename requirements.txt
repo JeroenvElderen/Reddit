@@ -1,4 +1,4 @@
 praw
 supabase
 discord.py
-openai
+openai>=1.0.0

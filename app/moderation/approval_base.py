@@ -3,7 +3,9 @@ Base approval replies and decay warning helpers.
 """
 
 import discord
-from app.clients.reddit_owner import reddit_owner
+from prawcore.exceptions import OAuthException
+
+import app.clients.reddit_owner as owner_client
 from app.clients.discord_bot import bot
 from app.models.state import SUBREDDIT_NAME
 from app.config import DISCORD_DECAY_LOG_CHANNEL_ID, DECAY_AFTER_DAYS
@@ -38,9 +40,23 @@ async def send_decay_warning(username: str, days_since: int, karma: int, flair: 
                 "We’d love to see you back sharing and connecting with everyone! 💚"
             )
 
-        reddit_owner.redditor(username).message(
-            f"🌿 A friendly nudge from r/{SUBREDDIT_NAME}", msg
-        )
+        try:
+            owner_client.reddit_owner.redditor(username).message(
+                f"🌿 A friendly nudge from r/{SUBREDDIT_NAME}", msg
+            )
+        except OAuthException:
+            # Refresh credentials and retry once
+            owner_client.reddit_owner = owner_client.create_reddit_owner()
+            try:
+                owner_client.reddit_owner.redditor(username).message(
+                    f"🌿 A friendly nudge from r/{SUBREDDIT_NAME}", msg
+                )
+            except Exception as inner_e:
+                print(
+                    f"⚠️ Failed to send friendly reminder for {username} after refresh: {inner_e}"
+                )
+                return
+
         print(f"📩 Friendly reminder sent to u/{username}")
 
         # Optional: log to Discord decay channel

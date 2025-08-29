@@ -2,12 +2,12 @@
 Daily mindfulness prompt generator using OpenAI.
 """
 
-import openai
+from app.clients.openai_client import client
 
 
 def generate_mindfulness():
     try:
-        resp = openai.ChatCompletion.create(
+        resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a meditation guide for naturists."},

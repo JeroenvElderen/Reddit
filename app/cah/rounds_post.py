@@ -19,7 +19,7 @@ from app.utils.cah_highlight import update_cah_highlight
 
 def create_cah_round(manual: bool = False):
     """Create a new CAH round and post to Reddit."""
-    rows = supabase.table("cah_rounds").select("Round_id").execute()
+    rows = supabase.table("cah_rounds").select("round_id").execute()
     next_round = len(rows.data or []) + 1
     black = cah_pick_black_card()
     title = "🎲 CAH Round {next_round} — Fill in the Blank!"

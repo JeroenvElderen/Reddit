@@ -3,7 +3,8 @@ Daily body positivity generator using OpenAI.
 """
 
 from datetime import datetime
-import openai
+
+from app.clients.openai_client import client
 from app.clients.supabase import supabase
 
 
@@ -11,7 +12,7 @@ def generate_body_positive():
     """Generate a longer uplifting body positivity message (2–5 sentences) with emojis."""
     try:
         for _ in range(5):
-            resp = openai.ChatCompletion.create(
+            resp = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {

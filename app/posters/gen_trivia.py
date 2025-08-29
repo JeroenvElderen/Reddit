@@ -3,7 +3,8 @@ Daily trivia generator using OpenAI.
 """
 
 from datetime import datetime
-import openai
+
+from app.clients.openai_client import client
 from app.clients.supabase import supabase
 
 
@@ -11,7 +12,7 @@ def generate_trivia():
     """Generate a unique trivia question and store it in Supabase."""
     try:
         for _ in range(5):  # try up to 5 times to avoid duplicates
-            resp = openai.ChatCompletion.create(
+            resp = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {
