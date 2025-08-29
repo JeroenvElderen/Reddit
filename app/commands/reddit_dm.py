@@ -121,44 +121,28 @@ def cmd_spot(author: str, message):
     try:
         _, payload = message.body.split(" ", 1)
         parts = [p.strip() for p in payload.split("|")]
-        if len(parts) < 3:
+        if len(parts) < 2:
             raise ValueError
 
-        name = parts[0]
+        name, description = parts[0], parts[1]
 
-        # Two formats supported:
-        # 1) name | latitude | longitude | official | description
-        # 2) name | location name | official | description (geocoded)
-        lat = lon = None
-        official_idx = 3
-        try:
-            lat = float(parts[1])
-            lon = float(parts[2])
-        except ValueError:
-            from app.clients.mapbox import geocode
+        from app.clients.mapbox import geocode
 
-            coords = geocode(parts[1])
-            if not coords:
-                raise ValueError
-            lat, lon = coords
-            official_idx = 2
-
-        official = parts[official_idx]
-        description = parts[official_idx + 1] if len(parts) > official_idx + 1 else ""
-
+        coords = geocode(name)
+        if not coords:
+            raise ValueError
+        lat, lon = coords
+        
         spot = SpotSubmission(
             name=name,
             latitude=float(lat),
             longitude=float(lon),
-            official=official.lower() in ("yes", "true", "official", "1"),
             description=description,
             submitted_by=author,
         )
     except Exception:
         message.reply(
-            "⚠️ Usage: `!spot Name | latitude | longitude | official | description`"
-            " or `!spot Name | location | official | description`"
-        )
+            "⚠️ Usage: `!spot Name | description`")
         return
 
     try:

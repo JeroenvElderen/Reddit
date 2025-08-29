@@ -10,6 +10,6 @@ class SpotSubmission:
     name: str
     latitude: float
     longitude: float
-    official: bool
+    official: bool = False
     description: str
     submitted_by: str
