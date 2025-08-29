@@ -18,6 +18,21 @@ def cah_enabled_packs():
         return [{"key": CAH_BASE_PACK_KEY, "weight": 100}]
 
 
+def cah_black_card_count(key: str) -> int:
+    """Return the number of black cards available for a given pack key."""
+    try:
+        cnt = (
+            supabase.table("cah_black_cards")
+            .select("id", count="exact")
+            .eq("pack_key", key)
+            .limit(1)
+            .execute()
+        )
+        return int(cnt.count or 0)
+    except Exception:
+        return 0
+
+
 # =========================
 # Last winner helper
 # =========================
@@ -75,17 +90,10 @@ def _fetch_last_winner_block() -> str:
 # Random black card picker
 # =========================
 def _random_card_for_pack(key: str) -> str | None:
+    total = cah_black_card_count(key)
+    if total <= 0:
+        return None
     try:
-        cnt = (
-            supabase.table("cah_black_cards")
-            .select("id", count="exact")
-            .eq("pack_key", key)
-            .limit(1)
-            .execute()
-        )
-        total = int(cnt.count or 0)
-        if total <= 0:
-            return None
         offset = random.randint(0, total - 1)
         row = (
             supabase.table("cah_black_cards")

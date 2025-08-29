@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 from app.clients.discord_bot import bot
 from app.clients.supabase import supabase
-from app.cah.picker import cah_enabled_packs
+from app.cah.picker import cah_enabled_packs, cah_black_card_count
 from app.cah.rounds_post import create_cah_round
 from app.cah.logs import log_cah_event
 
@@ -19,14 +19,8 @@ async def cahnow(ctx: commands.Context):
         await ctx.send("⚠️ No enabled packs found.")
         return
 
-    total_cards = 0
-    for p in active:
-        cnt = (
-            p.get("count") or 0
-            or 0  # safety default
-        )
-        total_cards += cnt
-    if total_cards <= 0:
+    counts = [cah_black_card_count(p["key"]) for p in active]
+    if not any(c > 0 for c in counts):
         await ctx.send("⚠️ No black cards available in enabled packs.")
         return
 
