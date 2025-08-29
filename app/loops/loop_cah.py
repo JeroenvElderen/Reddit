@@ -12,6 +12,8 @@ from app.cah.rounds_close import close_or_extend_rounds
 from app.cah.logs import log_cah_event
 from app.clients.discord_bot import bot 
 from app.clients.supabase import supabase
+from app.clients.reddit_owner import create_reddit_owner
+import app.clients.reddit_owner as owner_client
 from app.config import CAH_ENABLED, CAH_POST_HOUR
 
 
@@ -66,5 +68,9 @@ def cah_loop():
 
             time.sleep(30)
         except Exception as e:
+            if e.__class__.__name__ == "OAuthException":
+                print("🔑 Invalid OAuth token for Reddit owner; refreshing")
+                owner_client.reddit_owner = create_reddit_owner()
+                continue
             print(f"⚠️ CAH loop error: {e}")
             time.sleep(60)
