@@ -7,9 +7,6 @@ def format_cah_body(round_number: int, black: str, duration_h: int) -> str:
     leaf_sep ="🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿\n\n" if winner_block else ""
     winner_section = f"{winner_block}\n{leaf_sep}" if winner_block else ""
     return f"""
-🎲 CAH Round {round_number} — Fill in the Blank!
-
-🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿🌿
 
 🎲 Cards Against Humanity: Naturist Edition
 
