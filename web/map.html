@@ -14,9 +14,9 @@
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
     // ↓ Replace with your own credentials
-    const SUPABASE_URL = 'https://YOUR_SUPABASE_URL';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-    const MAPBOX_TOKEN = 'YOUR_MAPBOX_TOKEN';
+    const SUPABASE_URL = '${SUPABASE_URL}';
+    const SUPABASE_ANON_KEY = '${SUPABASE_ANON_KEY}';
+    const MAPBOX_TOKEN = '${MAPBOX_TOKEN}';
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
     const map = new mapboxgl.Map({

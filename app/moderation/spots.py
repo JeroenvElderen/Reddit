@@ -9,7 +9,17 @@ from app.clients.reddit_bot import reddit
 from app.models.state import pending_spots
 from app.models.spot import SpotSubmission
 
-DISCORD_SPOTS_CHANNEL_ID = int(os.getenv("DISCORD_SPOTS_CHANNEL_ID", 0))
+discord_spots_channel_id_str = os.getenv("DISCORD_SPOTS_CHANNEL_ID")
+try:
+    DISCORD_SPOTS_CHANNEL_ID = int(discord_spots_channel_id_str)
+except (TypeError, ValueError):
+    DISCORD_SPOTS_CHANNEL_ID = 0
+    if discord_spots_channel_id_str is None:
+        print("⚠️ DISCORD_SPOTS_CHANNEL_ID not set; defaulting to 0")
+    else:
+        print(
+            f"⚠️ Invalid DISCORD_SPOTS_CHANNEL_ID '{discord_spots_channel_id_str}'; defaulting to 0"
+        )
 
 
 async def send_spot_submission(spot: SpotSubmission) -> None:
