@@ -21,7 +21,13 @@ from app.utils.text_misc import item_text
 from app.utils.tz import current_tz
 from app.utils.night_window import in_night_guard_window
 from app.persistence.users_row import already_moderated
-from app.config import OWNER_USERNAME, NIGHT_GUARD_MIN_KARMA, SUBREDDIT_NAME
+from app.config import (
+    OWNER_USERNAME,
+    NIGHT_GUARD_MIN_KARMA,
+    SUBREDDIT_NAME,
+    DISCORD_APPROVAL_LOG_CHANNEL_ID,
+    DISCORD_AUTO_APPROVAL_CHANNEL_ID,
+)
 
 
 # =========================
@@ -108,10 +114,13 @@ def handle_new_item(item):
             log_approval(item, old_k, new_k, flair, note),
             bot.loop,
         )
-        asyncio.run_coroutine_threadsafe(
-            send_discord_auto_log(item, old_k, new_k, flair, total_delta, extras),
-            bot.loop,
-        )
+        if DISCORD_AUTO_APPROVAL_CHANNEL_ID != DISCORD_APPROVAL_LOG_CHANNEL_ID:
+            asyncio.run_coroutine_threadsafe(
+                send_discord_auto_log(
+                    item, old_k, new_k, flair, total_delta, extras
+                ),
+                bot.loop,
+            )
         return
 
     # Otherwise: manual review
