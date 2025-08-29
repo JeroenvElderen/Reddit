@@ -6,7 +6,7 @@ import uuid
 import asyncio
 from datetime import datetime, timedelta, timezone
 from app.clients.supabase import supabase
-from app.clients.reddit_owner import reddit_owner
+from app.clients.reddit_bot import reddit as reddit_client
 from app.clients.discord_bot import bot
 from app.models.state import SUBREDDIT_NAME
 from app.config import CAH_POST_FLAIR_ID, CAH_ROUND_DURATION_H
@@ -25,7 +25,7 @@ def create_cah_round(manual: bool = False):
     title = "🎲 CAH Round {next_round} — Fill in the Blank!"
     selftext = format_cah_body(next_round, black, CAH_ROUND_DURATION_H)
 
-    submission = reddit_owner.subreddit(SUBREDDIT_NAME).submit(
+    submission = reddit_client.subreddit(SUBREDDIT_NAME).submit(
         title, selftext=selftext
     )
 

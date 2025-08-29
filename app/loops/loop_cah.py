@@ -5,6 +5,9 @@ Cards Against Humanity loop: schedule new rounds and close/extend existing ones.
 import time
 import asyncio
 from datetime import datetime
+import os
+
+import praw 
 
 from app.utils.tz import current_tz
 from app.cah.rounds_post import create_cah_round
@@ -12,7 +15,8 @@ from app.cah.rounds_close import close_or_extend_rounds
 from app.cah.logs import log_cah_event
 from app.clients.discord_bot import bot 
 from app.clients.supabase import supabase
-from app.clients.reddit_owner import create_reddit_owner
+from app.clients.reddit_bot import reddit as reddit_client
+import app.clients.reddit_bot as reddit_client_module
 import app.clients.reddit_owner as owner_client
 from app.config import CAH_ENABLED, CAH_POST_HOUR
 
@@ -70,7 +74,13 @@ def cah_loop():
         except Exception as e:
             if e.__class__.__name__ == "OAuthException":
                 print("🔑 Invalid OAuth token for Reddit owner; refreshing")
-                owner_client.reddit_owner = create_reddit_owner()
+                reddit_client_module.reddit = praw.Reddit(
+                    client_id=os.getenv("REDDIT_CLIENT_ID"),
+                    client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
+                    username=os.getenv("REDDIT_USERNAME"),
+                    password=os.getenv("REDDIT_PASSWORD"),
+                    user_agent=os.getenv("REDDIT_USER_AGENT"),
+                )
                 continue
             print(f"⚠️ CAH loop error: {e}")
             time.sleep(60)
