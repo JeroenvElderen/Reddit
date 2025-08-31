@@ -3,11 +3,14 @@
 import os
 import time
 import discord
+from dotenv import load_dotenv
 from app.clients.discord_bot import bot
 from app.clients.supabase import supabase
 from app.clients.reddit_bot import reddit
 from app.models.state import pending_spots
 from app.models.spot import SpotSubmission
+
+load_dotenv()
 
 discord_spots_channel_id_str = os.getenv("DISCORD_SPOTS_CHANNEL_ID")
 try:

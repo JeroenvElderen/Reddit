@@ -3,6 +3,10 @@ Entry point for RedditBot.
 """
 
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from app.clients.discord_bot import bot
 import app.events.discord_handlers
 import app.commands.discord_cah
