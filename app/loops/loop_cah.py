@@ -12,7 +12,7 @@ import praw
 from app.utils.tz import current_tz
 from app.cah.rounds_post import create_cah_round
 from app.cah.rounds_close import close_or_extend_rounds
-from app.cah.logs import log_cah_event
+from app.cah.logs import log_cah_event, prompt_round_start
 from app.clients.discord_bot import bot 
 from app.clients.supabase import supabase
 from app.clients.reddit_bot import reddit as reddit_client
@@ -60,12 +60,20 @@ def cah_loop():
                     extended_rows = []
 
                 if not open_rows and not extended_rows:
-                    submission, event_title, log_text = create_cah_round()
-                    asyncio.run_coroutine_threadsafe(
-                        log_cah_event(event_title, log_text),
-                        bot.loop,
+                    future = asyncio.run_coroutine_threadsafe(
+                        prompt_round_start(), bot.loop
                     )
-                    last_post_date = now.date()
+                    try:
+                        approved = future.result()
+                    except Exception:
+                        approved = False
+                    if approved:
+                        submission, event_title, log_text = create_cah_round()
+                        asyncio.run_coroutine_threadsafe(
+                            log_cah_event(event_title, log_text),
+                            bot.loop,
+                        )
+                        last_post_date = now.date()
 
             # Step 2: close or extend existing rounds
             close_or_extend_rounds(now)
