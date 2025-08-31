@@ -5,7 +5,7 @@ Weekly achievements digest formatter + loop.
 import time
 from datetime import datetime, timedelta
 from app.clients.supabase import supabase
-from app.clients.reddit_owner import reddit_owner
+from app.clients.reddit_bot import reddit
 from app.models.state import SUBREDDIT_NAME
 from app.utils.tz import current_tz
 
@@ -79,7 +79,7 @@ def weekly_achievements_loop():
                 if body:
                     title = "🌟 Weekly Naturist Achievements ✨"
                     try:
-                        submission = reddit_owner.subreddit(SUBREDDIT_NAME).submit(title, selftext=body)
+                        submission = reddit.subreddit(SUBREDDIT_NAME).submit(title, selftext=body)
                         submission.mod.approve()
                         print("✅ Weekly achievements digest posted")
                     except Exception as e:
