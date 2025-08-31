@@ -12,6 +12,10 @@ DISCORD_UPVOTE_LOG_CHANNEL_ID = int(os.getenv("DISCORD_UPVOTE_LOG_CHANNEL_ID", "
 DISCORD_AUTO_APPROVAL_CHANNEL_ID = int(os.getenv("DISCORD_AUTO_APPROVAL_CHANNEL_ID", "1408406760322240572"))
 DISCORD_FEEDBACK_LOG_CHANNEL_ID = int(os.getenv("DISCORD_FEEDBACK_LOG_CHANNEL_ID", "0"))
 
+MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN", "")
+LEGAL_MAP_CHANNEL_ID = int(os.getenv("LEGAL_MAP_CHANNEL_ID", "1411042968999166033"))
+LEGAL_MAP_MARKERS_PATH = Path(__file__).resolve().parent.parent / "legal-map" / "markers.json"
+
 # =========================
 # CAH (Cards Against Humanity) game
 # =========================

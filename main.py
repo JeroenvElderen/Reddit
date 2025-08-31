@@ -9,6 +9,7 @@ load_dotenv()
 
 from app.clients.discord_bot import bot
 import app.events.discord_handlers
+import app.events.legal_map
 import app.commands.discord_cah
 import app.commands.discord_achievements
 import app.cah.cards_add 
