@@ -45,10 +45,7 @@ def format_weekly_achievements(rows):
             rare.append(line)
 
     divider = "🌿🌿🌿🌿🌿"
-    parts = [
-        "🌟🌿🌞🌿🌟 Weekly Naturist Achievements 🌟🌿🌞🌿🌟",
-        ""
-        ]
+    parts = []
 
     if locations:
         parts.append("### 🏞️ Location Achievements")
