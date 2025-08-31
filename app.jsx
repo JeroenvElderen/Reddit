@@ -6,7 +6,7 @@ function App() {
   const [input, setInput] = useState("");
 
   useEffect(() => {
-    if (!MAPBOX_TOKEN) {
+    if (typeof MAPBOX_TOKEN === 'undefined' || !MAPBOX_TOKEN) {
       alert('MAPBOX_TOKEN missing in config.js');
       return;
     }
