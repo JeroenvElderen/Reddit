@@ -19,7 +19,7 @@ function App() {
     mapboxgl.accessToken = MAPBOX_TOKEN;
     mapRef.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/jeroenvanelderen/cmc958dgm006s01shdiu103uz',
+      style: 'mapbox://styles/mapbox/streets-v12',
       center: [0,0],
       zoom: 1.5,
       projection: 'globe'
