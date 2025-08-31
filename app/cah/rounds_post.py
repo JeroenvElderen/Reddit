@@ -13,7 +13,7 @@ from app.config import CAH_POST_FLAIR_ID, CAH_ROUND_DURATION_H
 from app.cah.picker import cah_pick_black_card
 from app.cah.logs import log_cah_event, prompt_round_start
 from app.cah.templates import format_cah_body
-from app.cah.highlight import update_cah_highlight
+from app.utils.cah_highlight import update_cah_highlight
 
 def create_cah_round(manual: bool = False, black: str | None = None):
     """Create a new CAH round and post to Reddit."""

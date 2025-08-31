@@ -9,12 +9,13 @@ STATE_TABLE = "cah_state"
 STATE_KEY = "active_highlight_post_id"
 
 
-def update_cah_highlight(new_post_id: str) -> None:
-    """Update the highlight feed with the given post ID.
+def update_cah_highlight(new_post_id: str | None) -> None:
+    """Update the highlight feed enty for CAH.
 
-    Removes any previously highlighted CAH post (stored in ``STATE_TABLE``),
-    then adds ``new_post_id`` to the highlight feed with an ``event`` tag and
-    persists it for later cleanup.
+    Removes any previously highlighted CAH post (stored in ``STATE_TABLE``). If
+    ``new_post_id`` is provided, it is added to the highlight feed with an
+    ``event`` tag and persisted for later cleanup. If ``new_post_id`` is
+    ``None``, any existing highlight entry is simply cleared.
     """
     old_post_id: str | None = None
 
@@ -38,12 +39,18 @@ def update_cah_highlight(new_post_id: str) -> None:
         except Exception:
             pass
 
-    try:
-        supabase.table(HIGHLIGHT_TABLE).upsert({"post_id": new_post_id, "tag": "event"}).execute()
-    except Exception:
-        pass
-
-    try:
-        supabase.table(STATE_TABLE).upsert({"key": STATE_KEY, "value": new_post_id}).execute()
-    except Exception:
-        pass
+    if new_post_id:
+        try:
+            supabase.table(HIGHLIGHT_TABLE).upsert({"post_id": new_post_id, "tag": "event"}).execute()
+        except Exception:
+            pass
+        
+        try:
+            supabase.table(STATE_TABLE).upsert({"key": STATE_KEY, "value": new_post_id}).execute()
+        except Exception:
+            pass
+    else:
+        try:
+            supabase.table(STATE_TABLE).delete().eq("key", STATE_KEY).execute()
+        except Exception:
+            pass

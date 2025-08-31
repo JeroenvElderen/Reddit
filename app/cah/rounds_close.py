@@ -8,7 +8,7 @@ from app.clients.reddit_bot import reddit
 from app.clients.supabase import supabase
 from app.clients.discord_bot import bot
 from app.cah.logs import log_cah_event
-from app.cah.highlight import update_cah_highlight
+from app.utils.cah_highlight import update_cah_highlight
 from app.config import CAH_EXTENSION_H
 
 
