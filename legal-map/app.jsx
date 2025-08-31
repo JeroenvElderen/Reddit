@@ -11,7 +11,8 @@ function App() {
       return;
     }
     // Warn if an older version of Mapbox GL JS is loaded
-    if (parseInt(mapboxgl.version.split('.')[0], 10) < 2) {
+    const major = parseInt(mapboxgl.version.replace(/^v/, '').split('.')[0], 10);
+    if (Number.isNaN(major) || major < 2) {
       alert('Mapbox GL JS v2 or higher is required for this style.');
       return;
     }
