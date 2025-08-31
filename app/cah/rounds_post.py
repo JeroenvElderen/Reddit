@@ -11,7 +11,7 @@ from app.clients.discord_bot import bot
 from app.models.state import SUBREDDIT_NAME
 from app.config import CAH_POST_FLAIR_ID, CAH_ROUND_DURATION_H
 from app.cah.picker import cah_pick_black_card
-from app.cah.logs import log_cah_event
+from app.cah.logs import log_cah_event, prompt_round_start
 from app.cah.templates import format_cah_body
 from app.cah.highlight import update_cah_highlight
 
@@ -62,7 +62,10 @@ def create_cah_round(manual: bool = False):
 
 
 def maybe_post_new_round(now: datetime):
-    """Post a new round if none are currently active."""
+    """Post a new round if none are active and Discord approves.
+    
+    Returns True if a round was posted, otherwise False.
+    """
     try:
         open_rows = (
             supabase.table("cah_rounds")
@@ -76,7 +79,7 @@ def maybe_post_new_round(now: datetime):
         open_rows = []
 
     if open_rows:
-        return
+        return False
 
     try:
         extended_rows = (
@@ -91,10 +94,21 @@ def maybe_post_new_round(now: datetime):
         extended_rows = []
 
     if extended_rows:
-        return
+        return False
 
+    future = asyncio.run_coroutine_threadsafe(
+        prompt_round_start(), bot.loop
+    )
+    try:
+        approved = future.result()
+    except Exception:
+        approved = False
+    if not approved:
+        return False
+    
     submission, event_title, log_text = create_cah_round()
     asyncio.run_coroutine_threadsafe(
         log_cah_event(event_title, log_text),
         bot.loop,
     )
+    return True

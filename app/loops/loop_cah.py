@@ -3,21 +3,16 @@ Cards Against Humanity loop: schedule new rounds and close/extend existing ones.
 """
 
 import time
-import asyncio
 from datetime import datetime
 import os
 
 import praw 
 
 from app.utils.tz import current_tz
-from app.cah.rounds_post import create_cah_round
+from app.cah.rounds_post import maybe_post_new_round
 from app.cah.rounds_close import close_or_extend_rounds
-from app.cah.logs import log_cah_event, prompt_round_start
-from app.clients.discord_bot import bot 
-from app.clients.supabase import supabase
 from app.clients.reddit_bot import reddit as reddit_client
 import app.clients.reddit_bot as reddit_client_module
-import app.clients.reddit_owner as owner_client
 from app.config import CAH_ENABLED, CAH_POST_HOUR
 
 
@@ -35,45 +30,9 @@ def cah_loop():
             # Step 1: maybe post a new round
                         # Step 1: post a new round at the scheduled hour
             if now.hour >= CAH_POST_HOUR and now.date() != last_post_date:
-                try:
-                    open_rows = (
-                        supabase.table("cah_rounds")
-                        .select("round_id")
-                        .eq("status", "open")
-                        .execute()
-                        .data
-                        or []
-                    )
-                except Exception:
-                    open_rows = []
-
-                try:
-                    extended_rows = (
-                        supabase.table("cah_rounds")
-                        .select("round_id")
-                        .eq("status", "extended")
-                        .execute()
-                        .data
-                        or []
-                    )
-                except Exception:
-                    extended_rows = []
-
-                if not open_rows and not extended_rows:
-                    future = asyncio.run_coroutine_threadsafe(
-                        prompt_round_start(), bot.loop
-                    )
-                    try:
-                        approved = future.result()
-                    except Exception:
-                        approved = False
-                    if approved:
-                        submission, event_title, log_text = create_cah_round()
-                        asyncio.run_coroutine_threadsafe(
-                            log_cah_event(event_title, log_text),
-                            bot.loop,
-                        )
-                        last_post_date = now.date()
+                posted = maybe_post_new_round(now)
+                if posted:
+                    last_post_date = now.date()
 
             # Step 2: close or extend existing rounds
             close_or_extend_rounds(now)
