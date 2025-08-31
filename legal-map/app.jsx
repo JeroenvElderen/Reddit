@@ -13,7 +13,7 @@ function App() {
     mapboxgl.accessToken = MAPBOX_TOKEN;
     mapRef.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
+      style: 'mapbox://styles/mapbox/standard',
       center: [0,0],
       zoom: 1.5,
       projection: 'globe'
