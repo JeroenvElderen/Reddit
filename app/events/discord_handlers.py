@@ -18,7 +18,7 @@ from app.persistence.users_row import already_moderated
 from app.models.ruleset import REJECTION_REASONS
 from app.utils.url_parts import _get_permalink_from_embed, _fetch_item_from_permalink
 from app.moderation.spots import approve_spot, reject_spot
-from app.moderation.context_warning import ussie_context_warning
+from app.moderation.context_warning import issue_context_warning
 
 # loops
 from app.loops.poll_reddit import reddit_polling
