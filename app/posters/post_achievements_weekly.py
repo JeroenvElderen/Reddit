@@ -112,8 +112,8 @@ def weekly_achievements_loop():
     while True:
         try:
             now = datetime.now(current_tz())
-            # Run every Sunday at 12:00
-            if now.weekday() == 6 and now.hour == 12 and now.minute == 0:
+            # Run every Sunday at 23:00
+            if now.weekday() == 6 and now.hour == 23 and now.minute == 0:
                 try:
                     posted = post_weekly_achievements()
                     if posted:
