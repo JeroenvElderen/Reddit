@@ -96,7 +96,7 @@ async def prompt_pack_toggle(pack_key: str, action: str, when: str, color=discor
 # =========================
 # CAH round start prompt
 # =========================
-async def prompt_round_start(timeout: float = 3600.0) -> bool:
+async def prompt_round_start(round_number: int, black_text: str, timeout: float = 3600.0) -> bool:
     """Prompt moderators to start a new CAH round.
 
     Returns True if approved, False otherwise.
@@ -109,8 +109,8 @@ async def prompt_round_start(timeout: float = 3600.0) -> bool:
             return False
 
     embed = discord.Embed(
-        title="🃏 Start new CAH round?",
-        description="React ✅ to approve, ❌ to skip.",
+        title=f"🃏 Start CAH Round {round_number}?",
+        description=f"**Black card:** {black_text}\n\nReact ✅ to approve, ❌ to skip.",
         color=discord.Color.gold(),
         timestamp=datetime.now(timezone.utc),
     )

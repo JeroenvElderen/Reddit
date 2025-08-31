@@ -15,13 +15,12 @@ from app.cah.logs import log_cah_event, prompt_round_start
 from app.cah.templates import format_cah_body
 from app.cah.highlight import update_cah_highlight
 
-
-
-def create_cah_round(manual: bool = False):
+def create_cah_round(manual: bool = False, black: str | None = None):
     """Create a new CAH round and post to Reddit."""
     rows = supabase.table("cah_rounds").select("round_id").execute()
     next_round = len(rows.data or []) + 1
-    black = cah_pick_black_card()
+    if black is None:
+        black = cah_pick_black_card()
     title = f"🎲 CAH Round {next_round} — Fill in the Blank!"
     selftext = format_cah_body(next_round, black, CAH_ROUND_DURATION_H)
 
@@ -96,8 +95,15 @@ def maybe_post_new_round(now: datetime):
     if extended_rows:
         return False
 
+    try:
+        rows = supabase.table("cah_rounds").select("round_id").execute()
+        next_round = len(rows.data or []) + 1
+    except Exception:
+        next_round = 1
+    black = cah_pick_black_card()
+
     future = asyncio.run_coroutine_threadsafe(
-        prompt_round_start(), bot.loop
+        prompt_round_start(next_round, black), bot.loop
     )
     try:
         approved = future.result()
@@ -106,7 +112,14 @@ def maybe_post_new_round(now: datetime):
     if not approved:
         return False
     
-    submission, event_title, log_text = create_cah_round()
+    try:
+        approved = future.result()
+    except Exception:
+        approved = False
+    if not approved:
+        return False
+    
+    submission, event_title, log_text = create_cah_round(black=black)
     asyncio.run_coroutine_threadsafe(
         log_cah_event(event_title, log_text),
         bot.loop,
