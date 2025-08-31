@@ -1,4 +1,6 @@
 import os
+import json 
+from pathlib import Path
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
@@ -74,3 +76,13 @@ BOT_USERNAME = os.getenv("REDDIT_USERNAME", "").lower()
 BOT_FLAIR_ID = os.getenv("BOT_FLAIR_ID", "")
 OWNER_USERNAME = os.getenv("OWNER_REDDIT_USERNAME", "").lower()
 SUBREDDIT_NAME = os.getenv("SUBREDDIT_NAME", "PlanetNaturists")
+
+# ---------- Fixed flair mapping ---------- #
+_fixed_flairs_path = Path(__file__).resolve().parent.parent / "fixed_flairs.json"
+try:
+    with _fixed_flairs_path.open() as f:
+        FIXED_FLAIRS = {k.lower(): v for k, v in json.load(f).items*()}
+except FileNotFoundError:
+    FIXED_FLAIRS = {}
+if OWNER_USERNAME:
+    FIXED_FLAIRS.setdefault(OWNER_USERNAME, "Naturist Legend")

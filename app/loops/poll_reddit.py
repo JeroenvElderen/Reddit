@@ -10,7 +10,7 @@ from app.clients.reddit_bot import reddit
 from app.clients.discord_bot import bot
 from app.clients.supabase import supabase
 
-from app.models.state import seen_ids
+from app.models.state import seen_ids, add_seen_id
 from app.moderation.approval_awards import apply_approval_awards
 from app.moderation.logs_approval import log_approval
 from app.moderation.logs_auto import send_discord_auto_log
@@ -39,9 +39,9 @@ def handle_new_item(item):
         return
     if already_moderated(item):
         print(f"⏩ Skipping {item.id} (already moderated)")
-        seen_ids.add(item.id)
+        add_seen_id(item.id)
         return
-    seen_ids.add(item.id)
+    add_seen_id(item.id)
 
     author_name = str(item.author)
     bot_username = os.getenv("REDDIT_USERNAME", "").lower()
@@ -138,8 +138,10 @@ def reddit_polling():
     """Continuously poll Reddit inbox & subreddit for new items."""
     print("📡 Reddit polling started...")
     sub = reddit.subreddit(SUBREDDIT_NAME)
+    skip_existing = not seen_ids
+
     def _submission_stream():
-        for item in sub.stream.submissions(skip_existing=True):
+        for item in sub.stream.submissions(skip_existing=skip_existing):
             try:
                 handle_new_item(item)
             except Exception as e:
@@ -148,7 +150,7 @@ def reddit_polling():
                 )
     
     def _comment_stream():
-        for item in sub.stream.comments(skip_existing=True):
+        for item in sub.stream.comments(skip_existing=skip_existing):
             try:
                 handle_new_item(item)
             except Exception as e:

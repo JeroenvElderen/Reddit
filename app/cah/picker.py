@@ -13,14 +13,19 @@ from app.config import CAH_BASE_PACK_KEY
 # =========================
 def cah_enabled_packs():
     try:
-        return supabase.table("cah_packs").select("*").eq("enabled", True).execute().data or []
+        packs = supabase.table("cah_packs").select("*").eq("enabled", True).execute().data or []
+        for p in packs:
+            if isinstance(p.get("key"), str):
+                p["key"] = p["key"].lower()
+        return packs
     except Exception:
-        return [{"key": CAH_BASE_PACK_KEY, "weight": 100}]
+        return [{"key": CAH_BASE_PACK_KEY.lower(), "weight": 100}]
 
 
 def cah_black_card_count(key: str) -> int:
     """Return the number of black cards available for a given pack key."""
     try:
+        key = key.lower()
         cnt = (
             supabase.table("cah_black_cards")
             .select("id", count="exact")
@@ -90,6 +95,7 @@ def _fetch_last_winner_block() -> str:
 # Random black card picker
 # =========================
 def _random_card_for_pack(key: str) -> str | None:
+    key = key.lower()
     total = cah_black_card_count(key)
     if total <= 0:
         return None
@@ -116,8 +122,8 @@ def _random_card_for_pack(key: str) -> str | None:
 def cah_pick_black_card() -> str:
     active = cah_enabled_packs()
     if not active:
-        active = [{"key": CAH_BASE_PACK_KEY, "weight": 100}]
-    weighted = [(p["key"], int(p.get("weight", 100))) for p in active]
+        active = [{"key": CAH_BASE_PACK_KEY.lower(), "weight": 100}]
+    weighted = [(p["key"].lower(), int(p.get("weight", 100))) for p in active]
     total = sum(w for _, w in weighted)
     r = random.uniform(0, total)
     upto = 0

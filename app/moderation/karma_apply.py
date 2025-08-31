@@ -7,7 +7,7 @@ from app.models.state import subreddit
 from app.models.flair_ladder import flair_templates
 from app.utils.flair_text import get_flair_for_karma
 from app.moderation.badges_observer_award import check_observer_badges
-from app.config import BOT_USERNAME, BOT_FLAIR_ID, OWNER_USERNAME
+from app.config import BOT_USERNAME, BOT_FLAIR_ID, FIXED_FLAIRS
 
 
 def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
@@ -26,16 +26,17 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
             print(f"⚠️ Failed to set bot flair: {e}")
         return 0, 0, "Bot"
 
-    # Owner account -> always Naturist Legend
-    if name == OWNER_USERNAME:
+    # --- Fixed flairs -> always forced --- #
+    if name in FIXED_FLAIRS:
+        flair = FIXED_FLAIRS[name]
         try:
-            flair_id = flair_templates.get("Naturist Legend")
+            flair_id = flair_templates.get(flair)
             if flair_id:
                 subreddit.flair.set(redditor=name, flair_template_id=flair_id)
-                print(f"👑 Owner account flair forced to Naturist Legend")
+                print(f"👤 Fixed flair forced for {name} → {flair}")
         except Exception as e:
-            print(f"⚠️ Failed to set owner flair: {e}")
-        return 0, 0, "Naturist Legend"
+            print(f"⚠️ Failed to set fixed flair for {name}: {e}")
+        return 0, 0, flair
 
     # --- Normal user flow ---
     res = supabase.table("user_karma").select("*").ilike("username", name).execute()
