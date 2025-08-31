@@ -44,44 +44,37 @@ def format_weekly_achievements(rows):
         else:
             rare.append(line)
 
-    parts = []
-    parts.append("🌟🌿🌞🌿🌟\n✨ Weekly Naturist Achievements ✨\n🌟🌿🌞🌿🌟\n")
+    divider = "🌿🌿🌿🌿🌿"
+    parts = ["🌟🌿🌞🌿🌟 Weekly Naturist Achievements 🌟🌿🌞🌿🌟"]
 
     if locations:
-        parts.append("🏖️ **Location Achievements**\n" + "\n".join(locations) + "\n\n🌿🌿🌿🌿🌿")
+        parts.append("### 🏞️ Location Achievements")
+        parts.extend(locations)
+        parts.append("")
+        parts.append(divider)
+        parts.append("")
     if pillars:
-        parts.append("🧘 **Pillar Progress**\n" + "\n".join(pillars) + "\n\n🌿🌿🌿🌿🌿")
+        parts.append("### 🌱 Pillar Progress")
+        parts.extend(pillars)
+        parts.append("")
+        parts.append(divider)
+        parts.append("")
     if meta:
-        parts.append("👑 **Meta Ladder**\n" + "\n".join(meta) + "\n\n🌿🌿🌿🌿🌿")
+        parts.append("### 🌀 Meta Ladder")
+        parts.extend(meta)
+        parts.append("")
+        parts.append(divider)
+        parts.append("")
     if rare:
-        parts.append("🎉 **Special Unlocks**\n" + "\n".join(rare) + "\n\n🌿🌿🌿🌿🌿")
+        parts.append("### 🎉 Special Unlocks")
+        parts.extend(rare)
+        parts.append("")
+        parts.append(divider)
+        parts.append("")
 
     parts.append("🌞💚 Keep shining, sharing, and celebrating naturism! ✨🌿")
 
-    return "\n\n".join(parts)
-
-
-# =========================
-# Single-shot poster
-# =========================
-def post_weekly_achievements():
-    """Fetch and post this week's achievements once.
-
-    Returns True if a digest was posted, False if no rows were found.
-    Raises any exceptions from Reddit/Supabase callers.
-    """
-    week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
-    res = supabase.table("user_badges").select("*").gte("unlocked_on", week_ago).execute()
-    rows = res.data or []
-
-    body = format_weekly_achievements(rows)
-    if not body:
-        return False
-
-    title = "🌟 Weekly Naturist Achievements ✨"
-    submission = reddit.subreddit(SUBREDDIT_NAME).submit(title, selftext=body)
-    submission.mod.approve()
-    return True
+    return "\n".join(parts)
 
 # =========================
 # Single-shot poster
