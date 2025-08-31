@@ -5,7 +5,6 @@ Helpers for Cards Against Humanity packs and random card selection.
 import random
 from app.clients.supabase import supabase
 from app.clients.reddit_bot import reddit
-from app.config import CAH_BASE_PACK_KEY
 
 
 # =========================
@@ -19,7 +18,7 @@ def cah_enabled_packs():
                 p["key"] = p["key"].lower()
         return packs
     except Exception:
-        return [{"key": CAH_BASE_PACK_KEY.lower(), "weight": 100}]
+        return[]
 
 
 def cah_black_card_count(key: str) -> int:
@@ -122,7 +121,10 @@ def _random_card_for_pack(key: str) -> str | None:
 def cah_pick_black_card() -> str:
     active = cah_enabled_packs()
     if not active:
-        active = [{"key": CAH_BASE_PACK_KEY.lower(), "weight": 100}]
+        return random.choice([
+            "Nothing says naturism like ____.",
+            "The best naturist activity is ____",
+        ])
     weighted = [(p["key"].lower(), int(p.get("weight", 100))) for p in active]
     total = sum(w for _, w in weighted)
     r = random.uniform(0, total)
@@ -134,9 +136,6 @@ def cah_pick_black_card() -> str:
             break
         upto += w
     txt = _random_card_for_pack(chosen)
-    if txt:
-        return txt
-    txt = _random_card_for_pack(CAH_BASE_PACK_KEY)
     if txt:
         return txt
     return random.choice([

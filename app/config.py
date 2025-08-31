@@ -20,8 +20,6 @@ CAH_ENABLED = os.getenv("CAH_ENABLED", "0") == "1"
 CAH_POST_HOUR = int(os.getenv("CAH_POST_HOUR", "12"))
 CAH_ROUND_DURATION_H = int(os.getenv("CAH_ROUND_DURATION_H", "24"))
 CAH_EXTENSION_H = int(os.getenv("CAH_EXTENSION_H", "24"))
-CAH_INCLUDE_BASE = os.getenv("CAH_INCLUDE_BASE", "1") == "1"
-CAH_BASE_PACK_KEY = os.getenv("CAH_BASE_PACK_KEY", "base")
 CAH_POST_FLAIR_ID = os.getenv("CAH_POST_FLAIR_ID") or None
 DISCORD_CAH_CHANNEL_ID = int(os.getenv("DISCORD_CAH_CHANNEL_ID", "1410224656526610432"))
 
