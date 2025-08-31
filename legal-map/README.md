@@ -5,6 +5,7 @@ Simple React + Mapbox globe allowing community-submitted markers classified as A
 ## Setup
 1. Copy `config.sample.js` to `config.js` and fill in `MAPBOX_TOKEN` and optional `DISCORD_WEBHOOK_URL` for logging.
 2. Serve the folder with any static file server or deploy to GitHub Pages.
+3. Ensure Mapbox GL JS v2 is used. The included `index.html` loads v2.15.0 from the Mapbox CDN. If you're upgrading an existing project, update your CDN script tags or run `npm install mapbox-gl@^2`.
 
 ## Usage
 - Click on the map to add a spot. Provide name, country, and category.

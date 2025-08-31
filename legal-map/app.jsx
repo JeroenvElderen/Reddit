@@ -10,6 +10,11 @@ function App() {
       alert('MAPBOX_TOKEN missing in config.js');
       return;
     }
+    // Warn if an older version of Mapbox GL JS is loaded
+    if (parseInt(mapboxgl.version.split('.')[0], 10) < 2) {
+      alert('Mapbox GL JS v2 or higher is required for this style.');
+      return;
+    }
     mapboxgl.accessToken = MAPBOX_TOKEN;
     mapRef.current = new mapboxgl.Map({
       container: mapContainer.current,
