@@ -98,6 +98,7 @@ async def send_discord_approval(item, lang_label=None, note=None, night_guard_pi
 
     msg = await channel.send(content=mention.strip() or None, embed=embed)
     await msg.add_reaction("✅")
+    await msg.add_reaction("⚠️")
     await msg.add_reaction("❌")
     await msg.add_reaction("🔄")
 

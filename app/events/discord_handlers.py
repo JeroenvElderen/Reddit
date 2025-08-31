@@ -18,6 +18,7 @@ from app.persistence.users_row import already_moderated
 from app.models.ruleset import REJECTION_REASONS
 from app.utils.url_parts import _get_permalink_from_embed, _fetch_item_from_permalink
 from app.moderation.spots import approve_spot, reject_spot
+from app.moderation.context_warning import ussie_context_warning
 
 # loops
 from app.loops.poll_reddit import reddit_polling
@@ -120,6 +121,19 @@ async def on_reaction_add(reaction, user):
             note = f"+{total_delta}" + (f" ({extras})" if extras else "")
             await reaction.message.channel.send(
                 f"✅ Approved u/{author_name} ({old_k} → {new_k}) {note}, flair: {flair}"
+            )
+            record_mod_decision(entry.get("created_ts"), user.id)
+            await _lock_and_delete_message(reaction.message)
+            await log_approval(item, old_k, new_k, flair, note, extras)
+
+        # ⚠️ warn for context
+        elif str(reaction.emoji) == "⚠️":
+            item.mod.approve()
+            count = issue_context_warning(item)
+            old_k, new_k, flair, total_delta, extras = apply_approval_awards(item, is_manual=True)
+            note = f"+{total_delta}" + (f" ({extras})" if extras else "")
+            await reaction.message.channel.send(
+                f"⚠️ Approved u/{author_name} ({old_k} → {new_k}) {note}, flair: {flair}, Warning {count}/3."
             )
             record_mod_decision(entry.get("created_ts"), user.id)
             await _lock_and_delete_message(reaction.message)

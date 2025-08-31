@@ -16,6 +16,8 @@ from app.moderation.logs_approval import log_approval
 from app.moderation.logs_auto import send_discord_auto_log
 from app.moderation.cards_send import send_discord_approval
 from app.persistence.users_row import ensure_user_row
+from app.persistence.context_warning import get_context_warning_count
+from app.moderation.context_warning import issue_context_warning
 from app.utils.text_lang import likely_english
 from app.utils.text_misc import item_text
 from app.utils.tz import current_tz
@@ -70,6 +72,16 @@ def handle_new_item(item):
 
     res = supabase.table("user_karma").select("*").ilike("username", author_name).execute()
     karma = int(res.data[0]["karma"]) if res.data else 0
+
+    warnings = get_context_warning_count(author_name)
+    if warnings >= 3:
+        print(f"🚫 Auto-removing u/{author_name} due to {warnings} context warnings")
+        try:
+            item.mod.remove()
+        except Exception as e:
+            print(f"⚠️ Failed to remove item {getattr(item, 'id', '?')}: {e}")
+        issue_context_warning(item, auto_removed=True)
+        return
 
     # Language hinting
     text = item_text(item)

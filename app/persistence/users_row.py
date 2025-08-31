@@ -17,7 +17,9 @@ def ensure_user_row(username: str) -> bool:
     )
     if res.data:
         return False
-    supabase.table("user_karma").insert({"username": username, "karma": 0}).execute()
+    supabase.table("user_karma").insert(
+        {"username": username, "karma": 0, "context_warnings": 0}
+    ).execute()
     return True
 
 
