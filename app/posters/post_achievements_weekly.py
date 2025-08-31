@@ -100,7 +100,7 @@ def post_weekly_achievements():
     if not body:
         return False
 
-    title = "🌟 Weekly Naturist Achievements ✨"
+    title = "🌟🌿🌞🌿🌟 Weekly Naturist Achievements 🌟🌿🌞🌿🌟"
     submission = reddit.subreddit(SUBREDDIT_NAME).submit(title, selftext=body)
     submission.mod.approve()
     return True
