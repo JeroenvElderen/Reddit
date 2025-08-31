@@ -1,3 +1,3 @@
 // Rename this file to config.js and fill in your keys. Do not commit the real config.js.
-const MAPBOX_TOKEN = 'pk.eyJ1IjoiamVyb2VudmFuZWxkZXJlbiIsImEiOiJjbWMwa2M0cWswMm9jMnFzNjI3Z2I4YnV4In0.qUqeNUDYMBf3E54ouOd2Jg';
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiamVyb2VudmFuZWxkZXJlbiIsImEiOiJjbThzcjg0MHMwMzQ3MmxzZGs0ejdjajMwIn0.bHSf9YidjKH7z7I8HgvgdApk.eyJ1IjoiamVyb2VudmFuZWxkZXJlbiIsImEiOiJjbWMwa2M0cWswMm9jMnFzNjI3Z2I4YnV4In0.qUqeNUDYMBf3E54ouOd2Jg';
 const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1411827555480375457/i5Rfy-YOpGdUNZCxDcqExUioVl73Xkyup8NTpLbSA-RfkIrxmAgqCQZ_rj33ReZXmVNs';

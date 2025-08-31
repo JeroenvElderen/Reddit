@@ -34,6 +34,7 @@ flair_templates = {
     "Naturist Legend": "a3f1f8fc-7dd7-11f0-b2c1-227301a06778",
     "Daily Prompt": "8b04873e-80d8-11f0-81d2-260f76f8fd83",
     "Quiet Observer": "a3d0f81c-81c6-11f0-a40f-028908714e28",
+    "PlanetNaturists mod": "ce269096-81b1-11f0-b51d-6ecc7a96815b",
 }
 
 # =========================
