@@ -1,6 +1,6 @@
 """Helpers for issuing context warnings on Reddit items."""
 
-from app.persistence.context_warnings import add_context_warning
+from app.persistence.context_warning import add_context_warning
 
 CONTEXT_WARNING_MESSAGE = (
     "⚠️ Hey there! Thanks for your contribution! 🙌\n"
