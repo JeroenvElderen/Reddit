@@ -29,6 +29,7 @@ from app.config import (
     SUBREDDIT_NAME,
     DISCORD_APPROVAL_LOG_CHANNEL_ID,
     DISCORD_AUTO_APPROVAL_CHANNEL_ID,
+    FIXED_FLAIRS,
 )
 
 
@@ -72,6 +73,29 @@ def handle_new_item(item):
 
     res = supabase.table("user_karma").select("*").ilike("username", author_name).execute()
     karma = int(res.data[0]["karma"]) if res.data else 0
+
+    # Fixed flair users bypass further checks - auto approve
+    if author_name.lower() in FIXED_FLAIRS:
+        item.mod.approve()
+        old_k, new_k, flair, total_delta, extras = apply_approval_awards(
+            item, is_manual=False
+        )
+        extras = (extras + ", Fixed flair") if extras else "Fixed flair"
+        note = f"+{total_delta}" + (f" ({extras})" if extras else "")
+        print(f"✅ Auto-approved u/{author_name} ({old_k}→{new_k}) {note}")
+
+        asyncio.run_coroutine_threadsafe(
+            log_approval(item, old_k, new_k, flair, note),
+            bot.loop,
+        )
+        if DISCORD_AUTO_APPROVAL_CHANNEL_ID != DISCORD_APPROVAL_LOG_CHANNEL_ID:
+            asyncio.run_coroutine_threadsafe(
+                send_discord_auto_log(
+                    item, old_k, new_k, flair, total_delta, extras
+                ),
+                bot.loop,
+            )
+        return
 
     warnings = get_context_warning_count(author_name)
     if warnings >= 3:
