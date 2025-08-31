@@ -1,4 +1,6 @@
 const { useState, useEffect, useRef } = React;
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 
 function App() {
   const mapContainer = useRef(null);
@@ -33,11 +35,9 @@ function App() {
         await addMarker({ name, country, category, coordinates: [e.lngLat.lng, e.lngLat.lat] });
       }
     });
-
-    fetch('markers.json')
-      .then(res => res.json())
-      .then(data => data.forEach(renderMarker))
-      .catch(()=>{});
+    sb.from('map_markers').select('*').then(({ data }) => {
+      (data || []).forEach(renderMarker);
+    });
   }, []);
 
   const categoryColor = (cat) => ({
@@ -77,10 +77,20 @@ function App() {
   };
 
   const renderMarker = ({ name, country, category, coordinates, law }) => {
-    new mapboxgl.Marker({ color: categoryColor(category) })
+    const marker = new mapboxgl.Marker({ color: categoryColor(category) })
       .setLngLat(coordinates)
-      .setPopup(new mapboxgl.Popup().setHTML(`<h3>${name}</h3><p>${country}</p><p>${category}</p><p>${law}</p>`))
-      .addTo(mapRef.current);
+      .setPopup(
+        new mapboxgl.Popup().setHTML(
+          `<h3>${name}</h3><p>${country}</p><p>${category}</p><p>${law}</p>`
+        )
+      );
+
+    // Prevent map click handler from firing when a marker is clicked
+    marker.getElement().addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    marker.addTo(mapRef.current);
   };
 
   const addMarker = async ({ name, country, category, coordinates }) => {
@@ -89,6 +99,7 @@ function App() {
       const law = await fetchLaw(country);
       renderMarker({ name, country, category, coordinates: coords, law });
       logDiscord(`New marker: ${name}, ${country}, ${category}`);
+      sb.from('map_markers').insert({ name, country, category, coordinates: coords, law });
     } catch (err) {
       console.error('Error adding marker', err);
     }
@@ -104,14 +115,20 @@ function App() {
   };
 
   return (
-    <div>
-      <h1>Legal Map</h1>
-      <form onSubmit={handleSubmit}>
-        <input value={input} onChange={e=>setInput(e.target.value)} placeholder="Name, Country, Category" />
-        <button type="submit">Add via Bot</button>
-      </form>
+    <>
       <div id="map" ref={mapContainer}></div>
-    </div>
+      <div id="overlay">
+        <h1>Legal Map</h1>
+        <form onSubmit={handleSubmit}>
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Name, Country, Category"
+          />
+          <button type="submit">Add via Bot</button>
+        </form>
+      </div>
+    </>
   );
 }
 
