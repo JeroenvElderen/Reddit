@@ -4,6 +4,7 @@ html, body, #root {
     height: 100%;
     width: 100%;
 }
+
 #map { 
     position: fixed;
     top: 0;
@@ -12,10 +13,11 @@ html, body, #root {
     height: 100%;
     z-index: 0;
  }
+
  #overlay {
     position: absolute;
     top: 10px;
-    let: 10px;
+    left: 10px;
     z-index: 1;
  }
 form { margin:10px; }
