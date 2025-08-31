@@ -81,7 +81,7 @@ SUBREDDIT_NAME = os.getenv("SUBREDDIT_NAME", "PlanetNaturists")
 _fixed_flairs_path = Path(__file__).resolve().parent.parent / "fixed_flairs.json"
 try:
     with _fixed_flairs_path.open() as f:
-        FIXED_FLAIRS = {k.lower(): v for k, v in json.load(f).items*()}
+        FIXED_FLAIRS = {k.lower(): v for k, v in json.load(f).items()}
 except FileNotFoundError:
     FIXED_FLAIRS = {}
 if OWNER_USERNAME:
