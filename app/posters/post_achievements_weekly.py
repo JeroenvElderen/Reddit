@@ -62,6 +62,50 @@ def format_weekly_achievements(rows):
 
 
 # =========================
+# Single-shot poster
+# =========================
+def post_weekly_achievements():
+    """Fetch and post this week's achievements once.
+
+    Returns True if a digest was posted, False if no rows were found.
+    Raises any exceptions from Reddit/Supabase callers.
+    """
+    week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+    res = supabase.table("user_badges").select("*").gte("unlocked_on", week_ago).execute()
+    rows = res.data or []
+
+    body = format_weekly_achievements(rows)
+    if not body:
+        return False
+
+    title = "🌟 Weekly Naturist Achievements ✨"
+    submission = reddit.subreddit(SUBREDDIT_NAME).submit(title, selftext=body)
+    submission.mod.approve()
+    return True
+
+# =========================
+# Single-shot poster
+# =========================
+def post_weekly_achievements():
+    """Fetch and post this week's achievements once.
+
+    Returns True if a digest was posted, False if no rows were found.
+    Raises any exceptions from Reddit/Supabase callers.
+    """
+    week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+    res = supabase.table("user_badges").select("*").gte("unlocked_on", week_ago).execute()
+    rows = res.data or []
+
+    body = format_weekly_achievements(rows)
+    if not body:
+        return False
+
+    title = "🌟 Weekly Naturist Achievements ✨"
+    submission = reddit.subreddit(SUBREDDIT_NAME).submit(title, selftext=body)
+    submission.mod.approve()
+    return True
+
+# =========================
 # Weekly achievements loop
 # =========================
 def weekly_achievements_loop():
@@ -71,21 +115,14 @@ def weekly_achievements_loop():
             now = datetime.now(current_tz())
             # Run every Sunday at 12:00
             if now.weekday() == 6 and now.hour == 12 and now.minute == 0:
-                week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
-                res = supabase.table("user_badges").select("*").gte("unlocked_on", week_ago).execute()
-                rows = res.data or []
-
-                body = format_weekly_achievements(rows)
-                if body:
-                    title = "🌟 Weekly Naturist Achievements ✨"
-                    try:
-                        submission = reddit.subreddit(SUBREDDIT_NAME).submit(title, selftext=body)
-                        submission.mod.approve()
+                try:
+                    posted = post_weekly_achievements()
+                    if posted:
                         print("✅ Weekly achievements digest posted")
-                    except Exception as e:
-                        print(f"⚠️ Could not post weekly achievements: {e}")
-                else:
-                    print("ℹ️ No new weekly achievements to post")
+                    else:
+                        print("ℹ️ No new weekly achievements to post")
+                except Exception as e:
+                    print(f"⚠️ Could not post weekly achievements: {e}")
 
                 time.sleep(60)  # avoid duplicate posting
         except Exception as e:
