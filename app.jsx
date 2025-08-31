@@ -18,7 +18,7 @@ function App() {
     }
     mapboxgl.accessToken = MAPBOX_TOKEN;
     mapRef.current = new mapboxgl.Map({
-      container: mapContainer.current,
+      container: 'map',
       style: 'mapbox://styles/mapbox/streets-v12',
       center: [0,0],
       zoom: 1.5,
