@@ -23,7 +23,8 @@ def format_weekly_achievements(rows):
         u = row["username"]
         badge = row["badge"]
 
-        line = f"• u/{u} → {badge}"
+        # Use Markdown list bullet so Reddit renders one item per line (no extra spacing)
+        line = f"* u/{u} → {badge}"
 
         if any(loc in badge for loc in [
             "Beach","Forest","Lake","Mountain","Meadow","River",
@@ -45,12 +46,12 @@ def format_weekly_achievements(rows):
             rare.append(line)
 
     divider = "🌿🌿🌿🌿🌿"
-    parts = []
+    parts = []  # no banner here; the title handles it
 
     if locations:
         parts.append("### 🏞️ Location Achievements")
-        parts.append("")
-        parts.extend(locations)
+        parts.append("")                    # blank line before list so Reddit parses it as a list
+        parts.extend(locations)             # single newline between items because we'll join with "\n"
         parts.append("")
         parts.append(divider)
         parts.append("")
@@ -78,6 +79,7 @@ def format_weekly_achievements(rows):
 
     parts.append("🌞💚 Keep shining, sharing, and celebrating naturism! ✨🌿")
 
+    # Single newline join => tight list (no blank line between items)
     return "\n".join(parts)
 
 # =========================
