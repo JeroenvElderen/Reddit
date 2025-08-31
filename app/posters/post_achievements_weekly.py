@@ -45,28 +45,35 @@ def format_weekly_achievements(rows):
             rare.append(line)
 
     divider = "🌿🌿🌿🌿🌿"
-    parts = ["🌟🌿🌞🌿🌟 Weekly Naturist Achievements 🌟🌿🌞🌿🌟"]
+    parts = [
+        "🌟🌿🌞🌿🌟 Weekly Naturist Achievements 🌟🌿🌞🌿🌟",
+        ""
+        ]
 
     if locations:
         parts.append("### 🏞️ Location Achievements")
+        parts.append("")
         parts.extend(locations)
         parts.append("")
         parts.append(divider)
         parts.append("")
     if pillars:
         parts.append("### 🌱 Pillar Progress")
+        parts.append("")
         parts.extend(pillars)
         parts.append("")
         parts.append(divider)
         parts.append("")
     if meta:
         parts.append("### 🌀 Meta Ladder")
+        parts.append("")
         parts.extend(meta)
         parts.append("")
         parts.append(divider)
         parts.append("")
     if rare:
         parts.append("### 🎉 Special Unlocks")
+        parts.append("")
         parts.extend(rare)
         parts.append("")
         parts.append(divider)

@@ -1,2 +1,0 @@
-// Rename this file to config.js and fill in your keys. Do not commit the real config.js.
-const MAPBOX_TOKEN = "pk.eyJ1IjoiamVyb2VudmFuZWxkZXJlbiIsImEiOiJjbWMwa2M0cWswMm9jMnFzNjI3Z2I4YnV4In0.qUqeNUDYMBf3E54ouOd2Jg";
