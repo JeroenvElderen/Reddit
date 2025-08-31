@@ -73,26 +73,23 @@ async def on_reaction_add(reaction, user):
     
     # Stale card
     if msg_id not in pending_reviews:
-        print("⚠️ Reaction on stale card.")
-        if str(reaction.emoji) == "🔄":
-            link = _get_permalink_from_embed(reaction.message)
-            if not link:
-                await reaction.message.channel.send("⚠️ I can't find the original link on this card.")
-                return
-            item = _fetch_item_from_permalink(link)
-            if not item:
-                await reaction.message.channel.send("⚠️ I couldn't reconstruct the original item from the link.")
-                return
-            if already_moderated(item):
-                await reaction.message.channel.send("ℹ️ This item is already moderated — no need to refresh.")
-                return
-            await send_discord_approval(item, "English", note="↻ Refreshed stale card", priority_level=0)
-            try:
-                await reaction.message.delete()
-            except Exception:
-                pass
+        print("⚠️ Reaction on stale card → auto-refresh")
+        link = _get_permalink_from_embed(reaction.message)
+        if not link:
+            await reaction.message.channel.send("⚠️ I can't find the original link on this card.")
             return
-        await reaction.message.channel.send("⛔ This review card is no longer active. Click 🔄 to refresh it.")
+        item = _fetch_item_from_permalink(link)
+        if not item:
+            await reaction.message.channel.send("⚠️ I couldn't reconstruct the original item from the link.")
+            return
+        if already_moderated(item):
+            await reaction.message.channel.send("ℹ️ This item is already moderated — no need to refresh.")
+            return
+        await send_discord_approval(item, "English", note="↻ Auto-refreshed stale card", priority_level=0)
+        try:
+            await reaction.message.delete()
+        except Exception:
+            pass
         return
 
     # Active card
