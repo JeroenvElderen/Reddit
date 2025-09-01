@@ -110,25 +110,28 @@ function App() {
     const pos = Array.isArray(coordinates)
       ? { lat: coordinates[1], lng: coordinates[0] }
       : coordinates;
-    const pin = document.createElement('div');
-    pin.style.width = '12px';
-    pin.style.height = '12px';
-    pin.style.borderRadius = '50%';
-    pin.style.backgroundColor = categoryColor(category);
+  
+    const cat = (category || '').toLowerCase();
+    const icons = {
+      official: '✓',
+      restricted: '!',
+      unofficial: 'i',
+      illegal: '✖'
+    };
+    const pin = new google.maps.marker.PinElement({
+      background: categoryColor(category),
+      borderColor: 'white',
+      glyph: icons[cat] || '',
+      glyphColor: 'black',
+    });
     const marker = new google.maps.marker.AdvancedMarkerElement({
       position: pos,
       map: mapRef.current,
-      content: pin,
+      content: pin.element,
     });
 
       const text = description || law || '';
-      const cat = (category || '').toLowerCase();
-      const icons = {
-        official: '✓',
-        restricted: '!',
-        unofficial: 'i',
-        illegal: '✖'
-      };
+      
       const colorClass = {
         official: 'green',
         restricted: 'blue',
