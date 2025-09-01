@@ -10,12 +10,31 @@ function App() {
   const geocoderRef = useRef(null);
   const autocompleteRef = useRef(null);
   const openInfoRef = useRef(null);
+  const markersRef = useRef([]);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [category, setCategory] = useState('unofficial');
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', country: '', description: '' });
   const [pendingCoords, setPendingCoords] = useState(null);
+  const [filter, setFilter] = useState({
+    official: true,
+    restricted: true,
+    unofficial: true,
+    illegal: true
+  });
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [legendOpen, setLegendOpen] = useState(window.innerWidth >= 768);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    setLegendOpen(!isMobile);
+  }, [isMobile]);
 
   const closeOpenInfo = () => {
     if (openInfoRef.current) {
@@ -117,6 +136,23 @@ function App() {
     illegal: '#fe6c9b'    // red accent from .card.red
   })[cat.toLowerCase()] || '#888'; // fallback gray
 
+  const icons = {
+    official: '✓',
+    restricted: '!',
+    unofficial: 'i',
+    illegal: '✖'
+  };
+
+  const toggleFilter = (cat) => {
+    setFilter(prev => ({ ...prev, [cat]: !prev[cat] }));
+  };
+
+  useEffect(() => {
+    markersRef.current.forEach(({ marker, category }) => {
+      marker.map = filter[category] ? mapRef.current : null;
+    });
+  }, [filter]);
+
 
   const geocode = (name, country) => new Promise((resolve, reject) => {
     if (!geocoderRef.current) return reject('Geocoder not loaded');
@@ -156,12 +192,6 @@ function App() {
       : coordinates;
   
     const cat = (category || '').toLowerCase();
-    const icons = {
-      official: '✓',
-      restricted: '!',
-      unofficial: 'i',
-      illegal: '✖'
-    };
     const pin = new google.maps.marker.PinElement({
       background: categoryColor(category),
       borderColor: 'white',
@@ -173,7 +203,8 @@ function App() {
       map: mapRef.current,
       content: pin.element,
     });
-
+    markersRef.current.push({ marker, category: cat});
+    marker.map = filter[cat] ? mapRef.current : null;
       const text = description || law || '';
       
       const colorClass = {
@@ -301,6 +332,24 @@ function App() {
   return (
     <>
       <div id="map" ref={mapContainer}></div>
+      <div id="legend" className={legendOpen ? '' : 'hidden'}>
+        {['official','restricted','unofficial','illegal'].map(cat => (
+          <label key={cat} className="legend-item">
+            <input
+              type="checkbox"
+              checked={filter[cat]}
+              onChange={() => toggleFilter(cat)}
+            />
+            <span className={`legend-marker ${cat}`}>{icons[cat]}</span>
+            {cat}
+          </label>
+        ))}
+      </div>
+      {isMobile && (
+        <button id="legend-toggle" onClick={() => setLegendOpen(o => !o)}>
+          {legendOpen ? '×' : 'Legend'}
+        </button>
+      )}
       <div id="overlay" className={showForm ? 'centered' : ''}>
         <h1>Legal Map</h1>
          {showForm ? (
@@ -339,12 +388,6 @@ function App() {
               onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
               placeholder="Search for a place"
             />
-            <select value={category} onChange={e => setCategory(e.target.value)}>
-              <option value="official">official</option>
-              <option value="restricted">restricted</option>
-              <option value="unofficial">unofficial</option>
-              <option value="illegal">illegal</option>
-            </select>
             {suggestions.length > 0 && (
               <ul id="suggestions">
                 {suggestions.map(p => (

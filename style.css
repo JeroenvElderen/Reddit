@@ -31,6 +31,10 @@ html, body, #root {
     width: calc(100% - 20px);
     max-width: 400px;
     z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
 }
 
 #overlay.centered {
@@ -39,8 +43,85 @@ html, body, #root {
     transform: translate(-50%, -50%);
 }
 
+#legend {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 2;
+    background: #fff;
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    font-family: "Poppins", sans-serif;
+    font-size: 0.9rem;
+}
+
+#legend.hidden {
+    display: none;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin: 4px 0;
+}
+
+.legend-item input {
+    margin-right: 4px;
+}
+
+.legend-marker {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 4px;
+    font-size: 0.75rem;
+    border: 1px solid #fff;
+    color: #000;
+}
+
+.legend-marker.official { background: #2eea9d; }
+.legend-marker.restricted { background: #ffd84d; }
+.legend-marker.unofficial { background: #5a81ff; }
+.legend-marker.illegal { background: #fe6c9b; }
+
+#legend-toggle {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 2;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    font-family: "Poppins", sans-serif;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+@media (min-width: 768px) {
+    #legend-toggle { display: none; }
+}
+
 input { padding:4px; }
-select { padding:4px; margin-left:4px; }
+
+#overlay input {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
+    background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
+    color: #fff;
+    font-family: "Poppins", sans-serif;
+}
+#overlay input::placeholder {
+    color: #cccccc;
+}
 
 #suggestions {
     list-style: none;
