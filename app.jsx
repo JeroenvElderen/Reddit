@@ -26,7 +26,7 @@ function App() {
       });
 
       geocoderRef.current = new google.maps.Geocoder();
-      autocompleteRef.current = new google.maps.places.AutocompleteService();
+      autocompleteRef.current = new google.maps.places.Autocompletesuggestion();
 
       mapRef.current.addListener('click', async (e) => {
         const coords = [e.latLng.lng(), e.latLng.lat()];
@@ -58,7 +58,7 @@ function App() {
       init();
     } else {
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places,marker`;
       script.onload = init;
       document.head.appendChild(script);
     }
@@ -88,7 +88,7 @@ function App() {
       setSuggestions([]);
       return;
     }
-    autocompleteRef.current.getPlacePredictions({ input: q }, (preds) => {
+    autocompleteRef.current.getSuggestions({ input: q }, (preds) => {
       setSuggestions(preds || []);
     });
   };
@@ -107,32 +107,39 @@ function App() {
     const pos = Array.isArray(coordinates)
       ? { lat: coordinates[1], lng: coordinates[0] }
       : coordinates;
-    const marker = new google.maps.Marker({
+    const pin = document.createElement('div');
+    pin.style.width = '12px';
+    pin.style.height = '12px';
+    pin.style.borderRadius = '50%';
+    pin.style.backgroundColor = categoryColor(category);
+    const marker = new google.maps.marker.AdvancedMarkerElement({
       position: pos,
       map: mapRef.current,
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        fillColor: categoryColor(category),
-        fillOpacity: 1,
-        strokeWeight: 0,
-        scale: 6,
-      }
+      content: pin,
     });
 
     const text = description || law || '';
     const info = new google.maps.InfoWindow({
       content: `<h3>${name}</h3><p>${country}</p><p>${category}</p><p>${text}</p>`
     });
-    marker.addListener('click', () => info.open(mapRef.current, marker));
+    marker.addListener('click', () => info.open({ map: mapRef.current, anchor: marker }));
   };
 
-  const addMarker = async ({ name = 'Unnamed', country, category, coordinates }) => {
+  const addMarker = async ({ 
+    name = 'Unnamed', 
+    country, 
+    category, 
+    coordinates,
+    description = '' 
+  }) => {
     try {
       const coords = coordinates || await geocode(name, country);
       renderMarker({ name, country, category, coordinates: coords, description });
       logDiscord(`New marker: ${name}, ${country}, ${category}`);
       if (sb) {
-        const { error } = await sb.from('map_markers').insert({ name, country, category, coordinates: coords, description });
+        const { error } = await sb
+          .from('map_markers')
+          .insert({ name, country, category, coordinates: coords, description });
         if (error) {
           console.error('Supabase insert error', error);
         }
