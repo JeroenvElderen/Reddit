@@ -201,6 +201,14 @@ input { padding:4px; }
     display: none !important;
 }
 
+/* Ensure marker cards sit above all other overlays */
+.gm-style-iw,
+.gm-style-iw-d,
+.gm-style-iw-t,
+.gm-style-iw-c {
+    z-index: 9999 !important;
+}
+
 @media (max-width: 767px) {
     .gm-style-iw,
     .gm-style-iw-d {
