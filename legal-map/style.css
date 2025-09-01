@@ -230,3 +230,12 @@ select { padding:4px; margin-left:4px; }
     background: #ffd84d;
     color: #111;
 }
+
+/* Prevent text overflow in cards */
+.card-body h3,
+.card-body p {
+    word-wrap: break-word;      /* break long words */
+    overflow-wrap: anywhere;    /* modern alternative */
+    white-space: normal;        /* allow wrapping */
+    max-width: 100%;            /* stay inside card */
+}
