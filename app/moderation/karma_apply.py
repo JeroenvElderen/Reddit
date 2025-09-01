@@ -28,8 +28,8 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
         return 0, 0, "Bot"
 
     # --- Fixed flairs -> always forced --- #
-    if name in FIXED_FLAIRS:
-        flair = FIXED_FLAIRS[name]
+    if name_lower in FIXED_FLAIRS:
+        flair = FIXED_FLAIRS[name_lower]
         try:
             flair_id = flair_templates.get(flair)
             if flair_id:
@@ -42,7 +42,16 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
     # --- Normal user flow ---
     res = supabase.table("user_karma").select("*").ilike("username", name).execute()
     row = res.data[0] if res.data else {}
+    stored_username = row.get("username")
     old = int(row.get("karma", 0))
+
+    def _save_user(payload):
+        payload["username"] = name
+        table = supabase.table("user_karma")
+        if stored_username:
+            table.update(payload).eq("username", stored_username).execute()
+        else:
+            table.insert(payload).execute()
 
     # 🌙 Quiet Observer never goes negative
     if row.get("last_flair") == "Quiet Observer":
@@ -59,11 +68,7 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
         flair_id = flair_templates.get(flair)
         if flair_id:
             subreddit.flair.set(redditor=name, flair_template_id=flair_id)
-        supabase.table("user_karma").upsert({
-            "username": name,
-            "karma": new,
-            "last_flair": flair
-        }).execute()
+        _save_user({"karma": new, "last_flair": flair})
         print(f"🌙 Quiet Observer → {name} reset to 0 karma and given Quiet Observer flair")
         return old, new, flair
 
@@ -75,12 +80,7 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
             subreddit.flair.set(redditor=name, flair_template_id=flair_id)
         # increment exit counter
         exits = int(row.get("observer_exits_count", 0)) + 1
-        supabase.table("user_karma").upsert({
-            "username": name,
-            "karma": new,
-            "last_flair": flair,
-            "observer_exits_count": exits
-        }).execute()
+        _save_user({"karma": new, "last_flair": flair, "observer_exist_count": exits})
         row["observer_exits_count"] = exits
         check_observer_badges(name, row)
 
@@ -89,11 +89,7 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
 
     # 🪶 Otherwise → normal flair ladder
     flair = get_flair_for_karma(new)
-    supabase.table("user_karma").upsert({
-        "username": name,
-        "karma": new,
-        "last_flair": flair
-    }).execute()
+    _save_user({"karma": new, "last_flair": flair})
     flair_id = flair_templates.get(flair)
     if flair_id:
         subreddit.flair.set(redditor=name, flair_template_id=flair_id)
