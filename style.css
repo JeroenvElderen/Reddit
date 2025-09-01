@@ -266,6 +266,8 @@ select { padding:4px; margin-left:4px; }
     .card {
         width: 100%;      /* full width on mobile */
         max-width: none;  /* allow card to match info window width */
+        width: 90%;       /* nearly full width on mobile */
+        max-width: 95vw;  /* never overflow screen */
         max-height: none; /* allow full height so text doesn't overflow */
     }
     .card-body h3 {
