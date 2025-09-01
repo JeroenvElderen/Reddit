@@ -17,6 +17,7 @@ function App() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', country: '', description: '' });
   const [pendingCoords, setPendingCoords] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const [filter, setFilter] = useState({
     official: true,
     restricted: true,
@@ -85,6 +86,7 @@ function App() {
         closeOpenInfo();
         const coords = [e.latLng.lng(), e.latLng.lat()];
         setPendingCoords(coords);
+        setEditingId(null);
         if (geocoderRef.current) {
           geocoderRef.current.geocode({ location: e.latLng }, (results, status) => {
             if (status === 'OK' && results[0]) {
@@ -188,11 +190,15 @@ function App() {
     }
   };
 
-  const renderMarker = ({ name, country, category, coordinates, description, law }) => {
+  const renderMarker = ({ id, name, country, category, coordinates, description, law }) => {
     const pos = Array.isArray(coordinates)
       ? { lat: coordinates[1], lng: coordinates[0] }
       : coordinates;
-  
+    const coordsArr = Array.isArray(coordinates)
+      ? coordinates
+      : [coordinates.lng, coordinates.lat];
+    const markerId = id ?? Date.now() + Math.random();
+
     const cat = (category || '').toLowerCase();
     const pin = new google.maps.marker.PinElement({
       background: categoryColor(category),
@@ -205,19 +211,20 @@ function App() {
       map: mapRef.current,
       content: pin.element,
     });
-    markersRef.current.push({ marker, category: cat});
+    markersRef.current.push({ marker, category: cat, id: markerId});
     marker.map = filter[cat] ? mapRef.current : null;
-      const text = description || law || '';
       
-      const colorClass = {
-        official: 'green',
-        restricted: 'yellow',
-        unofficial: 'blue',
-        illegal: 'red'
-      }[cat] || 'blue';
-      const content = document.createElement('div');
-      content.className = `card ${colorClass}`;
-      content.innerHTML = `
+    const text = description || law || '';
+
+    const colorClass = {
+      official: 'green',
+      restricted: 'yellow',
+      unofficial: 'blue',
+      illegal: 'red'
+    }[cat] || 'blue';
+    const content = document.createElement('div');
+    content.className = `card ${colorClass}`;
+    content.innerHTML = `
         <div class="card-body">
           <div>
           <h3>${name}</h3>
@@ -228,27 +235,40 @@ function App() {
         </div>
       </div>`;
 
-      const info = new google.maps.InfoWindow({ content });
-      info.addListener('domready', () => {
-        const iw = document.querySelector('.gm-style-iw');
-        if (iw) {
-          iw.style.maxWidth = 'none';
-          iw.style.width = 'auto';
-        }
-        const iwd = document.querySelector('.gm-style-iw-d');
-        if (iwd) {
-          iwd.style.overflow = 'visible';
-          iwd.style.maxWidth = 'none';
-          iwd.style.width = 'auto';
-        }
-      });
-      content.addEventListener('click', closeOpenInfo);
-      const closeBtn = content.querySelector('.close');
-      if (closeBtn) closeBtn.addEventListener('click', closeOpenInfo);
+    const info = new google.maps.InfoWindow({ content });
+    info.addListener('domready', () => {
+      const iw = document.querySelector('.gm-style-iw');
+      if (iw) {
+        iw.style.maxWidth = 'none';
+        iw.style.width = 'auto';
+      }
+      const iwd = document.querySelector('.gm-style-iw-d');
+      if (iwd) {
+        iwd.style.overflow = 'visible';
+        iwd.style.maxWidth = 'none';
+        iwd.style.width = 'auto';
+      }
+    });
+    content.addEventListener('click', closeOpenInfo);
+    const closeBtn = content.querySelector('.close');
+    if (closeBtn) closeBtn.addEventListener('click', closeOpenInfo);
 
-      info.addListener('closeclick', () => {
-        if (openInfoRef.current === info) openInfoRef.current = null;
+    const editBtn = content.querySelector('.edit-marker');
+    if (editBtn) {
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeOpenInfo();
+        setFormData({ name, country, description: description || '' });
+        setCategory(cat);
+        setPendingCoords(coordsArr);
+        setEditingId(markerId);
+        setShowForm(true);
       });
+    }
+
+    info.addListener('closeclick', () => {
+      if (openInfoRef.current === info) openInfoRef.current = null;
+    });
 
     marker.addListener('click', () => {
       closeOpenInfo();
@@ -266,18 +286,54 @@ function App() {
   }) => {
     try {
       const coords = coordinates || await geocode(name, country);
-      renderMarker({ name, country, category, coordinates: coords, description });
+      let id = null;
+      if (sb) {
+        const { data: inserted, error } = await sb
+          .from('map_markers')
+          .insert({ name, country, category, coordinates: coords, description })
+          .select();
+        if (error) {
+          console.error('Supabase insert error', error);
+        } else if (inserted && inserted[0]) {
+          id = inserted[0].id;
+        }
+      }
+      renderMarker({ id, name, country, category, coordinates: coords, description });
       logDiscord(`New marker: ${name}, ${country}, ${category}`);
+    } catch (err) {
+      console.error('Error adding marker', err);
+    }
+  };
+
+  const updateMarker = async (id, {
+    name,
+    country,
+    category,
+    coordinates,
+    description = ''
+  }) => {
+    try {
+      const coords = coordinates || await geocode(name, country);
+      markersRef.current = markersRef.current.filter(m => {
+        if (m.id === id) {
+          m.marker.map = null;
+          return false;
+        }
+        return true;
+      });
       if (sb) {
         const { error } = await sb
           .from('map_markers')
-          .insert({ name, country, category, coordinates: coords, description });
+          .update({ name, country, category, coordinates: coords, description })
+          .eq('id', id);
         if (error) {
-          console.error('Supabase insert error', error);
+          console.error('Supabase update error', error);
         }
       }
+      renderMarker({ id, name, country, category, coordinates: coords, description });
+      logDiscord(`Updated marker: ${name}, ${country}, ${category}`);
     } catch (err) {
-      console.error('Error adding marker', err);
+      console.error('Error updating marker', err);
     }
   };
 
@@ -286,13 +342,24 @@ function App() {
     if (!pendingCoords) return;
     const { name, country, description } = formData;
     if (!country.trim()) return;
-    await addMarker({
-      name: name.trim() || 'Unnamed',
-      country: country.trim(),
-      category,
-      description,
-      coordinates: pendingCoords
-    });
+    if (editingId) {
+      await updateMarker(editingId, {
+        name: name.trim() || 'Unnamed',
+        country: country.trim(),
+        category,
+        description,
+        coordinates: pendingCoords
+      });
+      setEditingId(null);
+    } else {
+      await addMarker({
+        name: name.trim() || 'Unnamed',
+        country: country.trim(),
+        category,
+        description,
+        coordinates: pendingCoords
+      });
+    }
     setShowForm(false);
   };
 
@@ -307,6 +374,7 @@ function App() {
         const country = countryComp ? countryComp.long_name : '';
         setPendingCoords([loc.lng(), loc.lat()]);
         setFormData({ name: prediction.description, country, description: '' });
+        setEditingId(null);
         setShowForm(true);
       }
     });
@@ -319,6 +387,7 @@ function App() {
         const loc = results[0].geometry.location;
         const countryComp = results[0].address_components.find(c => c.types.includes('country'));
         const country = countryComp ? countryComp.long_name : '';
+        setEditingId(null);
         await addMarker({
           name: results[0].formatted_address,
           country,
@@ -396,8 +465,8 @@ function App() {
               onChange={e => setFormData({ ...formData, description: e.target.value })}
               placeholder="Description"
             />
-            <button type="submit">Add</button>
-            <button type="button" onClick={() => setShowForm(false)}>Cancel</button>
+            <button type="submit">{editingId ? 'Save' : 'Add'}</button>
+            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }}>Cancel</button>
           </form>
         </div>
       )}
