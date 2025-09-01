@@ -144,6 +144,7 @@ function App() {
           <p>${country}</p>
           <p>${category}</p>
           <p>${text}</p>
+          <p><button onclick="window.open('https://www.google.com/maps?q=${pos.lat},${pos.lng}', '_blank')">View on Google Maps</button></p>
         </div>
       </div>`;
 
