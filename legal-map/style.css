@@ -43,6 +43,12 @@ html, body, #root {
     transform: translate(-50%, -50%);
 }
 
+@media (max-width: 767px) {
+    #overlay {
+        width: 80%;
+    }
+}
+
 #form-container {
     position: fixed;
     top: 50%;
@@ -299,6 +305,8 @@ input { padding:4px; }
     padding: 1rem 1.5rem;
     margin-top: 8px;
     font-family: "Poppins", sans-serif;
+    width: 400px;
+    max-width: 90vw;
 }
 #marker-form input,
 #marker-form select,
