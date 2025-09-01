@@ -95,7 +95,8 @@ function App() {
               const country = countryComp ? countryComp.long_name : '';
               const poiComp = res.address_components.find(c => c.types.includes('point_of_interest'))
                 || res.address_components.find(c => c.types.includes('establishment'));
-              const name = poiComp ? poiComp.long_name : res.formatted_address;
+              const rawName = poiComp ? poiComp.long_name : res.formatted_address;
+              const name = stripCountry(rawName, country);
               setFormData({ name, country, description: '' });
             } else {
               setFormData({ name: '', country: '', description: '' });
@@ -188,6 +189,13 @@ function App() {
         body: JSON.stringify({ content: msg })
       });
     }
+  };
+
+  const stripCountry = (name, country) => {
+    const suffix = `, ${country}`;
+    return country && name.toLowerCase().endsWith(suffix.toLowerCase())
+      ? name.slice(0, -suffix.length)
+      : name;
   };
 
   const renderMarker = ({ id, name, country, category, coordinates, description, law }) => {
@@ -374,7 +382,8 @@ function App() {
         const countryComp = results[0].address_components.find(c => c.types.includes('country'));
         const country = countryComp ? countryComp.long_name : '';
         setPendingCoords([loc.lng(), loc.lat()]);
-        setFormData({ name: prediction.description, country, description: '' });
+        const name = stripCountry(prediction.description, country);
+        setFormData({ name, country, description: '' });
         setEditingId(null);
         setShowForm(true);
       }
@@ -389,8 +398,9 @@ function App() {
         const countryComp = results[0].address_components.find(c => c.types.includes('country'));
         const country = countryComp ? countryComp.long_name : '';
         setEditingId(null);
+        const name = stripCountry(results[0].formatted_address, country);
         await addMarker({
-          name: results[0].formatted_address,
+          name,
           country,
           category,
           coordinates: [loc.lng(), loc.lat()]
@@ -403,7 +413,24 @@ function App() {
 
   return (
     <>
-      <div id="map" ref={mapContainer}></div>
+      <div id="map" ref={mapContainer}>
+        <div id="overlay">
+          <h1>Legal Map</h1>
+           <input
+            value={query}
+            onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
+            onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
+            placeholder="Search for a place"
+          />
+          {suggestions.length > 0 && (
+            <ul id="suggestions">
+              {suggestions.map(p => (
+                <li key={p.place_id} onClick={() => handleSuggestionClick(p)}>{p.description}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
       <div id="legend" className={legendOpen ? '' : 'hidden'}>
         {['official','restricted','unofficial','illegal'].map(cat => (
           <label key={cat} className="legend-item">
@@ -424,22 +451,6 @@ function App() {
             : <i className="fa-solid fa-circle-info"></i>}
         </button>
       )}
-      <div id="overlay">
-        <h1>Legal Map</h1>
-         <input
-          value={query}
-          onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
-          onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
-          placeholder="Search for a place"
-        />
-        {suggestions.length > 0 && (
-          <ul id="suggestions">
-            {suggestions.map(p => (
-              <li key={p.place_id} onClick={() => handleSuggestionClick(p)}>{p.description}</li>
-            ))}
-          </ul>
-        )}
-      </div>
       {showForm && (
         <div id="form-container">
           <form id="marker-form" onSubmit={handleFormSubmit}>
