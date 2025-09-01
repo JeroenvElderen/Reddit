@@ -6,18 +6,20 @@ import requests
 import discord
 
 from app.clients.discord_bot import bot
-from app.config import MAPBOX_TOKEN, LEGAL_MAP_CHANNEL_ID, LEGAL_MAP_MARKERS_PATH
+from app.config import GOOGLE_MAPS_API_KEY, LEGAL_MAP_CHANNEL_ID, LEGAL_MAP_MARKERS_PATH
 
 async def _geocode(name: str, country: str):
-    if not MAPBOX_TOKEN:
-        raise RuntimeError("MAPBOX_TOKEN not set")
+    if not GOOGLE_MAPS_API_KEY:
+        raise RuntimeError("GOOGLE_MAPS_API_KEY not set")
     q = quote(f"{name} {country}")
-    url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{q}.json?access_token={MAPBOX_TOKEN}"
+    url = f"https://maps.googleapis.com/maps/api/geocode/json?address={q}&key={GOOGLE_MAPS_API_KEY}"
     loop = asyncio.get_running_loop()
     def fetch():
         res = requests.get(url, timeout=10)
         data = res.json()
-        return data["features"][0]["center"]
+        loc = data["results"][0]["geometry"]["location"]
+        return [loc["lng"], loc["lat"]]
+
     return await loop.run_in_executor(None, fetch)
 
 async def _fetch_law(country: str):

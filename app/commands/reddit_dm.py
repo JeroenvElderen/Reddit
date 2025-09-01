@@ -135,7 +135,7 @@ def cmd_spot(author: str, message):
             lat = float(parts[1])
             lon = float(parts[2])
         except ValueError:
-            from app.clients.mapbox import geocode
+            from app.clients.google_maps import geocode
 
             coords = geocode(parts[1])
             if not coords:
