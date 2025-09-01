@@ -144,6 +144,14 @@ select { padding:4px; margin-left:4px; }
 }
 .card.red .icon { color: #fe6c9b; }
 
+.card.yellow {
+    background: radial-gradient(ellipse at right top, #e6c229 0%, #151419 47%, #151419 100%);
+}
+.card.yellow .icon {
+    color: #ffd84d;
+}
+
+
 /* Form styling */
 #marker-form {
     background: radial-gradient(ellipse at right top,#107667ed 0%,#151419 47%,#151419 100%);
@@ -175,4 +183,50 @@ select { padding:4px; margin-left:4px; }
 }
 #marker-form button:hover {
     background: #24c787;
+}
+
+/* Buttons inside popup cards */
+.card button {
+    display: inline-block;
+    margin-top: 0.75em;
+    padding: 0.6em 1.2em;
+    font-family: "Poppins", sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    background: #2eea9d; /* default green accent */
+    color: #111;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: background 0.25s ease, transform 0.15s ease, box-shadow 0.25s ease;
+}
+
+.card button:hover {
+    background: #24c787;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+
+.card button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* Optional: category-themed buttons */
+.card.blue button {
+    background: #5a81ff;
+    color: #fff;
+}
+.card.green button {
+    background: #2eea9d;
+    color: #111;
+}
+.card.red button {
+    background: #fe6c9b;
+    color: #fff;
+}
+.card.yellow button {
+    background: #ffd84d;
+    color: #111;
 }
