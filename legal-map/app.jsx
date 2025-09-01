@@ -90,7 +90,7 @@ function App() {
       setSuggestions([]);
       return;
     }
-    autocompleteRef.current.getSuggestions({ input: q }, (preds) => {
+    autocompleteRef.current.getPlacePredictions({ input: q }, (preds) => {
       setSuggestions(preds || []);
     });
   };
