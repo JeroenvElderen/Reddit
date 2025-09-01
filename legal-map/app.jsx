@@ -12,6 +12,9 @@ function App() {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [category, setCategory] = useState('unofficial');
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ name: '', country: '', description: '' });
+  const [pendingCoords, setPendingCoords] = useState(null);
 
   useEffect(() => {
     if (typeof GOOGLE_MAPS_API_KEY === 'undefined' || !GOOGLE_MAPS_API_KEY) {
@@ -26,20 +29,13 @@ function App() {
       });
 
       geocoderRef.current = new google.maps.Geocoder();
-      autocompleteRef.current = new google.maps.places.Autocompletesuggestion();
+      autocompleteRef.current = new google.maps.places.AutocompleteService();
 
-      mapRef.current.addListener('click', async (e) => {
+      mapRef.current.addListener('click', (e) => {
         const coords = [e.latLng.lng(), e.latLng.lat()];
-        const nameInput = prompt('Location name?');
-        if (nameInput === null) return; // cancelled
-        const countryInput = prompt('Country?');
-        if (countryInput === null) return; // cancelled
-        const category = prompt('Category (allowed/restricted/unofficial/illegal)?') || 'unofficial';
-        const description = prompt('Description?') || '';
-        const name = nameInput.trim() || 'Unnamed';
-        const country = countryInput.trim();
-        if (!country) return; // need country for geocoding
-        await addMarker({ name, country, category, description, coordinates: coords });
+        setPendingCoords(coords);
+        setFormData({ name: '', country: '', description: '' });
+        setShowForm(true);
       });
 
       if (sb) {
@@ -125,12 +121,12 @@ function App() {
     marker.addListener('click', () => info.open({ map: mapRef.current, anchor: marker }));
   };
 
-  const addMarker = async ({ 
-    name = 'Unnamed', 
-    country, 
-    category, 
+  const addMarker = async ({
+    name = 'Unnamed',
+    country,
+    category,
     coordinates,
-    description = '' 
+    description = ''
   }) => {
     try {
       const coords = coordinates || await geocode(name, country);
@@ -149,6 +145,21 @@ function App() {
     }
   };
 
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    if (!pendingCoords) return;
+    const { name, country, description } = formData;
+    if (!country.trim()) return;
+    await addMarker({
+      name: name.trim() || 'Unnamed',
+      country: country.trim(),
+      category,
+      description,
+      coordinates: pendingCoords
+    });
+    setShowForm(false);
+  };
+
   const handleSuggestionClick = async (prediction) => {
     setQuery('');
     setSuggestions([]);
@@ -158,12 +169,11 @@ function App() {
         const loc = results[0].geometry.location;
         const countryComp = results[0].address_components.find(c => c.types.includes('country'));
         const country = countryComp ? countryComp.long_name : '';
-        const description = prompt('Description?') || '';
         await addMarker({
           name: prediction.description,
           country,
           category,
-          description,
+          description: '',
           coordinates: [loc.lng(), loc.lat()]
         });
       }
@@ -194,24 +204,56 @@ function App() {
       <div id="map" ref={mapContainer}></div>
       <div id="overlay">
         <h1>Legal Map</h1>
-         <input
-          value={query}
-          onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
-          onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
-          placeholder="Search for a place"
-        />
-        <select value={category} onChange={e => setCategory(e.target.value)}>
-          <option value="allowed">allowed</option>
-          <option value="restricted">restricted</option>
-          <option value="unofficial">unofficial</option>
-          <option value="illegal">illegal</option>
-        </select>
-        {suggestions.length > 0 && (
-          <ul id="suggestions">
-            {suggestions.map(p => (
-                <li key={p.place_id} onClick={() => handleSuggestionClick(p)}>{p.description}</li>
-            ))}
-          </ul>
+         {showForm ? (
+          <form id="marker-form" onSubmit={handleFormSubmit}>
+            <input
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Location name"
+              required
+            />
+            <input
+              value={formData.country}
+              onChange={e => setFormData({ ...formData, country: e.target.value })}
+              placeholder="Country"
+              required
+            />
+            <select value={category} onChange={e => setCategory(e.target.value)}>
+              <option value="allowed">allowed</option>
+              <option value="restricted">restricted</option>
+              <option value="unofficial">unofficial</option>
+              <option value="illegal">illegal</option>
+            </select>
+            <input
+              value={formData.description}
+              onChange={e => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Description"
+            />
+            <button type="submit">Add</button>
+            <button type="button" onClick={() => setShowForm(false)}>Cancel</button>
+          </form>
+        ) : (
+          <>
+            <input
+              value={query}
+              onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
+              placeholder="Search for a place"
+            />
+            <select value={category} onChange={e => setCategory(e.target.value)}>
+              <option value="allowed">allowed</option>
+              <option value="restricted">restricted</option>
+              <option value="unofficial">unofficial</option>
+              <option value="illegal">illegal</option>
+            </select>
+            {suggestions.length > 0 && (
+              <ul id="suggestions">
+                {suggestions.map(p => (
+                    <li key={p.place_id} onClick={() => handleSuggestionClick(p)}>{p.description}</li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </div>
     </>

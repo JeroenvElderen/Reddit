@@ -44,3 +44,18 @@ select { padding:4px; margin-left:4px; }
 #suggestions li:hover {
     background: #eee;
 }
+
+#marker-form {
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 8px;
+    margin-top: 8px;
+}
+
+#marker-form input,
+#marker-form select,
+#marker-form button {
+    display: block;
+    width: 100%;
+    margin: 4px 0;
+    padding: 4px;
