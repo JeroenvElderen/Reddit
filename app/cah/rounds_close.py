@@ -63,18 +63,19 @@ def _maybe_final_close(r):
         post = reddit.submission(id=r["post_id"])
     except Exception:
         return
-
-    lock_after_dt = _parse_iso(r.get("lock_after_ts", ""))
-    if datetime.now(timezone.utc) < lock_after_dt:
-        return
-
+    
     try:
         post.comments.replace_more(limit=0)
         comments = list(post.comments)
     except Exception:
         comments = []
 
-    _close_with_winner(r, post, comments)
+    lock_after_dt = _parse_iso(r.get("lock_after_ts", ""))
+
+    # Close immediately if any comments exist, otherwise fall back to the
+    # scheduled lock time to avoid rounds lingering forever.
+    if comments or datetime.now(timezone.utc) >= lock_after_dt:
+        _close_with_winner(r, post, comments)
 
 
 def _close_with_winner(r, post, comments):
