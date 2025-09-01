@@ -100,6 +100,7 @@ async def send_discord_approval(item, lang_label=None, note=None, night_guard_pi
     await msg.add_reaction("✅")
     await msg.add_reaction("⚠️")
     await msg.add_reaction("❌")
+    await msg.add_reaction("⛔")
     await msg.add_reaction("🔄")
 
     pending_reviews[msg.id] = {
