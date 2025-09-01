@@ -150,6 +150,7 @@ function App() {
   })[cat.toLowerCase()] || '#888';
 
   const icons = { official: '✓', restricted: '!', unofficial: 'i', illegal: '✖' };
+  const categoryClassMap = { official: 'green', restricted: 'yellow', unofficial: 'blue', illegal: 'red' };
 
   const toggleFilter = (cat) => {
     setFilter(prev => ({ ...prev, [cat]: !prev[cat] }));
@@ -225,7 +226,7 @@ function App() {
     marker.map = filter[cat] ? mapRef.current : null;
 
     const text = description || law || '';
-    const colorClass = { official: 'green', restricted: 'yellow', unofficial: 'blue', illegal: 'red' }[cat] || 'blue';
+    const colorClass = categoryClassMap[cat] || 'blue';
 
     const content = document.createElement('div');
     content.className = `card ${colorClass}`;
@@ -441,7 +442,7 @@ function App() {
       )}
       {showForm && (
         <div id="form-container">
-          <form id="marker-form" className={`card ${category}`} onSubmit={handleFormSubmit}>
+          <form id="marker-form" className={`card ${categoryClassMap[category]}`} onSubmit={handleFormSubmit}>
             <input
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -454,7 +455,7 @@ function App() {
               placeholder="Country"
               required
             />
-            <select value={category} onChange={e => setCategory(e.target.value)}>
+            <select value={category} onChange={e => setCategory(e.target.value)} className={categoryClassMap[category]}>
               <option value="official">official</option>
               <option value="restricted">restricted</option>
               <option value="unofficial">unofficial</option>
