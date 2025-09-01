@@ -1,5 +1,7 @@
 const { useState, useEffect, useRef } = React;
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = (typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_ANON_KEY !== 'undefined')
+  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 
 
 function App() {
@@ -35,9 +37,11 @@ function App() {
         await addMarker({ name, country, category, coordinates: [e.lngLat.lng, e.lngLat.lat] });
       }
     });
-    sb.from('map_markers').select('*').then(({ data }) => {
-      (data || []).forEach(renderMarker);
-    });
+    if (sb) {
+        sb.from('map_markers').select('*').then(({ data }) => {
+          (data || []).forEach(renderMarker);
+        });
+      }
   }, []);
 
   const categoryColor = (cat) => ({
@@ -99,7 +103,9 @@ function App() {
       const law = await fetchLaw(country);
       renderMarker({ name, country, category, coordinates: coords, law });
       logDiscord(`New marker: ${name}, ${country}, ${category}`);
-      sb.from('map_markers').insert({ name, country, category, coordinates: coords, law });
+      if (sb) {
+        sb.from('map_markers').insert({ name, country, category, coordinates: coords, law });
+      }
     } catch (err) {
       console.error('Error adding marker', err);
     }
