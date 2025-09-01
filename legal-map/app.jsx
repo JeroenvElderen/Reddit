@@ -350,9 +350,24 @@ function App() {
           {legendOpen ? '×' : 'Legend'}
         </button>
       )}
-      <div id="overlay" className={showForm ? 'centered' : ''}>
+      <div id="overlay">
         <h1>Legal Map</h1>
-         {showForm ? (
+         <input
+          value={query}
+          onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
+          onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
+          placeholder="Search for a place"
+        />
+        {suggestions.length > 0 && (
+          <ul id="suggestions">
+            {suggestions.map(p => (
+              <li key={p.place_id} onClick={() => handleSuggestionClick(p)}>{p.description}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {showForm && (
+        <div id="form-container">
           <form id="marker-form" onSubmit={handleFormSubmit}>
             <input
               value={formData.name}
@@ -380,26 +395,10 @@ function App() {
             <button type="submit">Add</button>
             <button type="button" onClick={() => setShowForm(false)}>Cancel</button>
           </form>
-        ) : (
-          <>
-            <input
-              value={query}
-              onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
-              onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
-              placeholder="Search for a place"
-            />
-            {suggestions.length > 0 && (
-              <ul id="suggestions">
-                {suggestions.map(p => (
-                    <li key={p.place_id} onClick={() => handleSuggestionClick(p)}>{p.description}</li>
-                ))}
-              </ul>
-            )}
-          </>
-        )}
-      </div>
-    </>
-  );
-}
+        </div>
+      )}
+      </>
+    );
+  }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
