@@ -29,12 +29,16 @@ function App() {
       projection: 'globe'
     });
 
-    mapRef.current.on('click', async (e) => {
-      const name = prompt('Location name?');
-      const country = prompt('Country?');
-      const category = prompt('Category (allowed/restricted/unofficial/illegal)?');
-      if (name && country && category) {
-        await addMarker({ name, country, category, coordinates: [e.lngLat.lng, e.lngLat.lat] });
+    mapRef.current.on('click', async () => {
+      const coords = [e.lngLat.lng, e.lngLat.lat];
+      const nameInput = prompt('Location name?');
+      const country = prompt('Country?') || '';
+      const category = prompt('Category (allowed/restricted/unofficial/illegal)?') || 'unofficial';
+      const name = nameInput || 'Unnamed';
+      if (!nameInput || !country) {
+        await addMarker({ name, country, category, coordinates: coords });
+      } else {
+        await addMarker({ name, country, category });
       }
     });
     if (sb) {
@@ -51,8 +55,7 @@ function App() {
     illegal: 'red'
   })[cat.toLowerCase()] || 'gray';
 
-  const geocode = async (name, country, coords) => {
-    if (coords) return coords;
+  const geocode = async(name, country) => {
     const q = encodeURIComponent(`${name} ${country}`);
     const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${q}.json?access_token=${MAPBOX_TOKEN}`;
     const res = await fetch(url);
@@ -97,10 +100,10 @@ function App() {
     marker.addTo(mapRef.current);
   };
 
-  const addMarker = async ({ name, country, category, coordinates }) => {
+  const addMarker = async ({ name = 'Unnamed', country, category, coordinates }) => {
     try {
-      const coords = await geocode(name, country, coordinates);
-      const law = await fetchLaw(country);
+      const coords = coordinates || await geocode(name, country);
+      const law = country ? await fetchLaw(country) : 'No data';
       renderMarker({ name, country, category, coordinates: coords, law });
       logDiscord(`New marker: ${name}, ${country}, ${category}`);
       if (sb) {
