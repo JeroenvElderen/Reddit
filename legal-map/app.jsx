@@ -50,8 +50,25 @@ function App() {
       mapRef.current.addListener('click', (e) => {
         const coords = [e.latLng.lng(), e.latLng.lat()];
         setPendingCoords(coords);
-        setFormData({ name: '', country: '', description: '' });
-        setShowForm(true);
+        if (geocoderRef.current) {
+          geocoderRef.current.geocode({ location: e.latLng }, (results, status) => {
+            if (status === 'OK' && results[0]) {
+              const res = results[0];
+              const countryComp = res.address_components.find(c => c.types.includes('country'));
+              const country = countryComp ? countryComp.long_name : '';
+              const poiComp = res.address_components.find(c => c.types.includes('point_of_interest'))
+                || res.address_components.find(c => c.types.includes('establishment'));
+              const name = poiComp ? poiComp.long_name : res.formatted_address;
+              setFormData({ name, country, description: '' });
+            } else {
+              setFormData({ name: '', country: '', description: '' });
+            }
+            setShowForm(true);
+          });
+        } else {
+          setFormData({ name: '', country: '', description: '' });
+          setShowForm(true);
+        }
       });
 
       if (sb) {
