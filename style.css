@@ -111,7 +111,7 @@ select { padding:4px; margin-left:4px; }
     flex-shrink: 0;
 }
 .card-body > div {
-    margin-left: 1em;
+    margin-left: 0em;
 }
 .card-body h3 {
     text-align: left;

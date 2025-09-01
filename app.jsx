@@ -137,7 +137,6 @@ function App() {
       const content = document.createElement('div');
       content.className = `card ${colorClass}`;
       content.innerHTML = `
-        <div class="card-header"><span class="close">&times;</span></div>
         <div class="card-body">
           <div class="icon">${icons[cat] || ''}</div>
           <div>
