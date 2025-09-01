@@ -29,8 +29,8 @@ function App() {
     const init = () => {
       mapRef.current = new google.maps.Map(mapContainer.current, {
         center: { lat: 0, lng: 0 },
-        zoom: 3,
-        minZoom: 3,
+        zoom: 2,
+        maxZoom: 3,
         mapId: MAP_ID,
         tilt: 67.5,
       });
