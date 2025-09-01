@@ -15,7 +15,8 @@ function App() {
   const [suggestions, setSuggestions] = useState([]);
   const [category, setCategory] = useState('unofficial');
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', country: '', description: '', username: '' });
+  const [formData, setFormData] = useState({ name: '', country: '', description: '' });
+  const [username, setUsername] = useState('');
   const [pendingCoords, setPendingCoords] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [filter, setFilter] = useState({
@@ -105,14 +106,14 @@ function App() {
                 || res.address_components.find(c => c.types.includes('establishment'));
               const rawName = poiComp ? poiComp.long_name : res.formatted_address;
               const name = stripCountry(rawName, country);
-              setFormData({ name, country, description: '', username: '' });
+              setFormData({ name, country, description: '' });
             } else {
-              setFormData({ name: '', country: '', description: '', username: '' });
+              setFormData({ name: '', country: '', description: '' });
             }
             setShowForm(true);
           });
         } else {
-          setFormData({ name: '', country: '', description: '', username: '' });
+          setFormData({ name: '', country: '', description: '' });
           setShowForm(true);
         }
       });
@@ -267,7 +268,7 @@ function App() {
       editBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         closeOpenInfo();
-        setFormData({ name, country, description: description || '', username: '' });
+        setFormData({ name, country, description: description || '' });
         setCategory(cat);
         setPendingCoords(coordsArr);
         setEditingId(markerId);
@@ -339,7 +340,7 @@ function App() {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!pendingCoords) return;
-    const { name, country, description, username } = formData;
+    const { name, country, description } = formData;
     if (!country.trim() || !username.trim()) return;
     if (!sb) {
       alert('Supabase not configured');
@@ -388,7 +389,7 @@ function App() {
         const country = countryComp ? countryComp.long_name : '';
         setPendingCoords([loc.lng(), loc.lat()]);
         const name = stripCountry(prediction.description, country);
-        setFormData({ name, country, description: '', username: '' });
+        setFormData({ name, country, description: '' });
         setEditingId(null);
         setShowForm(true);
       }
@@ -404,7 +405,7 @@ function App() {
         const country = countryComp ? countryComp.long_name : '';
         const name = stripCountry(results[0].formatted_address, country);
         setPendingCoords([loc.lng(), loc.lat()]);
-        setFormData({ name, country, description: '', username: '' });
+        setFormData({ name, country, description: '' });
         setEditingId(null);
         setShowForm(true);
         setQuery('');
@@ -418,12 +419,21 @@ function App() {
       <div id="map" ref={mapContainer}></div>
       <div id="overlay">
         <h1>Legal Map</h1>
-        <input
-          value={query}
-          onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
-          onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
-          placeholder="Search for a place"
-        />
+        <div id="search-bar">
+          <input
+            value={query}
+            onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
+            onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
+            placeholder="Search for a place"
+            className="search-input"
+          />
+          <input
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            placeholder="Reddit username"
+            className="username-input"
+          />
+        </div>
         {suggestions.length > 0 && (
           <ul id="suggestions">
             {suggestions.map(p => (

@@ -41,6 +41,24 @@ html, body, #root {
     pointer-events: auto;
 }
 
+#search-bar {
+    width: 100%;
+    display: flex;
+    gap: 0.5rem;
+}
+
+#search-bar input {
+    width: auto;
+}
+
+#search-bar .search-input {
+    flex: 1;
+}
+
+#search-bar .username-input {
+    width: 150px;
+}
+
 #overlay.centered {
     top: 50%;
     left: 50%;
@@ -50,6 +68,12 @@ html, body, #root {
 @media (max-width: 767px) {
     #overlay {
         width: 80%;
+    }
+    #search-bar {
+        flex-direction: column;
+    }
+    #search-bar .username-input {
+        width: 100%;
     }
 }
 
