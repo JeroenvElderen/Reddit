@@ -7,51 +7,59 @@ const sb = (typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_ANON_KEY !== 
 function App() {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
+  const geocoderRef = useRef(null);
+  const autocompleteRef = useRef(null);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [category, setCategory] = useState('unofficial');
 
   useEffect(() => {
-    if (typeof MAPBOX_TOKEN === 'undefined' || !MAPBOX_TOKEN) {
-      alert('MAPBOX_TOKEN missing in config.js');
+    if (typeof GOOGLE_MAPS_API_KEY === 'undefined' || !GOOGLE_MAPS_API_KEY) {
+      alert('GOOGLE_MAPS_API_KEY missing in config.js');
       return;
     }
-    // Warn if an older version of Mapbox GL JS is loaded
-    const major = parseInt(mapboxgl.version.replace(/^v/, '').split('.')[0], 10);
-    if (Number.isNaN(major) || major < 2) {
-      alert('Mapbox GL JS v2 or higher is required for this style.');
-      return;
-    }
-    mapboxgl.accessToken = MAPBOX_TOKEN;
-    mapRef.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [0,0],
-      zoom: 1.5,
-      projection: 'globe'
-    });
+    
+    const init = () => {
+      mapRef.current = new google.maps.Map(mapContainer.current, {
+        center: { lat: 0, lng: 0 },
+        zoom: 2,
+      });
 
-    mapRef.current.on('click', async (e) => {
-      const coords = [e.lngLat.lng, e.lngLat.lat];
-      const nameInput = prompt('Location name?');
-      if (nameInput === null) return; // cancelled
-      const countryInput = prompt('Country?');
-      if (countryInput === null) return; // cancelled
-      const category = prompt('Category (allowed/restricted/unofficial/illegal)?') || 'unofficial';
-      const name = nameInput.trim() || 'Unnamed';
-      const country = countryInput.trim();
-      if (!country) return; // need country for law lookup
-      await addMarker({ name, country, category, coordinates: coords });
-    });
-    if (sb) {
+      geocoderRef.current = new google.maps.Geocoder();
+      autocompleteRef.current = new google.maps.places.AutocompleteService();
+
+      mapRef.current.addListener('click', async (e) => {
+        const coords = [e.latLng.lng(), e.latLng.lat()];
+        const nameInput = prompt('Location name?');
+        if (nameInput === null) return; // cancelled
+        const countryInput = prompt('Country?');
+        if (countryInput === null) return; // cancelled
+        const category = prompt('Category (allowed/restricted/unofficial/illegal)?') || 'unofficial';
+        const name = nameInput.trim() || 'Unnamed';
+        const country = countryInput.trim();
+        if (!country) return; // need country for law lookup
+        await addMarker({ name, country, category, coordinates: coords });
+      });
+
+      if (sb) {
         (async () => {
         const { data, error } = await sb.from('map_markers').select('*');
-        if (!error && data) {
-          data.forEach(renderMarker);
-        } else {
-          console.error('Error loading markers', error);
-        }
-      })();
+          if (!error && data) {
+            data.forEach(renderMarker);
+          } else {
+            console.error('Error loading markers', error);
+          }
+        })();
+      }
+    };
+
+    if (window.google && window.google.maps) {
+      init();
+    } else {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+      script.onload = init;
+      document.head.appendChild(script);
     }
   }, []);
 
@@ -62,23 +70,26 @@ function App() {
     illegal: 'red'
   })[cat.toLowerCase()] || 'gray';
 
-  const geocode = async(name, country) => {
-    const q = encodeURIComponent(`${name} ${country}`);
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${q}.json?access_token=${MAPBOX_TOKEN}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    return data.features[0].center;
-  };
+  const geocode = (name, country) => new Promise((resolve, reject) => {
+    if (!geocoderRef.current) return reject('Geocoder not loaded');
+    geocoderRef.current.geocode({ address: `${name} ${country}` }, (results, status) => {
+      if (status === 'OK' && results[0]) {
+        const loc = results[0].geometry.location;
+        resolve([loc.lng(), loc.lat()]);
+      } else {
+        reject(status);
+      }
+    });
+  });
 
-  const searchPlaces = async (q) => {
-    if (!q) {
+  const searchPlaces = (q) => {
+    if (!q || !autocompleteRef.current) {
       setSuggestions([]);
       return;
     }
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?autocomplete=true&limit=5&access_token=${MAPBOX_TOKEN}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    setSuggestions(data.features || []);
+    autocompleteRef.current.getPlacePredictions({ input: q }, (preds) => {
+      setSuggestions(preds || []);
+    });
   };
 
   const fetchLaw = async (country) => {
@@ -102,20 +113,25 @@ function App() {
   };
 
   const renderMarker = ({ name, country, category, coordinates, law }) => {
-    const marker = new mapboxgl.Marker({ color: categoryColor(category) })
-      .setLngLat(coordinates)
-      .setPopup(
-        new mapboxgl.Popup().setHTML(
-          `<h3>${name}</h3><p>${country}</p><p>${category}</p><p>${law}</p>`
-        )
-      );
-
-    // Prevent map click handler from firing when a marker is clicked
-    marker.getElement().addEventListener('click', (e) => {
-      e.stopPropagation();
+    const pos = Array.isArray(coordinates)
+      ? { lat: coordinates[1], lng: coordinates[0] }
+      : coordinates;
+    const marker = new google.maps.Marker({
+      position: pos,
+      map: mapRef.current,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: categoryColor(category),
+        fillOpacity: 1,
+        strokeWeight: 0,
+        scale: 6,
+      }
     });
 
-    marker.addTo(mapRef.current);
+    const info = new google.maps.InfoWindow({
+      content: `<h3>${name}</h3><p>${country}</p><p>${category}</p><p>${law}</p>`
+    });
+    marker.addListener('click', () => info.open(mapRef.current, marker));
   };
 
   const addMarker = async ({ name = 'Unnamed', country, category, coordinates }) => {
@@ -135,12 +151,23 @@ function App() {
     }
   };
 
-  const handleSuggestionClick = async (feature) => {
+  const handleSuggestionClick = async (prediction) => {
     setQuery('');
     setSuggestions([]);
-    const countryFeature = feature.context?.find(c => c.id.startsWith('country'));
-    const country = countryFeature ? countryFeature.text : '';
-    await addMarker({ name: feature.text, country, category, coordinates: feature.center });
+    if (!geocoderRef.current) return;
+    geocoderRef.current.geocode({ placeId: prediction.place_id }, async (results, status) => {
+      if (status === 'OK' && results[0]) {
+        const loc = results[0].geometry.location;
+        const countryComp = results[0].address_components.find(c => c.types.includes('country'));
+        const country = countryComp ? countryComp.long_name : '';
+        await addMarker({
+          name: prediction.description,
+          country,
+          category,
+          coordinates: [loc.lng(), loc.lat()]
+        });
+      }
+    });
   };
 
   return (
@@ -161,8 +188,8 @@ function App() {
         </select>
         {suggestions.length > 0 && (
           <ul id="suggestions">
-            {suggestions.map(f => (
-              <li key={f.id} onClick={() => handleSuggestionClick(f)}>{f.place_name}</li>
+            {suggestions.map(p => (
+                <li key={p.place_id} onClick={() => handleSuggestionClick(p)}>{p.description}</li>
             ))}
           </ul>
         )}
