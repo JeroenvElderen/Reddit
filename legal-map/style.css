@@ -317,13 +317,8 @@ input { padding:4px; }
 
 /* Form styling */
 #marker-form {
-    background: radial-gradient(ellipse at right top,#10766782 0%,#151419 47%,#151419 100%);
-    color: #fff;
-    border-radius: 1rem;
-    box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
     padding: 1rem 1.5rem;
     margin-top: 8px;
-    font-family: "Poppins", sans-serif;
     width: 400px;
     max-width: 90vw;
 }
@@ -337,8 +332,7 @@ input { padding:4px; }
 
 #marker-form input,
 #marker-form select,
-#marker-form textarea,
-#marker-form button {
+#marker-form textarea {
     display: block;
     width: 100%;
     margin: 6px 0;
@@ -347,14 +341,6 @@ input { padding:4px; }
     border-radius: 0.25rem;
     background: #222127;
     color: #fff;
-}
-#marker-form button {
-    background: #2eea9d;
-    color: #111;
-    cursor: pointer;
-}
-#marker-form button:hover {
-    background: #24c787;
 }
 
 /* Buttons inside popup cards */

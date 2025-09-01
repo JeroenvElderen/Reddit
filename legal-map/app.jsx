@@ -452,7 +452,7 @@ function App() {
       )}
       {showForm && (
         <div id="form-container">
-          <form id="marker-form" onSubmit={handleFormSubmit}>
+          <form id="marker-form" className={`card ${category}`} onSubmit={handleFormSubmit}>
             <input
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}

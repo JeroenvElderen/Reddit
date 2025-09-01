@@ -40,11 +40,6 @@ def handle_new_item(item):
     """Only process new, not-yet-moderated items; apply guardrails and route."""
     if item.author is None or item.id in seen_ids:
         return
-    if already_moderated(item):
-        print(f"⏩ Skipping {item.id} (already moderated)")
-        add_seen_id(item.id)
-        return
-    add_seen_id(item.id)
 
     author_name = str(item.author)
     bot_username = os.getenv("REDDIT_USERNAME", "").lower()
@@ -69,13 +64,12 @@ def handle_new_item(item):
 
     if author_name.lower() == bot_username:
         print(f"🤖 skipping queue for bot's own post/comment {item.id}")
+        add_seen_id(item.id)
         return
-
-    res = supabase.table("user_karma").select("*").ilike("username", author_name).execute()
-    karma = int(res.data[0]["karma"]) if res.data else 0
 
     # Fixed flair users bypass further checks - auto approve
     if author_name.lower() in FIXED_FLAIRS:
+        add_seen_id(item.id)
         item.mod.approve()
         old_k, new_k, flair, total_delta, extras = apply_approval_awards(
             item, is_manual=False
@@ -96,6 +90,16 @@ def handle_new_item(item):
                 bot.loop,
             )
         return
+
+    if already_moderated(item):
+        print(f"⏩ Skipping {item.id} (already moderated)")
+        add_seen_id(item.id)
+        return
+
+    add_seen_id(item.id)
+
+    res = supabase.table("user_karma").select("*").ilike("username", author_name).execute()
+    karma = int(res.data[0]["karma"]) if res.data else 0
 
     warnings = get_context_warning_count(author_name)
     if warnings >= 3:
