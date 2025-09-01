@@ -72,6 +72,13 @@ html, body, #root {
     font-size: 0.9rem;
 }
 
+@media (max-width: 767px) {
+    #legend {
+        top: auto;
+        bottom: 10px;
+    }
+}
+
 #legend.hidden {
     display: none;
 }
@@ -308,6 +315,14 @@ input { padding:4px; }
     width: 400px;
     max-width: 90vw;
 }
+
+@media (max-width: 767px) {
+    #marker-form {
+        width: 80vw;
+        max-width: 80vw;
+    }
+}
+
 #marker-form input,
 #marker-form select,
 #marker-form textarea,
