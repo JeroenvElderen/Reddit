@@ -29,23 +29,28 @@ function App() {
       projection: 'globe'
     });
 
-    mapRef.current.on('click', async () => {
+    mapRef.current.on('click', async (e) => {
       const coords = [e.lngLat.lng, e.lngLat.lat];
       const nameInput = prompt('Location name?');
-      const country = prompt('Country?') || '';
+      if (nameInput === null) return; // cancelled
+      const countryInput = prompt('Country?');
+      if (countryInput === null) return; // cancelled
       const category = prompt('Category (allowed/restricted/unofficial/illegal)?') || 'unofficial';
-      const name = nameInput || 'Unnamed';
-      if (!nameInput || !country) {
-        await addMarker({ name, country, category, coordinates: coords });
-      } else {
-        await addMarker({ name, country, category });
-      }
+      const name = nameInput.trim() || 'Unnamed';
+      const country = countryInput.trim();
+      if (!country) return; // need country for law lookup
+      await addMarker({ name, country, category, coordinates: coords });
     });
     if (sb) {
-        sb.from('map_markers').select('*').then(({ data }) => {
-          (data || []).forEach(renderMarker);
-        });
-      }
+        (async () => {
+        const { data, error } = await sb.from('map_markers').select('*');
+        if (!error && data) {
+          data.forEach(renderMarker);
+        } else {
+          console.error('Error loading markers', error);
+        }
+      })();
+    }
   }, []);
 
   const categoryColor = (cat) => ({
@@ -107,7 +112,10 @@ function App() {
       renderMarker({ name, country, category, coordinates: coords, law });
       logDiscord(`New marker: ${name}, ${country}, ${category}`);
       if (sb) {
-        sb.from('map_markers').insert({ name, country, category, coordinates: coords, law });
+        const { error } = await sb.from('map_markers').insert({ name, country, category, coordinates: coords, law });
+        if (error) {
+          console.error('Supabase insert error', error);
+        }
       }
     } catch (err) {
       console.error('Error adding marker', err);
