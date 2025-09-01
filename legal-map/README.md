@@ -9,7 +9,8 @@ Simple React + Mapbox globe allowing community-submitted markers classified as A
 
 ## Usage
 - Click on the map to add a spot. Provide name, country, and category.
-- Use the text field or DM the Discord bot with `Name, Country, Category` (category optional).
+- Use the search box to find a location and drop a marker with the chosen category.
+- You can also DM the Discord bot with `Name, Country, Category` (category optional).
 - Country law info is fetched from [REST Countries](https://restcountries.com/).
 - Events are optionally logged to Discord.
 - Markers are stored in Supabase and automatically loaded on every visit.

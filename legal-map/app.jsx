@@ -7,7 +7,9 @@ const sb = (typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_ANON_KEY !== 
 function App() {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
-  const [input, setInput] = useState("");
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [category, setCategory] = useState('unofficial');
 
   useEffect(() => {
     if (typeof MAPBOX_TOKEN === 'undefined' || !MAPBOX_TOKEN) {
@@ -68,6 +70,17 @@ function App() {
     return data.features[0].center;
   };
 
+  const searchPlaces = async (q) => {
+    if (!q) {
+      setSuggestions([]);
+      return;
+    }
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?autocomplete=true&limit=5&access_token=${MAPBOX_TOKEN}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    setSuggestions(data.features || []);
+  };
+
   const fetchLaw = async (country) => {
     try {
       const res = await fetch(`https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fields=region`);
@@ -122,13 +135,12 @@ function App() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const [name, country, category='unofficial'] = input.split(',').map(s => s.trim());
-    if (name && country) {
-      await addMarker({ name, country, category, coordinates: null });
-      setInput('');
-    }
+  const handleSuggestionClick = async (feature) => {
+    setQuery('');
+    setSuggestions([]);
+    const countryFeature = feature.context?.find(c => c.id.startsWith('country'));
+    const country = countryFeature ? countryFeature.text : '';
+    await addMarker({ name: feature.text, country, category, coordinates: feature.center });
   };
 
   return (
@@ -136,14 +148,24 @@ function App() {
       <div id="map" ref={mapContainer}></div>
       <div id="overlay">
         <h1>Legal Map</h1>
-        <form onSubmit={handleSubmit}>
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="Name, Country, Category"
-          />
-          <button type="submit">Add via Bot</button>
-        </form>
+         <input
+          value={query}
+          onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
+          placeholder="Search for a place"
+        />
+        <select value={category} onChange={e => setCategory(e.target.value)}>
+          <option value="allowed">allowed</option>
+          <option value="restricted">restricted</option>
+          <option value="unofficial">unofficial</option>
+          <option value="illegal">illegal</option>
+        </select>
+        {suggestions.length > 0 && (
+          <ul id="suggestions">
+            {suggestions.map(f => (
+              <li key={f.id} onClick={() => handleSuggestionClick(f)}>{f.place_name}</li>
+            ))}
+          </ul>
+        )}
       </div>
     </>
   );
