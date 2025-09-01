@@ -151,7 +151,6 @@ function App() {
       content.className = `card ${colorClass}`;
       content.innerHTML = `
         <div class="card-body">
-          <div class="icon">${icons[cat] || ''}</div>
           <div>
           <h3>${name}</h3>
           <p>${country}</p>
