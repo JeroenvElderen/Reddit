@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
 html, body, #root {
     margin:0;
     font-family: sans-serif;
@@ -45,18 +47,123 @@ select { padding:4px; margin-left:4px; }
     background: #eee;
 }
 
+/* Remove default InfoWindow background and close */
+.gm-style-iw,
+.gm-style-iw-d {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+.gm-style-iw-t,
+.gm-style-iw-c {
+    box-shadow: none !important;
+    background: transparent !important;
+}
+.gm-style-iw-t::after,
+.gm-style-iw-t::before {
+    display: none;
+}
+.gm-ui-hover-effect {
+    display: none !important;
+}
+
+/* Popup card styling using the provided layout */
+.card {
+    position: relative;
+    z-index: 555;
+    max-width: 38rem;
+    width: 90%;
+    border-radius: 1rem;
+    box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
+    font-family: "Poppins", sans-serif;
+    color: #fff;
+}
+.card-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0.8em 0.8em 0em 1.5em;
+}
+.card-header .close {
+    color: #d9d9d9;
+    width: 1.5rem;
+    cursor: pointer;
+}
+.card-body {
+    width: 100%;
+    padding: 0.7em 2em 0.5em 2em;
+    text-align: left;
+    display: flex;
+}
+.card-body .icon {
+    width: 3rem;
+}
+.card-body > div {
+    margin-left: 2em;
+}
+.card-body h3 {
+    text-align: left;
+    color: #fff;
+    font-size: 1.2rem;
+    margin-top: 0.625em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+.card-body p {
+    text-align: left;
+    color: #cccccc;
+    font-size: 1rem;
+    margin: 0.25em 0;
+}
+
+.card.blue {
+    background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
+}
+.card.blue .icon { color: #5a81ff; }
+
+.card.green {
+    background: radial-gradient(ellipse at right top,#107667ed 0%,#151419 47%,#151419 100%);
+}
+.card.green .icon { color: #2eea9d; }
+
+.card.red {
+    background: radial-gradient(ellipse at right top,#a63d2a82 0%,#151419 47%,#151419 100%);
+}
+.card.red .icon { color: #fe6c9b; }
+
+/* Form styling */
 #marker-form {
-    background: #fff;
-    border: 1px solid #ccc;
-    padding: 8px;
+    background: radial-gradient(ellipse at right top,#107667ed 0%,#151419 47%,#151419 100%);
+    color: #fff;
+    border-radius: 1rem;
+    box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
+    padding: 1rem 1.5rem;
     margin-top: 8px;
+    font-family: "Poppins", sans-serif;
 }
 
 #marker-form input,
 #marker-form select,
+#marker-form textarea,
 #marker-form button {
     display: block;
     width: 100%;
-    margin: 4px 0;
-    padding: 4px;
+     margin: 6px 0;
+    padding: 0.5rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: #222127;
+    color: #fff;
+}
+#marker-form button {
+    background: #2eea9d;
+    color: #111;
+    cursor: pointer;
+}
+#marker-form button:hover {
+    background: #24c787;
 }
