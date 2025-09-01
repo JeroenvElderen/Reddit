@@ -94,11 +94,12 @@ function App() {
   }, []);
 
   const categoryColor = (cat) => ({
-    allowed: 'green',
-    restricted: 'yellow',
-    unofficial: 'blue',
-    illegal: 'red'
-  })[cat.toLowerCase()] || 'gray';
+    official: '#2eea9d',   // green accent from .card.green
+    restricted: '#ffd84d',// yellow accent from .card.yellow
+    unofficial: '#5a81ff',// blue accent from .card.blue
+    illegal: '#fe6c9b'    // red accent from .card.red
+  })[cat.toLowerCase()] || '#888'; // fallback gray
+
 
   const geocode = (name, country) => new Promise((resolve, reject) => {
     if (!geocoderRef.current) return reject('Geocoder not loaded');
