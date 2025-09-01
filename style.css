@@ -73,7 +73,8 @@ select { padding:4px; margin-left:4px; }
 .card {
     position: relative;
     z-index: 555;
-    max-width: 38rem;
+    width: 90%;          /* default: mobile friendly */
+    max-width: 44rem;    /* increased for longer text */
     display: inline-block;
     border-radius: 1rem;
     box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
@@ -234,4 +235,30 @@ select { padding:4px; margin-left:4px; }
 .card.yellow button {
     background: #ffd84d;
     color: #111;
+}
+
+/* Responsive tweaks */
+@media (max-width: 767px) {
+    .card {
+        width: 90%;       /* nearly full width on mobile */
+        max-width: 95vw;  /* never overflow screen */
+    }
+    .card button {
+        width: 100%;      /* full-width button on mobile */
+        text-align: center;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    .card {
+        width: 80%;
+        max-width: 36rem; /* slightly narrower on tablets */
+    }
+}
+
+@media (min-width: 1024px) {
+    .card {
+        width: auto;
+        max-width: 44rem; /* larger max-width on desktop */
+    }
 }
