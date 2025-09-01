@@ -33,6 +33,12 @@ html, body, #root {
     z-index: 1;
 }
 
+#overlay.centered {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
 input { padding:4px; }
 select { padding:4px; margin-left:4px; }
 
@@ -203,7 +209,9 @@ select { padding:4px; margin-left:4px; }
 
 /* Buttons inside popup cards */
 .card button {
-    display: inline-block;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
     margin-top: 0.75em;
     padding: 0.6em 1.2em;
     font-family: "Poppins", sans-serif;
@@ -250,7 +258,7 @@ select { padding:4px; margin-left:4px; }
     .card {
         width: 90%;       /* nearly full width on mobile */
         max-width: 95vw;  /* never overflow screen */
-        max-height: 85vh; /* leave room for address bar */
+        max-height: none; /* allow full height so text doesn't overflow */
     }
     .card-body h3 {
         font-size: 1.1rem;
@@ -259,8 +267,7 @@ select { padding:4px; margin-left:4px; }
         font-size: 0.9rem;
     }
     .card button {
-        width: 100%;      /* full-width button on mobile */
-        text-align: center;
+        text-align: center; /* width already 100% */
     }
 }
 

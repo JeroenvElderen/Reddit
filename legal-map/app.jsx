@@ -174,7 +174,7 @@ function App() {
           <p>${country}</p>
           <p>${category}</p>
           <p>${text}</p>
-          <p><button onclick="window.open('https://www.google.com/maps?q=${pos.lat},${pos.lng}', '_blank')">View on Google Maps</button></p>
+          <button onclick="window.open('https://www.google.com/maps?q=${pos.lat},${pos.lng}', '_blank')">View on Google Maps</button>
         </div>
       </div>`;
 
@@ -265,7 +265,7 @@ function App() {
   return (
     <>
       <div id="map" ref={mapContainer}></div>
-      <div id="overlay">
+      <div id="overlay" className={showForm ? 'centered' : ''}>
         <h1>Legal Map</h1>
          {showForm ? (
           <form id="marker-form" onSubmit={handleFormSubmit}>
