@@ -241,3 +241,15 @@ select { padding:4px; margin-left:4px; }
     max-width: 100%;            /* stay inside the card */
 }
 
+/* Fix text wrapping inside flex card body */
+.card-body > div {
+    min-width: 0;      /* allow shrinking inside flexbox */
+    flex: 1;           /* take up remaining space */
+}
+
+.card-body h3,
+.card-body p {
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+}
