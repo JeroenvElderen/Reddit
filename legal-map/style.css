@@ -34,6 +34,11 @@ html, body, #root {
     flex-direction: column;
     align-items: center;
     text-align: center;
+    pointer-events: none;
+}
+
+#overlay * {
+    pointer-events: auto;
 }
 
 #overlay.centered {
