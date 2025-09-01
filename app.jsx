@@ -347,7 +347,9 @@ function App() {
       </div>
       {isMobile && (
         <button id="legend-toggle" onClick={() => setLegendOpen(o => !o)}>
-          {legendOpen ? '×' : 'Legend'}
+          {legendOpen
+            ? <i className="fa-solid fa-xmark"></i>
+            : <i className="fa-solid fa-circle-info"></i>}
         </button>
       )}
       <div id="overlay">
