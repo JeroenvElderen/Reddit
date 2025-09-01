@@ -143,7 +143,7 @@ function App() {
       
       const colorClass = {
         official: 'green',
-        restricted: 'blue',
+        restricted: 'yellow',
         unofficial: 'blue',
         illegal: 'red'
       }[cat] || 'blue';
