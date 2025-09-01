@@ -197,22 +197,18 @@ function App() {
     setShowForm(false);
   };
 
-  const handleSuggestionClick = async (prediction) => {
+  const handleSuggestionClick = (prediction) => {
     setQuery('');
     setSuggestions([]);
     if (!geocoderRef.current) return;
-    geocoderRef.current.geocode({ placeId: prediction.place_id }, async (results, status) => {
+    geocoderRef.current.geocode({ placeId: prediction.place_id }, (results, status) => {
       if (status === 'OK' && results[0]) {
         const loc = results[0].geometry.location;
         const countryComp = results[0].address_components.find(c => c.types.includes('country'));
         const country = countryComp ? countryComp.long_name : '';
-        await addMarker({
-          name: prediction.description,
-          country,
-          category,
-          description: '',
-          coordinates: [loc.lng(), loc.lat()]
-        });
+        setPendingCoords([loc.lng(), loc.lat()]);
+        setFormData({ name: prediction.description, country, description: '' });
+        setShowForm(true);
       }
     });
   };
