@@ -413,23 +413,22 @@ function App() {
 
   return (
     <>
-      <div id="map" ref={mapContainer}>
-        <div id="overlay">
-          <h1>Legal Map</h1>
-           <input
-            value={query}
-            onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
-            onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
-            placeholder="Search for a place"
-          />
-          {suggestions.length > 0 && (
-            <ul id="suggestions">
-              {suggestions.map(p => (
-                <li key={p.place_id} onClick={() => handleSuggestionClick(p)}>{p.description}</li>
-              ))}
-            </ul>
-          )}
-        </div>
+      <div id="map" ref={mapContainer}></div>
+      <div id="overlay">
+        <h1>Legal Map</h1>
+        <input
+          value={query}
+          onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
+          onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
+          placeholder="Search for a place"
+        />
+        {suggestions.length > 0 && (
+          <ul id="suggestions">
+            {suggestions.map(p => (
+              <li key={p.place_id} onClick={() => handleSuggestionClick(p)}>{p.description}</li>
+            ))}
+          </ul>
+        )}
       </div>
       <div id="legend" className={legendOpen ? '' : 'hidden'}>
         {['official','restricted','unofficial','illegal'].map(cat => (
