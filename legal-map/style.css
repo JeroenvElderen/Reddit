@@ -278,6 +278,7 @@ select { padding:4px; margin-left:4px; }
     }
     .card button {
         text-align: center; /* width already 100% */
+        padding: 0.6em 1.2em;
     }
 }
 
