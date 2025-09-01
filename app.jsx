@@ -120,11 +120,42 @@ function App() {
       content: pin,
     });
 
-    const text = description || law || '';
-    const info = new google.maps.InfoWindow({
-      content: `<h3>${name}</h3><p>${country}</p><p>${category}</p><p>${text}</p>`
-    });
-    marker.addListener('click', () => info.open({ map: mapRef.current, anchor: marker }));
+      const text = description || law || '';
+      const cat = (category || '').toLowerCase();
+      const icons = {
+        allowed: '✓',
+        restricted: '!',
+        unofficial: 'i',
+        illegal: '✖'
+      };
+      const colorClass = {
+        allowed: 'green',
+        restricted: 'blue',
+        unofficial: 'blue',
+        illegal: 'red'
+      }[cat] || 'blue';
+      const content = document.createElement('div');
+      content.className = `card ${colorClass}`;
+      content.innerHTML = `
+        <div class="card-header"><span class="close">&times;</span></div>
+        <div class="card-body">
+          <div class="icon">${icons[cat] || ''}</div>
+          <div>
+          <h3>${name}</h3>
+          <p>${country}</p>
+          <p>${category}</p>
+          <p>${text}</p>
+        </div>
+      </div>`;
+
+    const info = new google.maps.InfoWindow({ content });
+    content.addEventListener('click', () => info.close());
+    const closeBtn = content.querySelector('.close');
+    if (closeBtn) closeBtn.addEventListener('click', () => info.close());
+
+    marker.addListener('click', () =>
+      info.open({ map: mapRef.current, anchor: marker })
+    );
   };
 
   const addMarker = async ({
