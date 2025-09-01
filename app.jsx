@@ -21,11 +21,17 @@ function App() {
       alert('GOOGLE_MAPS_API_KEY missing in config.js');
       return;
     }
+    if (typeof MAP_ID === 'undefined' || !MAP_ID) {
+      alert('MAP_ID missing in config.js');
+      return;
+    }
     
     const init = () => {
       mapRef.current = new google.maps.Map(mapContainer.current, {
         center: { lat: 0, lng: 0 },
         zoom: 2,
+        mapId: MAP_ID,
+        tilt: 67.5,
       });
 
       geocoderRef.current = new google.maps.Geocoder();

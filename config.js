@@ -4,3 +4,4 @@ const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/141182755548037545
 const SUPABASE_URL = 'https://ygrhqsnlpenoioenscbe.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlncmhxc25scGVub2lvZW5zY2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwODY0MzksImV4cCI6MjA3MDY2MjQzOX0.wlYU1RlQAQ1MGgXtAUEY1RXaydmXXzTzf0EKMGJfbDU';
 const GOOGLE_MAPS_API_KEY = 'AIzaSyB-x522BMZbB7qYbS6XvsulUqGpBH6OXZs';
+const MAP_ID = 'dbf9795372ccdac7c5ca5a6e';
