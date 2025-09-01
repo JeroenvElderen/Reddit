@@ -61,6 +61,8 @@ function App() {
         minZoom: 4,
         mapId: MAP_ID,
         mapTypeControl: false,
+        streetViewControl: false,
+        rotateControl: false,
         tilt: 67.5,
         restriction: {
           latLngBounds: {
