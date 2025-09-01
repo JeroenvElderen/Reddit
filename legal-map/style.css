@@ -98,20 +98,20 @@ select { padding:4px; margin-left:4px; }
 }
 .card-body {
     width: 100%;
-    padding: 0.7em 2em 0.5em 2em;
+    padding: 0.7em 2em 0.5em 1em;
     text-align: left;
     display: flex;
 }
 .card-body .icon {
-    width: 3rem;
+    width: 3.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    font-size: 2rem;
     flex-shrink: 0;
 }
 .card-body > div {
-    margin-left: 2em;
+    margin-left: 1em;
 }
 .card-body h3 {
     text-align: left;
