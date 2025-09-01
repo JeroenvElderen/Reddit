@@ -52,6 +52,9 @@ select { padding:4px; margin-left:4px; }
 .gm-style-iw-d {
     background: transparent !important;
     box-shadow: none !important;
+    overflow: visible !important;
+    max-width: none !important;
+    max-height: none !important;
 }
 .gm-style-iw-t,
 .gm-style-iw-c {
@@ -71,7 +74,7 @@ select { padding:4px; margin-left:4px; }
     position: relative;
     z-index: 555;
     max-width: 38rem;
-    width: 90%;
+    display: inline-block;
     border-radius: 1rem;
     box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
     font-family: "Poppins", sans-serif;
@@ -101,6 +104,11 @@ select { padding:4px; margin-left:4px; }
 }
 .card-body .icon {
     width: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
 }
 .card-body > div {
     margin-left: 2em;
