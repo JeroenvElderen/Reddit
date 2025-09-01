@@ -178,10 +178,23 @@ function App() {
         </div>
       </div>`;
 
-    const info = new google.maps.InfoWindow({ content });
-    content.addEventListener('click', () => info.close());
-    const closeBtn = content.querySelector('.close');
-    if (closeBtn) closeBtn.addEventListener('click', () => info.close());
+      const info = new google.maps.InfoWindow({ content });
+      info.addListener('domready', () => {
+        const iw = document.querySelector('.gm-style-iw');
+        if (iw) {
+          iw.style.maxWidth = 'none';
+          iw.style.width = 'auto';
+        }
+        const iwd = document.querySelector('.gm-style-iw-d');
+        if (iwd) {
+          iwd.style.overflow = 'visible';
+          iwd.style.maxWidth = 'none';
+          iwd.style.width = 'auto';
+        }
+      });
+      content.addEventListener('click', () => info.close());
+      const closeBtn = content.querySelector('.close');
+      if (closeBtn) closeBtn.addEventListener('click', () => info.close());
 
     marker.addListener('click', () =>
       info.open({ map: mapRef.current, anchor: marker })
