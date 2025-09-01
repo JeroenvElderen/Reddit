@@ -8,20 +8,26 @@ html, body, #root {
 }
 
 #map {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
+    min-height: 100vh;
     z-index: 0;
+}
+
+@media (max-width: 767px) {
+    #map {
+        height: 100dvh;
+        min-height: unset;
+    }
 }
 
 #overlay {
     position: absolute;
     top: 10px;
     left: 50%;
+    transform: translateX(-50%);
     width: calc(100% - 20px);
     max-width: 400px;
     z-index: 1;
@@ -75,6 +81,8 @@ select { padding:4px; margin-left:4px; }
     z-index: 555;
     width: 90%;          /* default: mobile friendly */
     max-width: 44rem;    /* increased for longer text */
+    max-height: 80vh;    /* prevent overflow on small screens */
+    overflow-y: auto;
     display: inline-block;
     border-radius: 1rem;
     box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
@@ -242,6 +250,13 @@ select { padding:4px; margin-left:4px; }
     .card {
         width: 90%;       /* nearly full width on mobile */
         max-width: 95vw;  /* never overflow screen */
+        max-height: 85vh; /* leave room for address bar */
+    }
+    .card-body h3 {
+        font-size: 1.1rem;
+    }
+    .card-body p {
+        font-size: 0.9rem;
     }
     .card button {
         width: 100%;      /* full-width button on mobile */
