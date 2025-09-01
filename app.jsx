@@ -30,7 +30,7 @@ function App() {
       mapRef.current = new google.maps.Map(mapContainer.current, {
         center: { lat: 0, lng: 0 },
         zoom: 2,
-        minZoom: 2,
+        minZoom: 5,
         mapId: MAP_ID,
         tilt: 67.5,
       });
