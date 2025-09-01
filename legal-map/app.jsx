@@ -174,14 +174,27 @@ function App() {
           <p>${country}</p>
           <p>${category}</p>
           <p>${text}</p>
-          <p><button onclick="window.open('https://www.google.com/maps?q=${pos.lat},${pos.lng}', '_blank')">View on Google Maps</button></p>
+          <button onclick="window.open('https://www.google.com/maps?q=${pos.lat},${pos.lng}', '_blank')">View on Google Maps</button>
         </div>
       </div>`;
 
-    const info = new google.maps.InfoWindow({ content });
-    content.addEventListener('click', () => info.close());
-    const closeBtn = content.querySelector('.close');
-    if (closeBtn) closeBtn.addEventListener('click', () => info.close());
+      const info = new google.maps.InfoWindow({ content });
+      info.addListener('domready', () => {
+        const iw = document.querySelector('.gm-style-iw');
+        if (iw) {
+          iw.style.maxWidth = 'none';
+          iw.style.width = 'auto';
+        }
+        const iwd = document.querySelector('.gm-style-iw-d');
+        if (iwd) {
+          iwd.style.overflow = 'visible';
+          iwd.style.maxWidth = 'none';
+          iwd.style.width = 'auto';
+        }
+      });
+      content.addEventListener('click', () => info.close());
+      const closeBtn = content.querySelector('.close');
+      if (closeBtn) closeBtn.addEventListener('click', () => info.close());
 
     marker.addListener('click', () =>
       info.open({ map: mapRef.current, anchor: marker })
@@ -265,7 +278,7 @@ function App() {
   return (
     <>
       <div id="map" ref={mapContainer}></div>
-      <div id="overlay">
+      <div id="overlay" className={showForm ? 'centered' : ''}>
         <h1>Legal Map</h1>
          {showForm ? (
           <form id="marker-form" onSubmit={handleFormSubmit}>
