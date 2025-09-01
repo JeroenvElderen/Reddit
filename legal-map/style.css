@@ -122,6 +122,7 @@ select { padding:4px; margin-left:4px; }
 .card-body {
     width: 100%;
     padding: 1.2em;
+    box-sizing: border-box;
     text-align: left;
     display: flex;
 }
@@ -177,7 +178,7 @@ select { padding:4px; margin-left:4px; }
 .card.red .icon { color: #fe6c9b; }
 
 .card.yellow {
-    background: radial-gradient(ellipse at right top, #e6c229 0%, #151419 47%, #151419 100%);
+    background: radial-gradient(ellipse at right top, #e6c22982 0%, #151419 47%, #151419 100%);
 }
 .card.yellow .icon {
     color: #ffd84d;

@@ -9,6 +9,7 @@ function App() {
   const mapRef = useRef(null);
   const geocoderRef = useRef(null);
   const autocompleteRef = useRef(null);
+  const openInfoRef = useRef(null);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [category, setCategory] = useState('unofficial');
@@ -16,7 +17,15 @@ function App() {
   const [formData, setFormData] = useState({ name: '', country: '', description: '' });
   const [pendingCoords, setPendingCoords] = useState(null);
 
+  const closeOpenInfo = () => {
+    if (openInfoRef.current) {
+      openInfoRef.current.close();
+      openInfoRef.current = null;
+    }
+  };
+
   useEffect(() => {
+    window.addEventListener('scroll', closeOpenInfo);
     if (typeof GOOGLE_MAPS_API_KEY === 'undefined' || !GOOGLE_MAPS_API_KEY) {
       alert('GOOGLE_MAPS_API_KEY missing in config.js');
       return;
@@ -48,7 +57,11 @@ function App() {
       geocoderRef.current = new google.maps.Geocoder();
       autocompleteRef.current = new google.maps.places.AutocompleteService();
 
+      mapRef.current.addListener('dragstart', closeOpenInfo);
+      mapRef.current.addListener('zoom_changed', closeOpenInfo);
+
       mapRef.current.addListener('click', (e) => {
+        closeOpenInfo();
         const coords = [e.latLng.lng(), e.latLng.lat()];
         setPendingCoords(coords);
         if (geocoderRef.current) {
@@ -92,6 +105,9 @@ function App() {
       script.onload = init;
       document.head.appendChild(script);
     }
+    return () => {
+      window.removeEventListener('scroll', closeOpenInfo);
+    };
   }, []);
 
   const categoryColor = (cat) => ({
@@ -193,13 +209,19 @@ function App() {
           iwd.style.width = 'auto';
         }
       });
-      content.addEventListener('click', () => info.close());
+      content.addEventListener('click', closeOpenInfo);
       const closeBtn = content.querySelector('.close');
-      if (closeBtn) closeBtn.addEventListener('click', () => info.close());
+      if (closeBtn) closeBtn.addEventListener('click', closeOpenInfo);
 
-    marker.addListener('click', () =>
-      info.open({ map: mapRef.current, anchor: marker })
-    );
+      info.addListener('closeclick', () => {
+        if (openInfoRef.current === info) openInfoRef.current = null;
+      });
+
+    marker.addListener('click', () => {
+      closeOpenInfo();
+      info.open({ map: mapRef.current, anchor: marker });
+      openInfoRef.current = info;
+    });
   };
 
   const addMarker = async ({
