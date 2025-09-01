@@ -231,6 +231,7 @@ function App() {
           <p>${country}</p>
           <p>${category}</p>
           <p>${text}</p>
+          <button class="edit-marker">Edit Marker</button>
           <button onclick="window.open('https://www.google.com/maps?q=${pos.lat},${pos.lng}', '_blank')">View on Google Maps</button>
         </div>
       </div>`;
