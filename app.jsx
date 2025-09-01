@@ -33,6 +33,15 @@ function App() {
         minZoom: 5,
         mapId: MAP_ID,
         tilt: 67.5,
+        restriction: {
+          latLngBounds: {
+            north: 85,
+            south: -85,
+            west: -180,
+            east: 180
+          },
+          strictBounds: true
+        }
       });
 
       geocoderRef.current = new google.maps.Geocoder();
