@@ -336,7 +336,7 @@ input { padding:4px; }
 #marker-form select,
 #marker-form textarea {
     display: block;
-    width: 80%;
+    width: 80% !important;
     box-sizing: border-box;
     margin: 6px auto;
     padding: 0.5rem 1rem;
@@ -398,7 +398,7 @@ input { padding:4px; }
 }
 
 #marker-form button {
-    width: 80%;
+    width: 80% !important;
     margin: 0.75em auto 0;
 }
 
