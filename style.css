@@ -317,8 +317,6 @@ input { padding:4px; }
 
 /* Form styling */
 #marker-form {
-    padding: 1rem 1.5rem;
-    margin-top: 8px;
     width: 400px;
     max-width: 90vw;
 }

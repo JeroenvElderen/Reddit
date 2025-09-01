@@ -3,7 +3,6 @@ const sb = (typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_ANON_KEY !== 
   ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
-
 function App() {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
@@ -11,6 +10,7 @@ function App() {
   const autocompleteRef = useRef(null);
   const openInfoRef = useRef(null);
   const markersRef = useRef([]);
+
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [category, setCategory] = useState('unofficial');
@@ -27,6 +27,18 @@ function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [legendOpen, setLegendOpen] = useState(window.innerWidth >= 768);
 
+  // ---- zIndex helpers (ADVANCED MARKERS sit above IWs otherwise) ----
+  const pushMarkersBehind = () => {
+    markersRef.current.forEach(m => {
+      if (m?.marker) m.marker.zIndex = -1000; // push pins behind IW layer
+    });
+  };
+  const restoreMarkersZ = () => {
+    markersRef.current.forEach(m => {
+      if (m?.marker) m.marker.zIndex = 0; // normal
+    });
+  };
+
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', onResize);
@@ -42,6 +54,8 @@ function App() {
       openInfoRef.current.close();
       openInfoRef.current = null;
     }
+    // make sure pins come back to normal whenever we close an IW
+    restoreMarkersZ();
   };
 
   useEffect(() => {
@@ -54,7 +68,7 @@ function App() {
       alert('MAP_ID missing in config.js');
       return;
     }
-    
+
     const init = () => {
       mapRef.current = new google.maps.Map(mapContainer.current, {
         center: { lat: 0, lng: 0 },
@@ -66,12 +80,7 @@ function App() {
         rotateControl: false,
         tilt: 67.5,
         restriction: {
-          latLngBounds: {
-            north: 85,
-            south: -85,
-            west: -180,
-            east: 180
-          },
+          latLngBounds: { north: 85, south: -85, west: -180, east: 180 },
           strictBounds: true
         }
       });
@@ -81,7 +90,6 @@ function App() {
 
       mapRef.current.addListener('dragstart', closeOpenInfo);
       mapRef.current.addListener('zoom_changed', closeOpenInfo);
-
       mapRef.current.addListener('click', (e) => {
         closeOpenInfo();
         const coords = [e.latLng.lng(), e.latLng.lat()];
@@ -111,7 +119,7 @@ function App() {
 
       if (sb) {
         (async () => {
-        const { data, error } = await sb.from('map_markers').select('*');
+          const { data, error } = await sb.from('map_markers').select('*');
           if (!error && data) {
             data.forEach(renderMarker);
           } else {
@@ -135,18 +143,13 @@ function App() {
   }, []);
 
   const categoryColor = (cat) => ({
-    official: '#2eea9d',   // green accent from .card.green
-    restricted: '#ffd84d',// yellow accent from .card.yellow
-    unofficial: '#5a81ff',// blue accent from .card.blue
-    illegal: '#fe6c9b'    // red accent from .card.red
-  })[cat.toLowerCase()] || '#888'; // fallback gray
+    official: '#2eea9d',
+    restricted: '#ffd84d',
+    unofficial: '#5a81ff',
+    illegal: '#fe6c9b'
+  })[cat.toLowerCase()] || '#888';
 
-  const icons = {
-    official: '✓',
-    restricted: '!',
-    unofficial: 'i',
-    illegal: '✖'
-  };
+  const icons = { official: '✓', restricted: '!', unofficial: 'i', illegal: '✖' };
 
   const toggleFilter = (cat) => {
     setFilter(prev => ({ ...prev, [cat]: !prev[cat] }));
@@ -157,7 +160,6 @@ function App() {
       marker.map = filter[category] ? mapRef.current : null;
     });
   }, [filter]);
-
 
   const geocode = (name, country) => new Promise((resolve, reject) => {
     if (!geocoderRef.current) return reject('Geocoder not loaded');
@@ -202,9 +204,7 @@ function App() {
     const pos = Array.isArray(coordinates)
       ? { lat: coordinates[1], lng: coordinates[0] }
       : coordinates;
-    const coordsArr = Array.isArray(coordinates)
-      ? coordinates
-      : [coordinates.lng, coordinates.lat];
+    const coordsArr = Array.isArray(coordinates) ? coordinates : [coordinates.lng, coordinates.lat];
     const markerId = id ?? Date.now() + Math.random();
 
     const cat = (category || '').toLowerCase();
@@ -219,22 +219,19 @@ function App() {
       map: mapRef.current,
       content: pin.element,
     });
-    markersRef.current.push({ marker, category: cat, id: markerId});
-    marker.map = filter[cat] ? mapRef.current : null;
-      
-    const text = description || law || '';
+    marker.zIndex = 0; // baseline so we can move it behind when IW opens
 
-    const colorClass = {
-      official: 'green',
-      restricted: 'yellow',
-      unofficial: 'blue',
-      illegal: 'red'
-    }[cat] || 'blue';
+    markersRef.current.push({ marker, category: cat, id: markerId });
+    marker.map = filter[cat] ? mapRef.current : null;
+
+    const text = description || law || '';
+    const colorClass = { official: 'green', restricted: 'yellow', unofficial: 'blue', illegal: 'red' }[cat] || 'blue';
+
     const content = document.createElement('div');
     content.className = `card ${colorClass}`;
     content.innerHTML = `
-        <div class="card-body">
-          <div>
+      <div class="card-body">
+        <div>
           <h3>${name}</h3>
           <p>${country}</p>
           <p>${category}</p>
@@ -245,6 +242,7 @@ function App() {
       </div>`;
 
     const info = new google.maps.InfoWindow({ content });
+
     info.addListener('domready', () => {
       const iw = document.querySelector('.gm-style-iw');
       if (iw) {
@@ -258,6 +256,7 @@ function App() {
         iwd.style.width = 'auto';
       }
     });
+
     content.addEventListener('click', closeOpenInfo);
     const closeBtn = content.querySelector('.close');
     if (closeBtn) closeBtn.addEventListener('click', closeOpenInfo);
@@ -277,21 +276,19 @@ function App() {
 
     info.addListener('closeclick', () => {
       if (openInfoRef.current === info) openInfoRef.current = null;
+      restoreMarkersZ(); // IMPORTANT: bring pins back
     });
 
     marker.addListener('click', () => {
       closeOpenInfo();
+      pushMarkersBehind(); // IMPORTANT: push pins behind before opening IW
       info.open({ map: mapRef.current, anchor: marker });
       openInfoRef.current = info;
     });
   };
 
   const addMarker = async ({
-    name = 'Unnamed',
-    country,
-    category,
-    coordinates,
-    description = ''
+    name = 'Unnamed', country, category, coordinates, description = ''
   }) => {
     try {
       const coords = coordinates || await geocode(name, country);
@@ -314,13 +311,7 @@ function App() {
     }
   };
 
-  const updateMarker = async (id, {
-    name,
-    country,
-    category,
-    coordinates,
-    description = ''
-  }) => {
+  const updateMarker = async (id, { name, country, category, coordinates, description = '' }) => {
     try {
       const coords = coordinates || await geocode(name, country);
       markersRef.current = markersRef.current.filter(m => {
@@ -335,9 +326,7 @@ function App() {
           .from('map_markers')
           .update({ name, country, category, coordinates: coords, description })
           .eq('id', id);
-        if (error) {
-          console.error('Supabase update error', error);
-        }
+        if (error) console.error('Supabase update error', error);
       }
       renderMarker({ id, name, country, category, coordinates: coords, description });
       logDiscord(`Updated marker: ${name}, ${country}, ${category}`);
@@ -481,8 +470,8 @@ function App() {
           </form>
         </div>
       )}
-      </>
-    );
-  }
+    </>
+  );
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
