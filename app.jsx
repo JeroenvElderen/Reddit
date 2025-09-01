@@ -32,6 +32,7 @@ function App() {
         zoom: 2,
         minZoom: 4,
         mapId: MAP_ID,
+        mapTypeControl: false,
         tilt: 67.5,
         restriction: {
           latLngBounds: {
