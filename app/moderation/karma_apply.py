@@ -15,10 +15,11 @@ def apply_karma_and_flair(user_or_name, delta: int, allow_negative: bool):
     if user_or_name is None:
         return 0, 0, "Cover Curious"
 
-    name = str(user_or_name).lower()
+    name = str(user_or_name)
+    name_lower = name.lower()
 
     # 🔒 Special case: bot account always keeps fixed flair
-    if name == BOT_USERNAME:
+    if name_lower == BOT_USERNAME:
         try:
             subreddit.flair.set(redditor=name, flair_template_id=BOT_FLAIR_ID)
             print(f"🤖 Bot account flair forced to ID {BOT_FLAIR_ID}")
