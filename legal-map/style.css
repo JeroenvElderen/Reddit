@@ -336,9 +336,9 @@ input { padding:4px; }
 #marker-form select,
 #marker-form textarea {
     display: block;
-    width: 100%;
+    width: 80%;
     box-sizing: border-box;
-    margin: 6px 0;
+    margin: 6px auto;
     padding: 0.5rem 1rem;
     border: none;
     border-radius: 1rem;
@@ -395,6 +395,11 @@ input { padding:4px; }
 .card button:active {
     transform: translateY(0);
     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+#marker-form button {
+    width: 80%;
+    margin: 0.75em auto 0;
 }
 
 /* Category-themed buttons */

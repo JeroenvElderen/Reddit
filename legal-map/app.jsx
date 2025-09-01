@@ -15,7 +15,7 @@ function App() {
   const [suggestions, setSuggestions] = useState([]);
   const [category, setCategory] = useState('unofficial');
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', country: '', description: '' });
+  const [formData, setFormData] = useState({ name: '', country: '', description: '', username: '' });
   const [pendingCoords, setPendingCoords] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [filter, setFilter] = useState({
@@ -105,14 +105,14 @@ function App() {
                 || res.address_components.find(c => c.types.includes('establishment'));
               const rawName = poiComp ? poiComp.long_name : res.formatted_address;
               const name = stripCountry(rawName, country);
-              setFormData({ name, country, description: '' });
+              setFormData({ name, country, description: '', username: '' });
             } else {
-              setFormData({ name: '', country: '', description: '' });
+              setFormData({ name: '', country: '', description: '', username: '' });
             }
             setShowForm(true);
           });
         } else {
-          setFormData({ name: '', country: '', description: '' });
+          setFormData({ name: '', country: '', description: '', username: '' });
           setShowForm(true);
         }
       });
@@ -267,7 +267,7 @@ function App() {
       editBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         closeOpenInfo();
-        setFormData({ name, country, description: description || '' });
+        setFormData({ name, country, description: description || '', username: '' });
         setCategory(cat);
         setPendingCoords(coordsArr);
         setEditingId(markerId);
@@ -289,7 +289,7 @@ function App() {
   };
 
   const addMarker = async ({
-    name = 'Unnamed', country, category, coordinates, description = ''
+    name = 'Unnamed', country, category, coordinates, description = '', username
   }) => {
     try {
       const coords = coordinates || await geocode(name, country);
@@ -297,7 +297,7 @@ function App() {
       if (sb) {
         const { data: inserted, error } = await sb
           .from('map_markers')
-          .insert({ name, country, category, coordinates: coords, description })
+          .insert({ name, country, category, coordinates: coords, description, username })
           .select();
         if (error) {
           console.error('Supabase insert error', error);
@@ -312,7 +312,7 @@ function App() {
     }
   };
 
-  const updateMarker = async (id, { name, country, category, coordinates, description = '' }) => {
+  const updateMarker = async (id, { name, country, category, coordinates, description = '', username }) => {
     try {
       const coords = coordinates || await geocode(name, country);
       markersRef.current = markersRef.current.filter(m => {
@@ -325,7 +325,7 @@ function App() {
       if (sb) {
         const { error } = await sb
           .from('map_markers')
-          .update({ name, country, category, coordinates: coords, description })
+          .update({ name, country, category, coordinates: coords, description, username })
           .eq('id', id);
         if (error) console.error('Supabase update error', error);
       }
@@ -339,15 +339,29 @@ function App() {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!pendingCoords) return;
-    const { name, country, description } = formData;
-    if (!country.trim()) return;
+    const { name, country, description, username } = formData;
+    if (!country.trim() || !username.trim()) return;
+    if (!sb) {
+      alert('Supabase not configured');
+      return;
+    }
+    const { data: userRow, error: userErr } = await sb
+      .from('user_karma')
+      .select('username')
+      .eq('username', username.trim())
+      .single();
+    if (userErr || !userRow) {
+      alert('Username not found in database');
+      return;
+    }
     if (editingId) {
       await updateMarker(editingId, {
         name: name.trim() || 'Unnamed',
         country: country.trim(),
         category,
         description,
-        coordinates: pendingCoords
+        coordinates: pendingCoords,
+        username: username.trim()
       });
       setEditingId(null);
     } else {
@@ -356,7 +370,8 @@ function App() {
         country: country.trim(),
         category,
         description,
-        coordinates: pendingCoords
+        coordinates: pendingCoords,
+        username: username.trim()
       });
     }
     setShowForm(false);
@@ -373,7 +388,7 @@ function App() {
         const country = countryComp ? countryComp.long_name : '';
         setPendingCoords([loc.lng(), loc.lat()]);
         const name = stripCountry(prediction.description, country);
-        setFormData({ name, country, description: '' });
+        setFormData({ name, country, description: '', username: '' });
         setEditingId(null);
         setShowForm(true);
       }
@@ -382,19 +397,16 @@ function App() {
 
   const handleSearchSubmit = () => {
     if (!query || !geocoderRef.current) return;
-    geocoderRef.current.geocode({ address: query }, async (results, status) => {
+    geocoderRef.current.geocode({ address: query }, (results, status) => {
       if (status === 'OK' && results[0]) {
         const loc = results[0].geometry.location;
         const countryComp = results[0].address_components.find(c => c.types.includes('country'));
         const country = countryComp ? countryComp.long_name : '';
-        setEditingId(null);
         const name = stripCountry(results[0].formatted_address, country);
-        await addMarker({
-          name,
-          country,
-          category,
-          coordinates: [loc.lng(), loc.lat()]
-        });
+        setPendingCoords([loc.lng(), loc.lat()]);
+        setFormData({ name, country, description: '', username: '' });
+        setEditingId(null);
+        setShowForm(true);
         setQuery('');
         setSuggestions([]);
       }
