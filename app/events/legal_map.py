@@ -43,7 +43,7 @@ async def on_message(message: discord.Message):
             name, country = parts[:2]
             category = parts[2].lower() if len(parts) >= 3 else "unofficial"
             description = parts[3] if len(parts) >= 4 else ""
-            if category not in {"allowed", "restricted", "unofficial", "illegal"}:
+            if category not in {"official", "restricted", "unofficial", "illegal"}:
                 category = "unofficial"
             try:
                 coords = await _geocode(name, country)
