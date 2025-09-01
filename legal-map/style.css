@@ -293,22 +293,26 @@ input { padding:4px; }
     overflow-wrap: anywhere;
 }
 
-.card.blue {
+.card.blue,
+#marker-form.blue {
     background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
 }
 .card.blue .icon { color: #5a81ff; }
 
-.card.green {
+.card.green,
+#marker-form.green {
     background: radial-gradient(ellipse at right top,#10766782 0%,#151419 47%,#151419 100%);
 }
 .card.green .icon { color: #2eea9d; }
 
-.card.red {
+.card.red,
+#mark-form.red {
     background: radial-gradient(ellipse at right top,#a63d2a82 0%,#151419 47%,#151419 100%);
 }
 .card.red .icon { color: #fe6c9b; }
 
-.card.yellow {
+.card.yellow,
+#marker-form.yellow {
     background: radial-gradient(ellipse at right top, #e6c22982 0%, #151419 47%, #151419 100%);
 }
 .card.yellow .icon {
@@ -394,19 +398,23 @@ input { padding:4px; }
 }
 
 /* Category-themed buttons */
-.card.blue button {
+.card.blue button,
+#marker-form.blue button {
     background: #5a81ff;
     color: #fff;
 }
-.card.green button {
+.card.green button,
+#marker-form.green button {
     background: #2eea9d;
     color: #111;
 }
-.card.red button {
+.card.red button,
+#marker-form.red button {
     background: #fe6c9b;
     color: #fff;
 }
-.card.yellow button {
+.card.yellow button,
+#marker-form.yellow button {
     background: #ffd84d;
     color: #111;
 }
