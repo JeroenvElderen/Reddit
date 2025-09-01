@@ -123,13 +123,13 @@ function App() {
       const text = description || law || '';
       const cat = (category || '').toLowerCase();
       const icons = {
-        allowed: '✓',
+        official: '✓',
         restricted: '!',
         unofficial: 'i',
         illegal: '✖'
       };
       const colorClass = {
-        allowed: 'green',
+        official: 'green',
         restricted: 'blue',
         unofficial: 'blue',
         illegal: 'red'
@@ -251,7 +251,7 @@ function App() {
               required
             />
             <select value={category} onChange={e => setCategory(e.target.value)}>
-              <option value="allowed">allowed</option>
+              <option value="official">official</option>
               <option value="restricted">restricted</option>
               <option value="unofficial">unofficial</option>
               <option value="illegal">illegal</option>
@@ -273,7 +273,7 @@ function App() {
               placeholder="Search for a place"
             />
             <select value={category} onChange={e => setCategory(e.target.value)}>
-              <option value="allowed">allowed</option>
+              <option value="official">official</option>
               <option value="restricted">restricted</option>
               <option value="unofficial">unofficial</option>
               <option value="illegal">illegal</option>

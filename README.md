@@ -1,6 +1,6 @@
 # Legal Map
 
-Simple React + Google Maps allowing community-submitted markers classified as Allowed, Restricted, Unofficial, or Illegal.
+Simple React + Google Maps allowing community-submitted markers classified as Official, Restricted, Unofficial, or Illegal.
 
 ## Setup
 1. Edit `config.js` and provide values for `GOOGLE_MAPS_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` and optional `DISCORD_WEBHOOK_URL` for logging. Sample values live in `config.sample.js` to keep secrets out of version control.
