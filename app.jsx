@@ -35,10 +35,11 @@ function App() {
         const countryInput = prompt('Country?');
         if (countryInput === null) return; // cancelled
         const category = prompt('Category (allowed/restricted/unofficial/illegal)?') || 'unofficial';
+        const description = prompt('Description?') || '';
         const name = nameInput.trim() || 'Unnamed';
         const country = countryInput.trim();
-        if (!country) return; // need country for law lookup
-        await addMarker({ name, country, category, coordinates: coords });
+        if (!country) return; // need country for geocoding
+        await addMarker({ name, country, category, description, coordinates: coords });
       });
 
       if (sb) {
@@ -92,16 +93,6 @@ function App() {
     });
   };
 
-  const fetchLaw = async (country) => {
-    try {
-      const res = await fetch(`https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fields=region`);
-      const data = await res.json();
-      return data[0] ? `Region: ${data[0].region}` : 'No data';
-    } catch (e) {
-      return 'Law data unavailable';
-    }
-  };
-
   const logDiscord = (msg) => {
     if (typeof DISCORD_WEBHOOK_URL === 'string' && DISCORD_WEBHOOK_URL) {
       fetch(DISCORD_WEBHOOK_URL, {
@@ -112,7 +103,7 @@ function App() {
     }
   };
 
-  const renderMarker = ({ name, country, category, coordinates, law }) => {
+  const renderMarker = ({ name, country, category, coordinates, description, law }) => {
     const pos = Array.isArray(coordinates)
       ? { lat: coordinates[1], lng: coordinates[0] }
       : coordinates;
@@ -128,8 +119,9 @@ function App() {
       }
     });
 
+    const text = description || law || '';
     const info = new google.maps.InfoWindow({
-      content: `<h3>${name}</h3><p>${country}</p><p>${category}</p><p>${law}</p>`
+      content: `<h3>${name}</h3><p>${country}</p><p>${category}</p><p>${text}</p>`
     });
     marker.addListener('click', () => info.open(mapRef.current, marker));
   };
@@ -137,11 +129,10 @@ function App() {
   const addMarker = async ({ name = 'Unnamed', country, category, coordinates }) => {
     try {
       const coords = coordinates || await geocode(name, country);
-      const law = country ? await fetchLaw(country) : 'No data';
-      renderMarker({ name, country, category, coordinates: coords, law });
+      renderMarker({ name, country, category, coordinates: coords, description });
       logDiscord(`New marker: ${name}, ${country}, ${category}`);
       if (sb) {
-        const { error } = await sb.from('map_markers').insert({ name, country, category, coordinates: coords, law });
+        const { error } = await sb.from('map_markers').insert({ name, country, category, coordinates: coords, description });
         if (error) {
           console.error('Supabase insert error', error);
         }
@@ -160,12 +151,33 @@ function App() {
         const loc = results[0].geometry.location;
         const countryComp = results[0].address_components.find(c => c.types.includes('country'));
         const country = countryComp ? countryComp.long_name : '';
+        const description = prompt('Description?') || '';
         await addMarker({
           name: prediction.description,
           country,
           category,
+          description,
           coordinates: [loc.lng(), loc.lat()]
         });
+      }
+    });
+  };
+
+  const handleSearchSubmit = () => {
+    if (!query || !geocoderRef.current) return;
+    geocoderRef.current.geocode({ address: query }, async (results, status) => {
+      if (status === 'OK' && results[0]) {
+        const loc = results[0].geometry.location;
+        const countryComp = results[0].address_components.find(c => c.types.includes('country'));
+        const country = countryComp ? countryComp.long_name : '';
+        await addMarker({
+          name: results[0].formatted_address,
+          country,
+          category,
+          coordinates: [loc.lng(), loc.lat()]
+        });
+        setQuery('');
+        setSuggestions([]);
       }
     });
   };
@@ -178,6 +190,7 @@ function App() {
          <input
           value={query}
           onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
+          onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
           placeholder="Search for a place"
         />
         <select value={category} onChange={e => setCategory(e.target.value)}>

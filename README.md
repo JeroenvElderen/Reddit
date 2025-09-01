@@ -8,10 +8,9 @@ Simple React + Google Maps allowing community-submitted markers classified as Al
 3. The app dynamically loads the Google Maps JavaScript API (with Places library). Ensure your API key has Maps and Places enabled.
 
 ## Usage
-- Click on the map to add a spot. Provide name, country, and category.
-- Use the search box to find a location and drop a marker with the chosen category.
-- You can also DM the Discord bot with `Name, Country, Category` (category optional).
-- Country law info is fetched from [REST Countries](https://restcountries.com/).
+- Click on the map to add a spot. Provide name, country, category, and a description.
+- Use the search box to find a location and drop a marker with the chosen category and description.
+- You can also DM the Discord bot with `Name, Country, Category, Description` (category optional).
 - Events are optionally logged to Discord.
 - Markers are stored in Supabase and automatically loaded on every visit.
 
