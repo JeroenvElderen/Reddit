@@ -4,6 +4,15 @@ REDDITBOT/
 ├─ main.py
 ├─ requirements.txt
 ├─ start.sh
+├─ legal-map/
+│  ├─ app.jsx
+│  ├─ config.js
+│  ├─ index.html
+│  ├─ markers.json
+│  ├─ package.json
+│  ├─ README.md 
+│  ├─ style.css
+│  └─ test.js
 ├─ app/
 │  ├─ __init__.py
 │  ├─ config.py                          # all env + constants (no side effects)

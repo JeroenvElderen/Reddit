@@ -22,17 +22,6 @@ async def _geocode(name: str, country: str):
 
     return await loop.run_in_executor(None, fetch)
 
-async def _fetch_law(country: str):
-    url = f"https://restcountries.com/v3.1/name/{quote(country)}?fields=region"
-    loop = asyncio.get_running_loop()
-    def fetch():
-        res = requests.get(url, timeout=10)
-        data = res.json()
-        if data and isinstance(data, list) and data[0].get("region"):
-            return f"Region: {data[0]['region']}"
-        return "No data"
-    return await loop.run_in_executor(None, fetch)
-
 def _save_marker(marker):
     try:
         with LEGAL_MAP_MARKERS_PATH.open() as f:
@@ -53,17 +42,17 @@ async def on_message(message: discord.Message):
         if len(parts) >= 2:
             name, country = parts[:2]
             category = parts[2].lower() if len(parts) >= 3 else "unofficial"
+            description = parts[3] if len(parts) >= 4 else ""
             if category not in {"allowed", "restricted", "unofficial", "illegal"}:
                 category = "unofficial"
             try:
                 coords = await _geocode(name, country)
-                law = await _fetch_law(country)
                 marker = {
                     "name": name,
                     "country": country,
                     "category": category,
                     "coordinates": coords,
-                    "law": law
+                    "description": description,
                 }
                 _save_marker(marker)
                 if LEGAL_MAP_CHANNEL_ID:
