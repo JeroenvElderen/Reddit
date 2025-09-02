@@ -320,6 +320,43 @@ function App() {
     });
   };
 
+  const removeMarker = (id) => {
+    const idx = markersRef.current.findIndex(m => m.id === id);
+    if (idx !== -1) {
+      const { marker } = markersRef.current[idx];
+      marker.map = null;
+      markersRef.current.splice(idx, 1);
+      refreshCountries();
+    }
+  };
+
+  useEffect(() => {
+    if (!sb) return;
+    const channel = sb
+      .channel('map_markers_changes')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'map_markers' },
+        payload => { renderMarker(payload.new); }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'map_markers' },
+        payload => {
+          removeMarker(payload.new.id);
+          renderMarker(payload.new);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'map_markers' },
+        payload => { removeMarker(payload.old.id); }
+      )
+      .subscribe();
+
+    return () => { sb.removeChannel(channel); };
+  }, []);
+
   const addMarker = async ({
     name = 'Unnamed', country, category, coordinates, description = '', username
   }) => {
