@@ -71,9 +71,16 @@ html, body, #root {
     }
     #search-bar {
         flex-direction: column;
-    }
-    #search-bar .username-input {
+        align-items: center;  /* center inputs */
         width: 100%;
+    }
+    #search-bar .search-input,
+    #search-bar .username-input {
+        width: 100%;          /* full width inside overlay */
+        max-width: 100%;
+    }
+    #search-bar input {
+        margin: 6px 0;        /* equal vertical spacing */
     }
 }
 
@@ -389,8 +396,8 @@ input { padding:4px; }
     #marker-form input,
     #marker-form select,
     #marker-form textarea {
-        margin: 8px auto;
-        width: calc(100% - 32px);
+        margin: 8px 0;
+        width: 100%;
         font-size: 0.95rem;
     }
 }
