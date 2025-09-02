@@ -273,6 +273,17 @@ input { padding:4px; }
     font-family: "Poppins", sans-serif;
     color: #fff;
 }
+
+/* Fixed bottom popup card */
+.card.popup {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 400px;
+    box-sizing: border-box;
+}
+
 .card-header {
     position: absolute;
     top: 0;
