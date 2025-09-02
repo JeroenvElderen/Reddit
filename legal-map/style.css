@@ -80,7 +80,7 @@ html, body, #root {
         max-width: 100%;
     }
     #search-bar input {
-        margin: 6px 0;        /* equal vertical spacing */
+        margin: 2px 0;        /* equal vertical spacing */
     }
 }
 
