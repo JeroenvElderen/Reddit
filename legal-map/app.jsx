@@ -25,6 +25,8 @@ function App() {
     unofficial: true,
     illegal: true
   });
+  const [countryFilter, setCountryFilter] = useState('All');
+  const [countries, setCountries] = useState([]);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [legendOpen, setLegendOpen] = useState(window.innerWidth >= 768);
 
@@ -157,11 +159,21 @@ function App() {
     setFilter(prev => ({ ...prev, [cat]: !prev[cat] }));
   };
 
+  const refreshCountries = () => {
+    const list = Array.from(new Set(markersRef.current.map(m => m.country))).sort();
+    setCountries(list);
+    if (countryFilter !== 'All' && !list.includes(countryFilter)) {
+      setCountryFilter('All');
+    }
+  };
+
   useEffect(() => {
-    markersRef.current.forEach(({ marker, category }) => {
-      marker.map = filter[category] ? mapRef.current : null;
+    markersRef.current.forEach(({ marker, category, country }) => {
+      const matchCat = filter[category];
+      const matchCountry = countryFilter === 'All' || country === countryFilter;
+      marker.map = (matchCat && matchCountry) ? mapRef.current : null;
     });
-  }, [filter]);
+  }, [filter, countryFilter]);
 
   const geocode = (name, country) => new Promise((resolve, reject) => {
     if (!geocoderRef.current) return reject('Geocoder not loaded');
@@ -223,8 +235,10 @@ function App() {
     });
     marker.zIndex = 0; // baseline so we can move it behind when IW opens
 
-    markersRef.current.push({ marker, category: cat, id: markerId });
-    marker.map = filter[cat] ? mapRef.current : null;
+    markersRef.current.push({ marker, category: cat, id: markerId, country });
+    refreshCountries();
+    const visible = filter[cat] && (countryFilter === 'All' || country === countryFilter);
+    marker.map = visible ? mapRef.current : null;
 
     const text = description || law || '';
     const colorClass = categoryClassMap[cat] || 'blue';
@@ -323,6 +337,7 @@ function App() {
         }
         return true;
       });
+      refreshCountries();
       if (sb) {
         const { error } = await sb
           .from('map_markers')
@@ -454,6 +469,18 @@ function App() {
             {cat}
           </label>
         ))}
+        {countries.length > 0 && (
+          <select
+            className="country-select"
+            value={countryFilter}
+            onChange={e => setCountryFilter(e.target.value)}
+          >
+            <option value="All">All countries</option>
+            {countries.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        )}
       </div>
       {isMobile && (
         <button id="legend-toggle" onClick={() => setLegendOpen(o => !o)}>

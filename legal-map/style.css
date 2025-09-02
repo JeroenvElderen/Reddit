@@ -139,6 +139,13 @@ html, body, #root {
 .legend-marker.unofficial { background: #5a81ff; }
 .legend-marker.illegal { background: #fe6c9b; }
 
+#legend .country-select {
+    margin-top: 0.5rem;
+    width: 100%;
+    padding: 0.25rem;
+    border-radius: 0.5rem;
+}
+
 #legend-toggle {
     position: fixed;
     right: 20px;
@@ -347,6 +354,8 @@ input { padding:4px; }
 #marker-form {
     width: 400px;
     max-width: 90vw;
+    padding: 12px;
+    box-sizing: border-box;
 }
 
 @media (max-width: 767px) {
@@ -357,6 +366,7 @@ input { padding:4px; }
         max-height: 85vh;
         overflow-y: auto;
         border-radius: 1rem;
+        padding: 12px;
     }
 }
 
@@ -364,9 +374,9 @@ input { padding:4px; }
 #marker-form select,
 #marker-form textarea {
     display: block;
-    width: calc(100% - 24px);
+    width: 100%;
     box-sizing: border-box;
-    margin: 12px auto;
+    margin: 8px 0;
     padding: 1rem 1rem;
     border: none;
     border-radius: 1rem;
