@@ -398,7 +398,6 @@ function App() {
             username
           });
       }
-      logDiscord(`Edit requested by ${username}: ${name}, ${country}, ${category}`);
       alert('Edit request submitted for approval');
     } catch (err) {
       console.error('Error requesting marker update', err);
@@ -412,7 +411,6 @@ function App() {
           .from('pending_marker_actions')
           .insert({ action: 'delete', marker_id: id, name, country, category, username });
       }
-      logDiscord(`Delete requested by ${username}: ${name}, ${country}, ${category}`);
       alert('Deletion request submitted for approval');
     } catch (err) {
       console.error('Error requesting marker deletion', err);
