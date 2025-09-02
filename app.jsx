@@ -80,8 +80,8 @@ function App() {
 
     const init = () => {
       mapRef.current = new google.maps.Map(mapContainer.current, {
-        center: { lat: 0, lng: 0 },
-        zoom: 2,
+        center: { lat: 50, lng: 10 },
+        zoom: 4,
         minZoom: 4,
         mapId: MAP_ID,
         mapTypeControl: false,
@@ -270,7 +270,7 @@ function App() {
     const colorClass = categoryClassMap[cat] || 'blue';
 
     const content = document.createElement('div');
-    content.className = `card ${colorClass}`;
+    content.className = `card popup ${colorClass}`;
     content.innerHTML = `
       <div class="card-body">
         <div>
