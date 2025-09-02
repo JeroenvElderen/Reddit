@@ -24,6 +24,9 @@ pending_spots = {}
 # auto_approved[msg_id] = {"item": praw obj, "created_ts": float}
 auto_approved = {}
 
+# pending_marker_actions[msg_id] = row from pending_marker_actions table
+pending_marker_actions = {}
+
 _SEEN_FILE = Path("seen_ids.json")
 
 

@@ -5,7 +5,8 @@ Discord events: startup and reaction handling.
 import asyncio, threading
 from app.clients.discord_bot import bot
 from app.clients.reddit_bot import reddit
-from app.models.state import pending_reviews, pending_spots, SUBREDDIT_NAME, auto_approved
+from app.clients.supabase import supabase
+from app.models.state import pending_reviews, pending_spots, SUBREDDIT_NAME, auto_approved, pending_marker_actions
 from app.persistence.pending_restore import restore_pending_reviews
 from app.persistence.pending_delete import delete_pending_review
 from app.moderation.approval_awards import apply_approval_awards
@@ -33,6 +34,7 @@ from app.posters.post_achievements_weekly import weekly_achievements_loop
 from app.loops.loop_upvotes import upvote_reward_loop
 from app.loops.loop_cah import cah_loop
 from app.loops.loop_pack_sched import pack_schedule_loop
+from app.loops.loop_marker_actions import marker_actions_loop
 
 
 @bot.event
@@ -52,6 +54,7 @@ async def on_ready():
     threading.Thread(target=upvote_reward_loop, daemon=True).start()
     threading.Thread(target=cah_loop, daemon=True).start()
     threading.Thread(target=pack_schedule_loop, daemon=True).start()
+    threading.Thread(target=marker_actions_loop, daemon=True).start()
 
 
 @bot.event
@@ -70,6 +73,41 @@ async def on_reaction_add(reaction, user):
             await approve_spot(reaction.message, user, spot)
         elif str(reaction.emoji) == "❌":
             await reject_spot(reaction.message, user, spot)
+        return
+
+    if msg_id in pending_marker_actions:
+        row = pending_marker_actions.pop(msg_id)
+        action = row.get("action")
+        try:
+            if str(reaction.emoji) == "✅":
+                if action == "delete":
+                    supabase.table("map_markers").delete().eq("id", row.get("marker_id")).execute()
+                    await reaction.message.channel.send(
+                        f"🗑️ Deleted marker {row.get('name')} (requested by u/{row.get('username')})"
+                    )
+                elif action == "edit":
+                    supabase.table("map_markers").update({
+                        "name": row.get("name"),
+                        "country": row.get("country"),
+                        "category": row.get("category"),
+                        "coordinates": row.get("coordinates"),
+                        "description": row.get("description"),
+                        "username": row.get("username"),
+                    }).eq("id", row.get("marker_id")).execute()
+                    await reaction.message.channel.send(
+                        f"✏️ Edited marker {row.get('name')} (requested by u/{row.get('username')})"
+                    )
+            elif str(reaction.emoji) == "❌":
+                await reaction.message.channel.send(
+                    f"❌ Rejected {action} request for marker {row.get('name')} (requested by u/{row.get('username')})"
+                )
+            supabase.table("pending_marker_actions").delete().eq("id", row.get("id")).execute()
+            try:
+                await reaction.message.delete()
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"🔥 Error handling marker action reaction: {e}")
         return
 
     if msg_id in auto_approved:

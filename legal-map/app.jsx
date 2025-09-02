@@ -296,8 +296,12 @@ function App() {
       deleteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         closeOpenInfo();
+        if (!username.trim()) {
+          alert('Please enter your Reddit username before deleting')
+          return;
+        }
         if (confirm('Delete this marker?')) {
-          await deleteMarker(markerId, { name, country, category: cat });
+          await deleteMarker(markerId, { name, country, category: cat, username: username.trim() });
         }
       });
     }
@@ -333,7 +337,7 @@ function App() {
         }
       }
       renderMarker({ id, name, country, category, coordinates: coords, description });
-      logDiscord(`New marker: ${name}, ${country}, ${category}`);
+      logDiscord(`New marker by: ${username}, ${name}, ${country}, ${category}`);
     } catch (err) {
       console.error('Error adding marker', err);
     }
@@ -342,48 +346,38 @@ function App() {
   const updateMarker = async (id, { name, country, category, coordinates, description = '', username }) => {
     try {
       const coords = coordinates || await geocode(name, country);
-      markersRef.current = markersRef.current.filter(m => {
-        if (m.id === id) {
-          m.marker.map = null;
-          return false;
-        }
-        return true;
-      });
-      refreshCountries();
       if (sb) {
-        const { error } = await sb
-          .from('map_markers')
-          .update({ name, country, category, coordinates: coords, description, username })
-          .eq('id', id);
-        if (error) console.error('Supabase update error', error);
+        await sb
+          .from('pending_marker_actions')
+          .insert({
+            action: 'edit',
+            marker_id: id,
+            name,
+            country,
+            category,
+            coordinates: coords,
+            description,
+            username
+          });
       }
-      renderMarker({ id, name, country, category, coordinates: coords, description });
-      logDiscord(`Updated marker: ${name}, ${country}, ${category}`);
+      logDiscord(`Edit requested by ${username}: ${name}, ${country}, ${category}`);
+      alert('Edit request submitted for approval');
     } catch (err) {
-      console.error('Error updating marker', err);
+      console.error('Error requesting marker update', err);
     }
   };
 
-  const deleteMarker = async (id, { name, country, category }) => {
+  const deleteMarker = async (id, { name, country, category, username }) => {
     try {
-      markersRef.current = markersRef.current.filter(m => {
-        if (m.id === id) {
-          m.marker.map = null;
-          return false;
-        }
-        return true;
-      });
-      refreshCountries();
       if (sb) {
-        const { error } = await sb
-          .from('map_markers')
-          .delete()
-          .eq('id', id);
-        if (error) console.error('Supabase delete error', error);
+        await sb
+          .from('pending_marker_actions')
+          .insert({ action: 'delete', marker_id: id, name, country, category, username });
       }
-      logDiscord(`Deleted marker: ${name}, ${country}, ${category}`);
+      logDiscord(`Delete requested by ${username}: ${name}, ${country}, ${category}`);
+      alert('Deletion request submitted for approval');
     } catch (err) {
-      console.error('Error deleting marker', err);
+      console.error('Error requesting marker deletion', err);
     }
   };
 
