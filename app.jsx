@@ -298,10 +298,16 @@ function App() {
         iwd.style.maxWidth = 'none';
         iwd.style.width = 'auto';
       }
-      if (!isMobile && mapRef.current) {
+      if (mapRef.current) {
         mapRef.current.panTo(marker.position);
-        const h = content.offsetHeight || 0;
-        mapRef.current.panBy(0, -h / 2);
+        if (isMobile) {
+          const mapHeight = mapRef.current.getDiv().offsetHeight;
+          const offset = mapHeight / 2 - 150; // align marker/card near bottom on mobile
+          mapRef.current.panBy(0, -offset);
+        } else {
+          const h = content.offsetHeight || 0;
+          mapRef.current.panBy(0, -h / 2);
+        }
       }
     });
 
@@ -347,11 +353,6 @@ function App() {
       pushMarkersBehind(); // IMPORTANT: push pins behind before opening IW
       info.open({ map: mapRef.current, anchor: marker });
       openInfoRef.current = info;
-      const mobile = window.innerWidth < 768;
-      if (mobile && mapRef.current) {
-        const mapHeight = mapRef.current.getDiv().offsetHeight;
-        mapRef.current.panBy(0, -mapHeight / 4);
-      }
     });
   };
 
