@@ -8,43 +8,202 @@ html, body, #root {
 }
 
 #map {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
-    z-index: 0;
+    min-height: 100vh;
+}
+
+@media (max-width: 767px) {
+    #map {
+        height: 100dvh;
+        min-height: unset;
+    }
 }
 
 #overlay {
     position: absolute;
     top: 10px;
     left: 50%;
+    transform: translateX(-50%);
     width: calc(100% - 20px);
     max-width: 400px;
     z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    pointer-events: none;
+}
+
+#overlay * {
+    pointer-events: auto;
+}
+
+#search-bar {
+    width: 100%;
+    display: flex;
+    gap: 0.5rem;
+}
+
+#search-bar input {
+    width: auto;
+}
+
+#search-bar .search-input {
+    flex: 1;
+}
+
+#search-bar .username-input {
+    width: 150px;
+}
+
+#overlay.centered {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+@media (max-width: 767px) {
+    #overlay {
+        width: 80%;
+    }
+    #search-bar {
+        flex-direction: column;
+    }
+    #search-bar .username-input {
+        width: 100%;
+    }
+}
+
+#form-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+}
+
+
+#legend {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 2;
+    background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
+    color: #fff;
+    padding: 1rem 1.5rem;
+    border-radius: 1rem;
+    box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
+    font-family: "Poppins", sans-serif;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 767px) {
+    #legend {
+        top: auto;
+        bottom: 10px;
+    }
+}
+
+#legend.hidden {
+    display: none;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin: 4px 0;
+}
+
+.legend-item input {
+    margin-right: 4px;
+}
+
+.legend-marker {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 4px;
+    font-size: 0.75rem;
+    border: 1px solid #fff;
+    color: #000;
+}
+
+.legend-marker.official { background: #2eea9d; }
+.legend-marker.restricted { background: #ffd84d; }
+.legend-marker.unofficial { background: #5a81ff; }
+.legend-marker.illegal { background: #fe6c9b; }
+
+#legend-toggle {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 2;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Poppins", sans-serif;
+    font-size: 1.5rem;
+    color: #fff;
+    background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
+    border: none;
+    border-radius: 1rem;
+    cursor: pointer;
+    box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
+}
+
+@media (min-width: 768px) {
+    #legend-toggle { display: none; }
 }
 
 input { padding:4px; }
-select { padding:4px; margin-left:4px; }
+
+#overlay input {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
+    background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
+    color: #fff;
+    font-family: "Poppins", sans-serif;
+}
+#overlay input::placeholder {
+    color: #cccccc;
+}
 
 #suggestions {
     list-style: none;
-    margin: 4px 10px;
+    margin: 4px 0 0;
     padding: 0;
-    background: #fff;
-    border: 1px solid #ccc;
+    width: 100%;
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
+    background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
+    color: #fff;
+    font-family: "Poppins", sans-serif;
+    overflow: hidden;
 }
 
 #suggestions li {
-    padding: 4px;
+    padding: 0.6rem 1rem;
     cursor: pointer;
 }
 
+#suggestions li + li {
+    border-top: 1px solid rgba(255,255,255,0.2);
+}
+
 #suggestions li:hover {
-    background: #eee;
+    background: rgba(255,255,255,0.1);
 }
 
 /* Remove default InfoWindow background and close */
@@ -55,6 +214,7 @@ select { padding:4px; margin-left:4px; }
     overflow: visible !important;
     max-width: none !important;
     max-height: none !important;
+    width: auto !important;
 }
 .gm-style-iw-t,
 .gm-style-iw-c {
@@ -69,12 +229,29 @@ select { padding:4px; margin-left:4px; }
     display: none !important;
 }
 
+/* Ensure marker cards sit above all other overlays */
+.gm-style-iw,
+.gm-style-iw-d,
+.gm-style-iw-t,
+.gm-style-iw-c {
+    z-index: 9999 !important;
+}
+
+@media (max-width: 767px) {
+    .gm-style-iw,
+    .gm-style-iw-d {
+        width: 90vw !important;
+    }
+}
+
 /* Popup card styling */
 .card {
     position: relative;
     z-index: 555;
     width: 90%;          /* default: mobile friendly */
     max-width: 44rem;    /* increased for longer text */
+    max-height: 80vh;    /* prevent overflow on small screens */
+    overflow-y: auto;
     display: inline-block;
     border-radius: 1rem;
     box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
@@ -100,6 +277,7 @@ select { padding:4px; margin-left:4px; }
 .card-body {
     width: 100%;
     padding: 1.2em;
+    box-sizing: border-box;
     text-align: left;
     display: flex;
 }
@@ -139,23 +317,27 @@ select { padding:4px; margin-left:4px; }
     overflow-wrap: anywhere;
 }
 
-.card.blue {
+.card.blue,
+#marker-form.blue {
     background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
 }
 .card.blue .icon { color: #5a81ff; }
 
-.card.green {
-    background: radial-gradient(ellipse at right top,#107667ed 0%,#151419 47%,#151419 100%);
+.card.green,
+#marker-form.green {
+    background: radial-gradient(ellipse at right top,#10766782 0%,#151419 47%,#151419 100%);
 }
 .card.green .icon { color: #2eea9d; }
 
-.card.red {
+.card.red,
+#mark-form.red {
     background: radial-gradient(ellipse at right top,#a63d2a82 0%,#151419 47%,#151419 100%);
 }
 .card.red .icon { color: #fe6c9b; }
 
-.card.yellow {
-    background: radial-gradient(ellipse at right top, #e6c229 0%, #151419 47%, #151419 100%);
+.card.yellow,
+#marker-form.yellow {
+    background: radial-gradient(ellipse at right top, #e6c22982 0%, #151419 47%, #151419 100%);
 }
 .card.yellow .icon {
     color: #ffd84d;
@@ -163,39 +345,59 @@ select { padding:4px; margin-left:4px; }
 
 /* Form styling */
 #marker-form {
-    background: radial-gradient(ellipse at right top,#107667ed 0%,#151419 47%,#151419 100%);
-    color: #fff;
-    border-radius: 1rem;
-    box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
-    padding: 1rem 1.5rem;
-    margin-top: 8px;
-    font-family: "Poppins", sans-serif;
+    width: 400px;
+    max-width: 90vw;
 }
+
+@media (max-width: 767px) {
+    #marker-form {
+        width: 80vw;
+        max-width: 80vw;
+    }
+}
+
 #marker-form input,
 #marker-form select,
-#marker-form textarea,
-#marker-form button {
+#marker-form textarea {
     display: block;
-    width: 100%;
-    margin: 6px 0;
-    padding: 0.5rem;
+    width: 80% !important;
+    box-sizing: border-box;
+    margin: 6px auto;
+    padding: 0.5rem 1rem;
     border: none;
-    border-radius: 0.25rem;
+    border-radius: 1rem;
     background: #222127;
     color: #fff;
+    font-family: "Poppins", sans-serif;
 }
-#marker-form button {
-    background: #2eea9d;
-    color: #111;
-    cursor: pointer;
+
+#marker-form select {
+    -webkit-appearance: none;
+    appearance: none;
 }
-#marker-form button:hover {
-    background: #24c787;
+
+#marker-form select.blue {
+    background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 47%,#151419 100%);
+    color: #fff;
+}
+#marker-form select.green {
+    background: radial-gradient(ellipse at right top,#10766782 0%,#151419 47%,#151419 100%);
+    color: #fff;
+}
+#marker-form select.red {
+    background: radial-gradient(ellipse at right top,#a63d2a82 0%,#151419 47%,#151419 100%);
+    color: #fff;
+}
+#marker-form select.yellow {
+    background: radial-gradient(ellipse at right top,#e6c22982 0%,#151419 47%,#151419 100%);
+    color: #fff;
 }
 
 /* Buttons inside popup cards */
 .card button {
-    display: inline-block;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
     margin-top: 0.75em;
     padding: 0.6em 1.2em;
     font-family: "Poppins", sans-serif;
@@ -219,20 +421,29 @@ select { padding:4px; margin-left:4px; }
     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
+#marker-form button {
+    width: 80% !important;
+    margin: 0.75em auto 0;
+}
+
 /* Category-themed buttons */
-.card.blue button {
+.card.blue button,
+#marker-form.blue button {
     background: #5a81ff;
     color: #fff;
 }
-.card.green button {
+.card.green button,
+#marker-form.green button {
     background: #2eea9d;
     color: #111;
 }
-.card.red button {
+.card.red button,
+#marker-form.red button {
     background: #fe6c9b;
     color: #fff;
 }
-.card.yellow button {
+.card.yellow button,
+#marker-form.yellow button {
     background: #ffd84d;
     color: #111;
 }
@@ -240,12 +451,21 @@ select { padding:4px; margin-left:4px; }
 /* Responsive tweaks */
 @media (max-width: 767px) {
     .card {
+        width: 100%;      /* full width on mobile */
+        max-width: none;  /* allow card to match info window width */
         width: 90%;       /* nearly full width on mobile */
         max-width: 95vw;  /* never overflow screen */
+        max-height: none; /* allow full height so text doesn't overflow */
+    }
+    .card-body h3 {
+        font-size: 1.1rem;
+    }
+    .card-body p {
+        font-size: 0.9rem;
     }
     .card button {
-        width: 100%;      /* full-width button on mobile */
-        text-align: center;
+        text-align: center; /* width already 100% */
+        padding: 0.6em 1.2em;
     }
 }
 
