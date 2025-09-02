@@ -495,6 +495,7 @@ function App() {
   };
 
   const handleSuggestionClick = (prediction) => {
+    closeOpenInfo();
     setQuery('');
     setSuggestions([]);
     if (!geocoderRef.current) return;
@@ -513,6 +514,7 @@ function App() {
   };
 
   const handleSearchSubmit = () => {
+    closeOpenInfo();
     if (!query || !geocoderRef.current) return;
     geocoderRef.current.geocode({ address: query }, (results, status) => {
       if (status === 'OK' && results[0]) {
@@ -539,6 +541,7 @@ function App() {
           <input
             value={query}
             onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
+            onFocus={closeOpenInfo}
             onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
             placeholder="Search for a place"
             className="search-input"
