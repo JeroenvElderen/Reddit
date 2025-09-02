@@ -277,7 +277,7 @@ function App() {
           <h3>${name}</h3>
           <p>${country}</p>
           <p>${category}</p>
-          <p>${text}</p>
+          <p class="card-text">${text}</p>
           <button class="edit-marker">Edit Marker</button>
           <button class="delete-marker">Delete Marker</button>
           <button onclick="window.open('https://www.google.com/maps?q=${pos.lat},${pos.lng}', '_blank')">View on Google Maps</button>
