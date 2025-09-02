@@ -20,6 +20,43 @@ async def _send_action(row):
     title = "Marker Delete Request" if action == "delete" else "Marker Edit Request"
     desc = f"{name}, {country} ({category}) by {user}"
     embed = discord.Embed(title=title, description=desc, color=discord.Color.orange())
+
+    if action == "edit":
+        marker_id = row.get("marker_id")
+        try:
+            old_row = (
+                supabase.table("map_markers")
+                .select("name, country, category, coordinates, description")
+                .eq("id", marker_id)
+                .execute()
+                .data
+                or []
+            )
+            old_row = old_row[0] if old_row else {}
+        except Exception:
+            old_row = {}
+
+        changes = []
+        for field, label in [
+            ("name", "Name"),
+            ("country", "Country"),
+            ("category", "Category"),
+            ("coordinates", "Coordinates"),
+            ("description", "Description"),
+        ]:
+            new_val = row.get(field)
+            old_val = old_row.get(field)
+            if str(new_val) != str(old_val):
+                new_str = str(new_val) if new_val is not None else ""
+                old_str = str(old_val) if old_val is not None else ""
+                if label == "Description":
+                    new_str = new_str[:500]
+                    old_str = old_str[:500]
+                changes.append(f"**{label}:** {old_str or '—'} → {new_str or '—'}")
+
+        if changes:
+            embed.add_field(name="Updates", value="\n".join(changes), inline=False)
+
     msg = await channel.send(embed=embed)
     await msg.add_reaction("✅")
     await msg.add_reaction("❌")
