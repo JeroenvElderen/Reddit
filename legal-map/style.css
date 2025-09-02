@@ -351,8 +351,12 @@ input { padding:4px; }
 
 @media (max-width: 767px) {
     #marker-form {
-        width: 80vw;
-        max-width: 80vw;
+        width: 95vw;
+        max-width: 95vw;
+        height: auto;
+        max-height: 85vh;
+        overflow-y: auto;
+        border-radius: 1rem;
     }
 }
 
@@ -369,6 +373,16 @@ input { padding:4px; }
     background: rgba(34,33,39,0.5);
     color: #fff;
     font-family: "Poppins", sans-serif;
+}
+
+@media (max-width: 767px) {
+    #marker-form input,
+    #marker-form select,
+    #marker-form textarea {
+        margin: 8px auto;
+        width: 90% !important;
+        font-size: 0.95rem;
+    }
 }
 
 #marker-form select {
@@ -426,6 +440,13 @@ input { padding:4px; }
     margin: 0.75em;
 }
 
+@media (max-width: 767px) {
+    #marker-form button {
+        padding: 0.8rem;
+        font-size: 1rem;
+    }
+}
+
 /* Category-themed buttons */
 .card.blue button,
 #marker-form.blue button {
@@ -451,20 +472,20 @@ input { padding:4px; }
 /* Responsive tweaks */
 @media (max-width: 767px) {
     .card {
-        width: 100%;      /* full width on mobile */
-        max-width: none;  /* allow card to match info window width */
-        width: 90%;       /* nearly full width on mobile */
-        max-width: 95vw;  /* never overflow screen */
-        max-height: none; /* allow full height so text doesn't overflow */
+        width: 95vw;
+        max-width: 95vw;
+        max-height: 85vh;
+        overflow-y: auto;
+        border-radius: 0.8rem;
     }
     .card-body h3 {
-        font-size: 1.1rem;
+        font-size: 1rem;
     }
     .card-body p {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
     .card button {
-        text-align: center; /* width already 100% */
+        text-align: center;
         padding: 0.6em 1.2em;
     }
 }
@@ -480,5 +501,12 @@ input { padding:4px; }
     .card {
         width: auto;
         max-width: 44rem; /* larger max-width on desktop */
+    }
+}
+
+/* Typography scaling for very small devices */
+@media (max-width: 480px) {
+    body, input, select, textarea, button {
+        font-size: 14px;
     }
 }
