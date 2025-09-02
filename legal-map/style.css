@@ -167,11 +167,11 @@ input { padding:4px; }
 
 #overlay input {
     width: 100%;
-    padding: 0.6rem 1rem;
+    padding: 0.8rem 1rem;
     border: none;
     border-radius: 1rem;
     box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
-    background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
+    background: transparent;
     color: #fff;
     font-family: "Poppins", sans-serif;
 }

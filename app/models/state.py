@@ -21,6 +21,9 @@ pending_reviews = {}
 # pending_spots[msg_id] = {"spot": SpotSubmission, "created_ts": float}
 pending_spots = {}
 
+# auto_approved[msg_id] = {"item": praw obj, "created_ts": float}
+auto_approved = {}
+
 _SEEN_FILE = Path("seen_ids.json")
 
 

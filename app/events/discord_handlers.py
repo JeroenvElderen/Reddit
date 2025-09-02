@@ -5,7 +5,7 @@ Discord events: startup and reaction handling.
 import asyncio, threading
 from app.clients.discord_bot import bot
 from app.clients.reddit_bot import reddit
-from app.models.state import pending_reviews, pending_spots, SUBREDDIT_NAME
+from app.models.state import pending_reviews, pending_spots, SUBREDDIT_NAME, auto_approved
 from app.persistence.pending_restore import restore_pending_reviews
 from app.persistence.pending_delete import delete_pending_review
 from app.moderation.approval_awards import apply_approval_awards
@@ -70,6 +70,132 @@ async def on_reaction_add(reaction, user):
             await approve_spot(reaction.message, user, spot)
         elif str(reaction.emoji) == "❌":
             await reject_spot(reaction.message, user, spot)
+        return
+
+    if msg_id in auto_approved:
+        entry = auto_approved.pop(msg_id)
+        item = entry["item"]
+        author_name = str(item.author)
+        try:
+            if str(reaction.emoji) == "⚠️":
+                count = issue_context_warning(item)
+                await reaction.message.channel.send(
+                    f"⚠️ Warning issued to u/{author_name}. Warning {count}/3."
+                )
+                record_mod_decision(entry.get("created_ts"), user.id)
+                await _lock_and_delete_message(reaction.message)
+
+            elif str(reaction.emoji) == "❌":
+                item.mod.remove()
+                old_k, new_k, flair = apply_karma_and_flair(
+                    item.author, -1, allow_negative=True
+                )
+                await reaction.message.channel.send(
+                    f"❌ Removed u/{author_name}'s item ({old_k} → {new_k}), flair: {flair}."
+                )
+
+                review_msg = reaction.message
+                for emoji in REJECTION_REASONS.keys():
+                    await review_msg.add_reaction(emoji)
+
+                def check(r, u):
+                    return (
+                        r.message.id == review_msg.id
+                        and u.id == user.id
+                        and str(r.emoji) in REJECTION_REASONS
+                    )
+
+                try:
+                    reason_reaction, _ = await bot.wait_for(
+                        "reaction_add", timeout=60.0, check=check
+                    )
+                    if str(reason_reaction.emoji) == "✏️":
+                        prompt_msg = await reaction.message.channel.send(
+                            f"{user.mention}, type the custom rejection reason (60s timeout):"
+                        )
+                        msg = await bot.wait_for(
+                            "message",
+                            timeout=60.0,
+                            check=lambda m: m.author == user and m.channel == reaction.message.channel,
+                        )
+                        reason_text = f"Custom: {msg.content}"
+                        try:
+                            await prompt_msg.delete()
+                            await msg.delete()
+                        except Exception:
+                            pass
+                    else:
+                        reason_text = REJECTION_REASONS[str(reason_reaction.emoji)]
+
+                    try:
+                        reddit.redditor(author_name).message(
+                            f"❌ Your post/comment was removed from r/{SUBREDDIT_NAME}",
+                            f"Reason: {reason_text}\n\nPlease review the rules before posting again.",
+                        )
+                    except Exception:
+                        pass
+
+                    await log_rejection(item, old_k, new_k, flair, reason_text)
+                except asyncio.TimeoutError:
+                    await reaction.message.channel.send(
+                        "⏳ No rejection reason chosen, skipping DM/log reason."
+                    )
+                record_mod_decision(entry.get("created_ts"), user.id)
+                await _lock_and_delete_message(reaction.message)
+
+            elif str(reaction.emoji) == "⛔":
+                item.mod.remove()
+                old_k, new_k, flair = apply_karma_and_flair(
+                    item.author, -1, allow_negative=True
+                )
+                prompt_msg = await reaction.message.channel.send(
+                    f"{user.mention}, type the ban reason (5m timeout):"
+                )
+                try:
+                    msg = await bot.wait_for(
+                        "message",
+                        timeout=300.0,
+                        check=lambda m: m.author == user and m.channel == reaction.message.channel,
+                    )
+                    reason_text = msg.content
+                    try:
+                        await prompt_msg.delete()
+                        await msg.delete()
+                    except Exception:
+                        pass
+                except asyncio.TimeoutError:
+                    reason_text = "No reason provided"
+                    await reaction.message.channel.send(
+                        "⏳ No ban reason provided, proceeding without reason."
+                    )
+
+                try:
+                    reddit.subreddit(SUBREDDIT_NAME).banned.add(
+                        author_name,
+                        ban_reason=reason_text[:100],
+                        ban_message=f"You are banned from r/{SUBREDDIT_NAME}: {reason_text[:1000]}",
+                        note=reason_text[:300],
+                    )
+                except Exception:
+                    pass
+                try:
+                    reddit.redditor(author_name).message(
+                        f"⛔ You are banned from r/{SUBREDDIT_NAME}",
+                        f"Reason: {reason_text}",
+                    )
+                except Exception:
+                    pass
+
+                await reaction.message.channel.send(
+                    f"⛔ Banned u/{author_name} ({old_k} → {new_k}), flair: {flair}. Reason: {reason_text}"
+                )
+
+                record_mod_decision(entry.get("created_ts"), user.id)
+                await _lock_and_delete_message(reaction.message)
+                await log_ban(item, old_k, new_k, flair, reason_text)
+
+        except Exception as e:
+            print(f"🔥 Error handling auto reaction {reaction.emoji} for u/{author_name}: {e}")
         return
     
     # Stale card

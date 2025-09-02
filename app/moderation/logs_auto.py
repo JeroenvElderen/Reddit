@@ -2,12 +2,13 @@
 Auto moderation logs + shadow flag helpers.
 """
 
-import discord
+import time, discord
 from app.clients.discord_bot import bot
 from app.clients.supabase import supabase
 from app.utils.reddit_images import image_flag_label
 from app.persistence.users_row import about_user_block
 from app.config import DISCORD_AUTO_APPROVAL_CHANNEL_ID
+from app.models.state import auto_approved
 
 
 def get_shadow_flag(username: str) -> str | None:
@@ -62,4 +63,8 @@ async def send_discord_auto_log(item, old_k, new_k, flair, awarded_points, extra
         embed.add_field(name="Notes", value=extras_note, inline=False)
     embed.add_field(name="Link", value=f"https://reddit.com{item.permalink}", inline=False)
 
-    await channel.send(embed=embed)
+    msg = await channel.send(embed=embed)
+    await msg.add_reaction("⚠️")
+    await msg.add_reaction("❌")
+    await msg.add_reaction("⛔")
+    auto_approved[msg.id] = {"item": item, "created_ts": time.time()}
