@@ -253,6 +253,7 @@ function App() {
           <p>${category}</p>
           <p>${text}</p>
           <button class="edit-marker">Edit Marker</button>
+          <button class="delete-marker">Delete Marker</button>
           <button onclick="window.open('https://www.google.com/maps?q=${pos.lat},${pos.lng}', '_blank')">View on Google Maps</button>
         </div>
       </div>`;
@@ -287,6 +288,17 @@ function App() {
         setPendingCoords(coordsArr);
         setEditingId(markerId);
         setShowForm(true);
+      });
+    }
+
+    const deleteBtn = content.querySelector('.delete-marker');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        closeOpenInfo();
+        if (confirm('Delete this marker?')) {
+          await deleteMarker(markerId, { name, country, category: cat });
+        }
       });
     }
 
@@ -349,6 +361,29 @@ function App() {
       logDiscord(`Updated marker: ${name}, ${country}, ${category}`);
     } catch (err) {
       console.error('Error updating marker', err);
+    }
+  };
+
+  const deleteMarker = async (id, { name, country, category }) => {
+    try {
+      markersRef.current = markersRef.current.filter(m => {
+        if (m.id === id) {
+          m.marker.map = null;
+          return false;
+        }
+        return true;
+      });
+      refreshCountries();
+      if (sb) {
+        const { error } = await sb
+          .from('map_markers')
+          .delete()
+          .eq('id', id);
+        if (error) console.error('Supabase delete error', error);
+      }
+      logDiscord(`Deleted marker: ${name}, ${country}, ${category}`);
+    } catch (err) {
+      console.error('Error deleting marker', err);
     }
   };
 
