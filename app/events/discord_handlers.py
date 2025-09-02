@@ -83,7 +83,7 @@ async def on_reaction_add(reaction, user):
                 if action == "delete":
                     supabase.table("map_markers").delete().eq("id", row.get("marker_id")).execute()
                     await reaction.message.channel.send(
-                        f"🗑️ Deleted marker {row.get('name')} (requested by u/{row.get('username')})"
+                        f"❌ Deleted marker {row.get('name')} (requested by u/{row.get('username')})"
                     )
                 elif action == "edit":
                     supabase.table("map_markers").update({
@@ -95,7 +95,7 @@ async def on_reaction_add(reaction, user):
                         "username": row.get("username"),
                     }).eq("id", row.get("marker_id")).execute()
                     await reaction.message.channel.send(
-                        f"✏️ Edited marker {row.get('name')} (requested by u/{row.get('username')})"
+                        f"✅ Edited marker {row.get('name')} (requested by u/{row.get('username')})"
                     )
             elif str(reaction.emoji) == "❌":
                 await reaction.message.channel.send(
