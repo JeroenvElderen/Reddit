@@ -92,7 +92,6 @@ async def on_reaction_add(reaction, user):
                         "category": row.get("category"),
                         "coordinates": row.get("coordinates"),
                         "description": row.get("description"),
-                        "username": row.get("username"),
                     }).eq("id", row.get("marker_id")).execute()
                     await reaction.message.channel.send(
                         f"✅ Edited marker {row.get('name')} (requested by u/{row.get('username')})"

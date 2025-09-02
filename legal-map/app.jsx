@@ -329,7 +329,7 @@ function App() {
       if (sb) {
         const { data: inserted, error } = await sb
           .from('map_markers')
-          .insert({ name, country, category, coordinates: coords, description, username })
+          .insert({ name, country, category, coordinates: coords, description })
           .select();
         if (error) {
           console.error('Supabase insert error', error);
