@@ -6,10 +6,10 @@ import time, asyncio, discord
 from app.clients.supabase import supabase
 from app.clients.discord_bot import bot
 from app.models.state import pending_marker_actions
-from app.config import DISCORD_CHANNEL_ID
+from app.config import DISCORD_MAP_CHANNEL_ID
 
 async def _send_action(row):
-    channel = bot.get_channel(DISCORD_CHANNEL_ID)
+    channel = bot.get_channel(DISCORD_MAP_CHANNEL_ID)
     if not channel:
         return None
     action = row.get("action")
@@ -58,7 +58,10 @@ async def _send_action(row):
             embed.add_field(name="Updates", value="\n".join(changes), inline=False)
 
     msg = await channel.send(embed=embed)
-    await msg.add_reaction("✅")
+    if action == "delete":
+        await msg.add_reaction("🗑️")
+    else:
+        await msg.add_reaction("✅")
     await msg.add_reaction("❌")
     return msg
 

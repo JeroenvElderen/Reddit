@@ -81,27 +81,29 @@ async def on_reaction_add(reaction, user):
         channel = bot.get_channel(DISCORD_MAP_CHANNEL_ID) or reaction.message.channel
         action = row.get("action")
         try:
-            if str(reaction.emoji) == "✅":
-                if action == "delete":
-                    supabase.table("map_markers").delete().eq("id", row.get("marker_id")).execute()
-                    await channel.send(
-                        f"❌ Deleted marker {row.get('name')} (requested by u/{row.get('username')})"
-                    )
-                elif action == "edit":
-                    supabase.table("map_markers").update({
-                        "name": row.get("name"),
-                        "country": row.get("country"),
-                        "category": row.get("category"),
-                        "coordinates": row.get("coordinates"),
-                        "description": row.get("description"),
-                    }).eq("id", row.get("marker_id")).execute()
-                    await channel.send(
-                        f"✅ Edited marker {row.get('name')} (requested by u/{row.get('username')})"
-                    )
+            if action == "delete" and str(reaction.emoji) == "🗑️":
+                supabase.table("map_markers").delete().eq("id", row.get("marker_id")).execute()
+                await channel.send(
+                    f"🗑️ Deleted marker {row.get('name')} (requested by u/{row.get('username')})"
+                )
+            elif action == "edit" and str(reaction.emoji) == "✅":
+                supabase.table("map_markers").update({
+                    "name": row.get("name"),
+                    "country": row.get("country"),
+                    "category": row.get("category"),
+                    "coordinates": row.get("coordinates"),
+                    "description": row.get("description"),
+                }).eq("id", row.get("marker_id")).execute()
+                await channel.send(
+                    f"✅ Edited marker {row.get('name')} (requested by u/{row.get('username')})"
+                )
             elif str(reaction.emoji) == "❌":
                 await channel.send(
                     f"❌ Rejected {action} request for marker {row.get('name')} (requested by u/{row.get('username')})"
                 )
+            else:
+                pending_marker_actions[msg_id] = row
+                return
             supabase.table("pending_marker_actions").delete().eq("id", row.get("id")).execute()
             try:
                 await reaction.message.delete()
