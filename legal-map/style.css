@@ -360,13 +360,13 @@ input { padding:4px; }
 #marker-form select,
 #marker-form textarea {
     display: block;
-    width: 80% !important;
+    width: 95% !important;
     box-sizing: border-box;
-    margin: 6px auto;
-    padding: 0.5rem 1rem;
+    margin: 12px;
+    padding: 1rem 1rem;
     border: none;
     border-radius: 1rem;
-    background: #222127;
+    background: rgba(34,33,39,0.5);
     color: #fff;
     font-family: "Poppins", sans-serif;
 }
@@ -422,8 +422,8 @@ input { padding:4px; }
 }
 
 #marker-form button {
-    width: 80% !important;
-    margin: 0.75em auto 0;
+    width: 95% !important;
+    margin: 0.75em;
 }
 
 /* Category-themed buttons */
