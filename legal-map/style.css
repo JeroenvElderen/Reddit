@@ -333,6 +333,17 @@ input { padding:4px; }
     overflow-wrap: anywhere;
 }
 
+.card-body p.card-text {
+    line-height: 1.4;
+    max-height: calc(1.4em * 8);
+    overflow-y: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.card-body p.card-text::-webkit-scrollbar {
+    display: none;
+}
+
 .card.blue,
 #marker-form.blue {
     background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
@@ -499,13 +510,18 @@ input { padding:4px; }
         transform: translateX(-50%);
         max-width: 400px;
         box-sizing: border-box;
-}
+    }
     .card {
         width: 95vw;
         max-width: 95vw;
         max-height: 85vh;
         overflow-y: auto;
         border-radius: 0.8rem;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .card::-webkit-scrollbar {
+        display: none;
     }
     .card-body h3 {
         font-size: 1rem;
