@@ -17,6 +17,7 @@ function App() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', country: '', description: '' });
   const [username, setUsername] = useState('');
+  const usernameRef = useRef('');
   const [pendingCoords, setPendingCoords] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [filter, setFilter] = useState({
@@ -296,12 +297,12 @@ function App() {
       deleteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         closeOpenInfo();
-        if (!username.trim()) {
+        if (!usernameRef.current.trim()) {
           alert('Please enter your Reddit username before deleting')
           return;
         }
         if (confirm('Delete this marker?')) {
-          await deleteMarker(markerId, { name, country, category: cat, username: username.trim() });
+          await deleteMarker(markerId, { name, country, category: cat, username: username.current.trim() });
         }
       });
     }
@@ -473,7 +474,7 @@ function App() {
           />
           <input
             value={username}
-            onChange={e => setUsername(e.target.value)}
+            onChange={e => { setUsername(e.target.value); usernameRef = e.target.value; }}
             placeholder="Reddit username"
             className="username-input"
           />
