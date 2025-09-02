@@ -21,6 +21,7 @@ from app.models.ruleset import REJECTION_REASONS
 from app.utils.url_parts import _get_permalink_from_embed, _fetch_item_from_permalink
 from app.moderation.spots import approve_spot, reject_spot
 from app.moderation.context_warning import issue_context_warning
+from app.config import DISCORD_MAP_CHANNEL_ID
 
 # loops
 from app.loops.poll_reddit import reddit_polling
@@ -77,12 +78,13 @@ async def on_reaction_add(reaction, user):
 
     if msg_id in pending_marker_actions:
         row = pending_marker_actions.pop(msg_id)
+        channel = bot.get_channel(DISCORD_MAP_CHANNEL_ID) or reaction.message.channel
         action = row.get("action")
         try:
             if str(reaction.emoji) == "✅":
                 if action == "delete":
                     supabase.table("map_markers").delete().eq("id", row.get("marker_id")).execute()
-                    await reaction.message.channel.send(
+                    await channel.send(
                         f"❌ Deleted marker {row.get('name')} (requested by u/{row.get('username')})"
                     )
                 elif action == "edit":
@@ -93,11 +95,11 @@ async def on_reaction_add(reaction, user):
                         "coordinates": row.get("coordinates"),
                         "description": row.get("description"),
                     }).eq("id", row.get("marker_id")).execute()
-                    await reaction.message.channel.send(
+                    await channel.send(
                         f"✅ Edited marker {row.get('name')} (requested by u/{row.get('username')})"
                     )
             elif str(reaction.emoji) == "❌":
-                await reaction.message.channel.send(
+                await channel.send(
                     f"❌ Rejected {action} request for marker {row.get('name')} (requested by u/{row.get('username')})"
                 )
             supabase.table("pending_marker_actions").delete().eq("id", row.get("id")).execute()
