@@ -302,7 +302,7 @@ function App() {
         mapRef.current.panTo(marker.position);
         if (isMobile) {
           const mapHeight = mapRef.current.getDiv().offsetHeight;
-          const offset = mapHeight / 2 - 150; // align marker/card near bottom on mobile
+          const offset = mapHeight / 2 - 50; // align marker/card near bottom on mobile
           mapRef.current.panBy(0, -offset);
         } else {
           const h = content.offsetHeight || 0;
