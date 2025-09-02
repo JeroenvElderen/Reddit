@@ -302,7 +302,7 @@ function App() {
           return;
         }
         if (confirm('Delete this marker?')) {
-          await deleteMarker(markerId, { name, country, category: cat, username: username.current.trim() });
+          await deleteMarker(markerId, { name, country, category: cat, username: usernameRef.current.trim() });
         }
       });
     }
@@ -474,7 +474,7 @@ function App() {
           />
           <input
             value={username}
-            onChange={e => { setUsername(e.target.value); usernameRef = e.target.value; }}
+            onChange={e => { setUsername(e.target.value); usernameRef.current = e.target.value; }}
             placeholder="Reddit username"
             className="username-input"
           />
