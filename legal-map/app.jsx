@@ -15,6 +15,7 @@ function App() {
   const [suggestions, setSuggestions] = useState([]);
   const [category, setCategory] = useState('unofficial');
   const [showForm, setShowForm] = useState(false);
+  const showFormRef = useRef(false);
   const [formData, setFormData] = useState({ name: '', country: '', description: '' });
   const [username, setUsername] = useState('');
   const usernameRef = useRef('');
@@ -30,6 +31,10 @@ function App() {
   const [countries, setCountries] = useState([]);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [legendOpen, setLegendOpen] = useState(window.innerWidth >= 768);
+
+  useEffect(() => {
+    showFormRef.current = showForm;
+  }, [showForm]);
 
   // ---- zIndex helpers (ADVANCED MARKERS sit above IWs otherwise) ----
   const pushMarkersBehind = () => {
@@ -92,10 +97,30 @@ function App() {
       geocoderRef.current = new google.maps.Geocoder();
       autocompleteRef.current = new google.maps.places.AutocompleteService();
 
-      mapRef.current.addListener('dragstart', closeOpenInfo);
-      mapRef.current.addListener('zoom_changed', closeOpenInfo);
-      mapRef.current.addListener('click', (e) => {
+      mapRef.current.addListener('dragstart', () => {
         closeOpenInfo();
+        if (showFormRef.current) {
+          setShowForm(false);
+          setEditingId(null);
+        }
+      });
+      mapRef.current.addListener('zoom_changed', () => {
+        closeOpenInfo();
+        if (showFormRef.current) {
+          setShowForm(false);
+          setEditingId(null);
+        }
+      });
+      mapRef.current.addListener('click', (e) => {
+        if (openInfoRef.current) {
+          closeOpenInfo();
+          return;
+        }
+        if (showFormRef.current) {
+          setShowForm(false);
+          setEditingId(null);
+          return;
+        }
         const coords = [e.latLng.lng(), e.latLng.lat()];
         setPendingCoords(coords);
         setEditingId(null);
@@ -273,6 +298,11 @@ function App() {
         iwd.style.maxWidth = 'none';
         iwd.style.width = 'auto';
       }
+      if (!isMobile && mapRef.current) {
+        mapRef.current.panTo(marker.position);
+        const h = content.offsetHeight || 0;
+        mapRef.current.panBy(0, -h / 2);
+      }
     });
 
     content.addEventListener('click', closeOpenInfo);
@@ -317,6 +347,11 @@ function App() {
       pushMarkersBehind(); // IMPORTANT: push pins behind before opening IW
       info.open({ map: mapRef.current, anchor: marker });
       openInfoRef.current = info;
+      const mobile = window.innerWidth < 768;
+      if (mobile && mapRef.current) {
+        const mapHeight = mapRef.current.getDiv().offsetHeight;
+        mapRef.current.panBy(0, -mapHeight / 4);
+      }
     });
   };
 
