@@ -73,6 +73,7 @@ html, body, #root {
         flex-direction: column;
         align-items: center;  /* center inputs */
         width: 100%;
+        gap: 2px;
     }
     #search-bar .search-input,
     #search-bar .username-input {
@@ -80,7 +81,7 @@ html, body, #root {
         max-width: 100%;
     }
     #search-bar input {
-        margin: 2px 0;        /* equal vertical spacing */
+        margin: 0;        /* equal vertical spacing */
     }
 }
 
