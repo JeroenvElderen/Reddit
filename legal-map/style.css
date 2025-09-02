@@ -446,8 +446,10 @@ input { padding:4px; }
 }
 
 #marker-form button {
-    width: 95% !important;
-    margin: 0.75em;
+    display: block;
+    width: 100% !important;
+    margin: 8px 0;
+    box-sizing: border-box;
 }
 
 @media (max-width: 767px) {
