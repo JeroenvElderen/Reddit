@@ -517,7 +517,7 @@ function App() {
           google.maps.event.addListenerOnce(mapRef.current, 'idle', () => {
             const form = document.getElementById('form-container');
             if (form && mapRef.current) {
-              mapRef.current.panBy(0, -form.offsetHeight / 2);
+              mapRef.current.panBy(0, -(form.offsetHeight * 0.7));
             }
           });
         }
@@ -548,7 +548,7 @@ function App() {
           google.maps.event.addListenerOnce(mapRef.current, 'idle', () => {
             const form = document.getElementById('form-container');
             if (form && mapRef.current) {
-              mapRef.current.panBy(0, -form.offsetHeight / 2);
+              mapRef.current.panBy(0, -(form.offsetHeight * 0.7));
             }
           });
         }
