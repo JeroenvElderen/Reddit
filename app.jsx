@@ -502,6 +502,10 @@ function App() {
     geocoderRef.current.geocode({ placeId: prediction.place_id }, (results, status) => {
       if (status === 'OK' && results[0]) {
         const loc = results[0].geometry.location;
+        if (mapRef.current) {
+          mapRef.current.panTo(loc);
+          if (mapRef.current.getZoom() < 14) mapRef.current.setZoom(14);
+        }
         const countryComp = results[0].address_components.find(c => c.types.includes('country'));
         const country = countryComp ? countryComp.long_name : '';
         setPendingCoords([loc.lng(), loc.lat()]);
@@ -519,6 +523,10 @@ function App() {
     geocoderRef.current.geocode({ address: query }, (results, status) => {
       if (status === 'OK' && results[0]) {
         const loc = results[0].geometry.location;
+        if (mapRef.current) {
+          mapRef.current.panTo(loc);
+          if (mapRef.current.getZoom() < 14) mapRef.current.setZoom(14);
+        }
         const countryComp = results[0].address_components.find(c => c.types.includes('country'));
         const country = countryComp ? countryComp.long_name : '';
         const name = stripCountry(results[0].formatted_address, country);
