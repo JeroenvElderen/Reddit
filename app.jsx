@@ -513,6 +513,12 @@ function App() {
         setFormData({ name, country, description: '' });
         setEditingId(null);
         setShowForm(true);
+        setTimeout(() => {
+          const form = document.getElementById('form-container');
+          if (form && mapRef.current) {
+            mapRef.current.panBy(0, -form.offsetHeight / 2);
+          }
+        }, 0);
       }
     });
   };
@@ -536,6 +542,12 @@ function App() {
         setShowForm(true);
         setQuery('');
         setSuggestions([]);
+        setTimeout(() => {
+          const form = document.getElementById('form-container');
+          if (form && mapRef.current) {
+            mapRef.current.panBy(0, -form.offsetHeight / 2);
+          }
+        }, 0);
       }
     });
   };
