@@ -10,6 +10,7 @@ function App() {
   const autocompleteRef = useRef(null);
   const openInfoRef = useRef(null);
   const markersRef = useRef([]);
+  const tempMarkerRef = useRef(null);
 
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -48,6 +49,36 @@ function App() {
     });
   };
 
+  const clearTempMarker = () => {
+    if (tempMarkerRef.current) {
+      tempMarkerRef.current.map = null;
+      tempMarkerRef.current = null;
+    }
+  };
+
+  const showTempMarker = ([lng, lat]) => {
+    clearTempMarker();
+    const exists = markersRef.current.some(({ marker }) => {
+      const pos = marker.position;
+      const pLat = typeof pos.lat === 'function' ? pos.lat() : pos.lat;
+      const pLng = typeof pos.lng === 'function' ? pos.lng() : pos.lng;
+      return Math.abs(pLat - lat) < 1e-5 && Math.abs(pLng - lng) < 1e-5;
+    });
+    if (exists || !mapRef.current || !window.google) return;
+    const pin = new google.maps.marker.PinElement({
+      background: '#9d5aff',
+      borderColor: 'white',
+      glyph: '?',
+      glyphColor: 'black',
+    });
+    tempMarkerRef.current = new google.maps.marker.AdvancedMarkerElement({
+      map: mapRef.current,
+      position: { lat, lng },
+      content: pin.element,
+      zIndex: 1000,
+    });
+  };
+
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', onResize);
@@ -58,11 +89,16 @@ function App() {
     setLegendOpen(!isMobile);
   }, [isMobile]);
 
+  useEffect(() => {
+    if (!showForm) clearTempMarker();
+  }, [showForm]);
+
   const closeOpenInfo = () => {
     if (openInfoRef.current) {
       openInfoRef.current.close();
       openInfoRef.current = null;
     }
+    clearTempMarker();
     // make sure pins come back to normal whenever we close an IW
     restoreMarkersZ();
   };
@@ -123,6 +159,7 @@ function App() {
         }
         const coords = [e.latLng.lng(), e.latLng.lat()];
         setPendingCoords(coords);
+        showTempMarker(coords);
         setEditingId(null);
         if (geocoderRef.current) {
           geocoderRef.current.geocode({ location: e.latLng }, (results, status) => {
@@ -508,7 +545,9 @@ function App() {
         }
         const countryComp = results[0].address_components.find(c => c.types.includes('country'));
         const country = countryComp ? countryComp.long_name : '';
-        setPendingCoords([loc.lng(), loc.lat()]);
+        const coords = [loc.lng(), loc.lat()];
+        setPendingCoords(coords);
+        showTempMarker(coords);
         const name = stripCountry(prediction.description, country);
         setFormData({ name, country, description: '' });
         setEditingId(null);
@@ -538,7 +577,9 @@ function App() {
         const countryComp = results[0].address_components.find(c => c.types.includes('country'));
         const country = countryComp ? countryComp.long_name : '';
         const name = stripCountry(results[0].formatted_address, country);
-        setPendingCoords([loc.lng(), loc.lat()]);
+        const coords = [loc.lng(), loc.lat()];
+        setPendingCoords(coords)
+        showTempMarker(coords);
         setFormData({ name, country, description: '' });
         setEditingId(null);
         setShowForm(true);
