@@ -271,10 +271,10 @@ function App() {
   };
 
   const stripCountry = (name, country) => {
-    const suffix = `, ${country}`;
-    return country && name.toLowerCase().endsWith(suffix.toLowerCase())
-      ? name.slice(0, -suffix.length)
-      : name;
+    if (!name) return name;
+    // Only keep the portion before the first comma
+    const idx = name.indexOf(',');
+    return idx === -1 ? name.trim() : name.slice(0, idx).trim();
   };
 
   const renderMarker = ({ id, name, country, category, coordinates, description, law }) => {
