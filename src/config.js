@@ -1,0 +1,4 @@
+export const SUPABASE_URL = 'https://ygrhqsnlpenoioenscbe.supabase.co';
+export const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlncmhxc25scGVub2lvZW5zY2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwODY0MzksImV4cCI6MjA3MDY2MjQzOX0.wlYU1RlQAQ1MGgXtAUEY1RXaydmXXzTzf0EKMGJfbDU';
+export const GOOGLE_MAPS_KEY = 'AIzaSyB-x522BMZbB7qYbS6XvsulUqGpBH6OXZs';
+export const MAP_ID = 'dbf9795372ccdac7c5ca5a6e';
