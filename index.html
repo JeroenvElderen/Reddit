@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>map</title>
+  
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+
+  <!-- React & Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+
+  <!-- Supabase and config -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <!-- JSX compiled with env + react presets -->
+  <script type="text/babel" data-presets="env,react" src="components/SearchBar.jsx"></script>
+  <script type="text/babel" data-presets="env,react" src="components/Legend.jsx"></script>
+  <script type="text/babel" data-presets="env,react" src="components/MarkerForm.jsx"></script>
+  <script type="text/babel" data-presets="env,react" src="app.jsx"></script>
+</body>
+</html>
