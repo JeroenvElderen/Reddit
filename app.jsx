@@ -262,6 +262,16 @@ function App() {
     });
   };
 
+  const handleQueryChange = (val) => {
+    setQuery(val);
+    searchPlaces(val);
+  };
+
+  const handleUsernameChange = (val) => {
+    setUsername(val);
+    usernameRef.current = val;
+  };
+
   const logDiscord = (msg) => {
     if (typeof DISCORD_WEBHOOK_URL === 'string' && DISCORD_WEBHOOK_URL) {
       fetch(DISCORD_WEBHOOK_URL, {
@@ -604,55 +614,26 @@ function App() {
       <div id="map" ref={mapContainer}></div>
       <div id="overlay">
         <h1>Legal Map</h1>
-        <div id="search-bar">
-          <input
-            value={query}
-            onChange={e => { setQuery(e.target.value); searchPlaces(e.target.value); }}
-            onFocus={closeOpenInfo}
-            onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
-            placeholder="Search for a place"
-            className="search-input"
-          />
-          <input
-            value={username}
-            onChange={e => { setUsername(e.target.value); usernameRef.current = e.target.value; }}
-            placeholder="Reddit username"
-            className="username-input"
-          />
-        </div>
-        {suggestions.length > 0 && (
-          <ul id="suggestions">
-            {suggestions.map(p => (
-              <li key={p.place_id} onClick={() => handleSuggestionClick(p)}>{p.description}</li>
-            ))}
-          </ul>
-        )}
+        <SearchBar
+          query={query}
+          onQueryChange={handleQueryChange}
+          closeOpenInfo={closeOpenInfo}
+          handleSearchSubmit={handleSearchSubmit}
+          username={username}
+          setUsername={handleUsernameChange}
+          suggestions={suggestions}
+          handleSuggestionClick={handleSuggestionClick}
+        />
       </div>
-      <div id="legend" className={legendOpen ? '' : 'hidden'}>
-        {['official','restricted','unofficial','illegal', 'secluded'].map(cat => (
-          <label key={cat} className="legend-item">
-            <input
-              type="checkbox"
-              checked={filter[cat]}
-              onChange={() => toggleFilter(cat)}
-            />
-            <span className={`legend-marker ${cat}`}>{icons[cat]}</span>
-            {cat}
-          </label>
-        ))}
-        {countries.length > 0 && (
-          <select
-            className="country-select"
-            value={countryFilter}
-            onChange={e => setCountryFilter(e.target.value)}
-          >
-            <option value="All">All countries</option>
-            {countries.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        )}
-      </div>
+      <Legend
+        legendOpen={legendOpen}
+        filter={filter}
+        toggleFilter={toggleFilter}
+        icons={icons}
+        countries={countries}
+        countryFilter={countryFilter}
+        setCountryFilter={setCountryFilter}
+      />
       {isMobile && (
         <button id="legend-toggle" onClick={() => setLegendOpen(o => !o)}>
           {legendOpen
@@ -660,38 +641,17 @@ function App() {
             : <i className="fa-solid fa-circle-info"></i>}
         </button>
       )}
-      {showForm && (
-        <div id="form-container">
-          <form id="marker-form" className={`card ${categoryClassMap[category]}`} onSubmit={handleFormSubmit}>
-            <input
-              value={formData.name}
-              onChange={e => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Location name"
-              required
-            />
-            <input
-              value={formData.country}
-              onChange={e => setFormData({ ...formData, country: e.target.value })}
-              placeholder="Country"
-              required
-            />
-            <select value={category} onChange={e => setCategory(e.target.value)} className={categoryClassMap[category]}>
-              <option value="official">official</option>
-              <option value="restricted">restricted</option>
-              <option value="unofficial">unofficial</option>
-              <option value="illegal">illegal</option>
-              <option value="secluded">secluded</option>
-            </select>
-            <input
-              value={formData.description}
-              onChange={e => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Description"
-            />
-            <button type="submit">{editingId ? 'Save' : 'Add'}</button>
-            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }}>Cancel</button>
-          </form>
-        </div>
-      )}
+      <MarkerForm
+        showForm={showForm}
+        formData={formData}
+        setFormData={setFormData}
+        category={category}
+        setCategory={setCategory}
+        categoryClassMap={categoryClassMap}
+        handleFormSubmit={handleFormSubmit}
+        editingId={editingId}
+        onCancel={() => { setShowForm(false); setEditingId(null); }}
+      />
     </>
   );
 }
