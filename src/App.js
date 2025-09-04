@@ -36,9 +36,23 @@ function MapView({ onLogin, onRegister }) {
     });
   }, []);
 
+  const containerStyle = {
+    position: 'relative',
+    height: '100vh',
+    width: '100%',
+  };
+
+  const mapStyle = {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
+    minHeight: '100vh',
+  };
+
   return (
-    <div style={{ height: '100vh', width: '100%' }}>
-      <div id="map" ref={mapRef} style={{ height: '100%', width: '100%' }} />
+    <div style={containerStyle}>
+      <div id="map" ref={mapRef} style={mapStyle} />
       <SearchBar />
       <Legend />
       <MarkerForm />
@@ -51,6 +65,26 @@ function MapView({ onLogin, onRegister }) {
 }
 
 export default function App() {
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+    const html = document.documentElement;
+    html.style.margin = '0';
+    html.style.height = '100%';
+    html.style.width = '100%';
+    document.body.style.margin = '0';
+    document.body.style.height = '100%';
+    document.body.style.width = '100%';
+    document.body.style.fontFamily = 'sans-serif';
+    const root = document.getElementById('root');
+    if (root) {
+      root.style.height = '100%';
+      root.style.width = '100%';
+    }
+  }, []);
+
   const [view, setView] = useState('map');
   if (view === 'login') {
     return <Login onBack={() => setView('map')} onRegister={() => setView('register')} supabase={supabase} />;
