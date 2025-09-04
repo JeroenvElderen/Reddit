@@ -3,14 +3,14 @@ Reddit polling loop: fetch new submissions and comments,
 route them to auto-approval or manual review.
 """
 
-import os, asyncio, discord, threading
+import os, asyncio, discord, threading, time
 from datetime import datetime, timezone
 
 from app.clients.reddit_bot import reddit
 from app.clients.discord_bot import bot
 from app.clients.supabase import supabase
 
-from app.models.state import seen_ids, add_seen_id
+from app.models.state import seen_ids, add_seen_id, pending_reminders
 from app.moderation.approval_awards import apply_approval_awards
 from app.moderation.logs_approval import log_approval
 from app.moderation.logs_auto import send_discord_auto_log
@@ -29,6 +29,7 @@ from app.config import (
     SUBREDDIT_NAME,
     DISCORD_APPROVAL_LOG_CHANNEL_ID,
     DISCORD_AUTO_APPROVAL_CHANNEL_ID,
+    DISCORD_POSTING_CHANNEL_ID,
     FIXED_FLAIRS,
 )
 
@@ -42,8 +43,52 @@ def handle_new_item(item):
         return
 
     author_name = str(item.author)
+    text = item_text(item)
     bot_username = os.getenv("REDDIT_USERNAME", "").lower()
 
+    # Owner posted a welcome comment
+    if author_name.lower() == OWNER_USERNAME and "welcome" in text.lower():
+        target_user = None
+        try:
+            parent = item.parent()
+            if parent and parent.author:
+                target_user = str(parent.author)
+        except Exception as e:
+            print(f"⚠️ Failed to fetch parent for welcome comment {item.id}: {e}")
+
+        if target_user:
+            channel = bot.get_channel(DISCORD_POSTING_CHANNEL_ID)
+            if channel:
+                for msg_id, data in list(pending_reminders.items()):
+                    if (
+                        data.get("series") == "welcome"
+                        and data.get("username", "").lower() == target_user.lower()
+                    ):
+                        try:
+                            msg = asyncio.run_coroutine_threadsafe(
+                                channel.fetch_message(msg_id), bot.loop
+                            ).result()
+                            asyncio.run_coroutine_threadsafe(msg.delete(), bot.loop)
+                        except Exception as e:
+                            print(
+                                f"⚠️ Failed to delete reminder msg {msg_id} for {target_user}: {e}"
+                            )
+                        pending_reminders.pop(msg_id, None)
+                        try:
+                            asyncio.run_coroutine_threadsafe(
+                                channel.send(
+                                    f"💌 u/{target_user} has received a welcome message"
+                                ),
+                                bot.loop,
+                            )
+                        except Exception as e:
+                            print(
+                                f"⚠️ Failed to send welcome confirmation for {target_user}: {e}"
+                            )
+                        break
+        add_seen_id(item.id)
+        return
+    
     # 👇 ensure user row in Supabase
     try:
         is_new = ensure_user_row(author_name)
@@ -59,6 +104,28 @@ def handle_new_item(item):
                 )
                 asyncio.run_coroutine_threadsafe(channel.send(embed=embed), bot.loop)
             print(f"🆕 New user logged: u/{author_name}")
+
+            # Queue reminder to send welcome message
+            try:
+                channel_rem = bot.get_channel(DISCORD_POSTING_CHANNEL_ID)
+                if channel_rem:
+                    msg = asyncio.run_coroutine_threadsafe(
+                        channel_rem.send(
+                            f"👋 Reminder: send a welcome message to u/{author_name}"
+                        ),
+                        bot.loop,
+                    ).result()
+                    asyncio.run_coroutine_threadsafe(msg.add_reaction("✅"), bot.loop)
+                    asyncio.run_coroutine_threadsafe(msg.add_reaction("❌"), bot.loop)
+                    pending_reminders[msg.id] = {
+                        "series": "welcome",
+                        "username": author_name,
+                        "created_ts": time.time(),
+                    }
+            except Exception as e:
+                print(
+                    f"⚠️ Failed to queue welcome reminder for {author_name}: {e}"
+                )
     except Exception as e:
         print(f"⚠️ Failed to ensure user row for {author_name}: {e}")
 
@@ -112,7 +179,6 @@ def handle_new_item(item):
         return
 
     # Language hinting
-    text = item_text(item)
     if not likely_english(text):
         print("🈺 Language hint → manual")
         asyncio.run_coroutine_threadsafe(
