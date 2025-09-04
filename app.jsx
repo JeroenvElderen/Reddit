@@ -3,7 +3,7 @@ const sb = (typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_ANON_KEY !== 
   ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
-function App() {
+function MapApp({ setView }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const geocoderRef = useRef(null);
@@ -614,6 +614,10 @@ function App() {
       <div id="map" ref={mapContainer}></div>
       <div id="overlay">
         <h1>Legal Map</h1>
+        <div className="auth-buttons">
+          <button onClick={() => setView('login')}>Login</button>
+          <button onClick={() => setView('register')}>Register</button>
+        </div>
         <SearchBar
           query={query}
           onQueryChange={handleQueryChange}
@@ -654,6 +658,13 @@ function App() {
       />
     </>
   );
+}
+
+function App() {
+  const [view, setView] = useState('map');
+  if (view === 'login') return <Login onBack={() => setView('map')} onSwitch={() => setView('register')} />;
+  if (view === 'register') return <Register onBack={() => setView('map')} onSwitch={() => setView('login')} />;
+  return <MapApp setView={setView} />;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);

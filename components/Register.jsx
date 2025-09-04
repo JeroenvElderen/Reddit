@@ -1,4 +1,4 @@
-function Register() {
+function Register({ onBack, onSwitch }) {
   const [username, setUsername] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -72,11 +72,9 @@ function Register() {
         <button type="submit" disabled={loading}>
           {loading ? 'Loading...' : 'Register'}
         </button>
-        <p className="switch">Already have an account? <a href="login.html">Login</a></p>
+        <p className="switch">Already have an account? <a href="#" onClick={(e) => { e.preventDefault(); onSwitch(); }}>Login</a></p>
+        <p className="switch"><a href="#" onClick={(e) => { e.preventDefault(); onBack(); }}>Back to map</a></p>
       </form>
     </div>
   );
 }
-
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<Register />);
