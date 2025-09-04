@@ -215,7 +215,7 @@ function App() {
     unofficial: '#5a81ff',
     illegal: '#fe6c9b',
     secluded: '#9d5aff'
-  })[cat.toLowerCase()] || '#888';
+  })[(cat || '').toLowerCase().trim()] || '#888';
 
   const icons = { official: '✓', restricted: '!', unofficial: 'i', illegal: '✖', secluded: 'N' };
   const categoryClassMap = { official: 'green', restricted: 'yellow', unofficial: 'blue', illegal: 'red', secluded: 'purple' };
@@ -286,9 +286,9 @@ function App() {
     const coordsArr = Array.isArray(coordinates) ? coordinates : [coordinates.lng, coordinates.lat];
     const markerId = id ?? Date.now() + Math.random();
 
-    const cat = (category || '').toLowerCase();
+    const cat = (category || '').toLowerCase().trim();
     const pin = new google.maps.marker.PinElement({
-      background: categoryColor(category),
+      background: categoryColor(cat),
       borderColor: 'white',
       glyph: icons[cat] || '',
       glyphColor: 'black',
