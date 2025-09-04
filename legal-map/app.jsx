@@ -26,7 +26,8 @@ function App() {
     official: true,
     restricted: true,
     unofficial: true,
-    illegal: true
+    illegal: true,
+    secluded: true
   });
   const [countryFilter, setCountryFilter] = useState('All');
   const [countries, setCountries] = useState([]);
@@ -212,11 +213,12 @@ function App() {
     official: '#2eea9d',
     restricted: '#ffd84d',
     unofficial: '#5a81ff',
-    illegal: '#fe6c9b'
+    illegal: '#fe6c9b',
+    secluded: '#9d5aff'
   })[cat.toLowerCase()] || '#888';
 
-  const icons = { official: '✓', restricted: '!', unofficial: 'i', illegal: '✖' };
-  const categoryClassMap = { official: 'green', restricted: 'yellow', unofficial: 'blue', illegal: 'red' };
+  const icons = { official: '✓', restricted: '!', unofficial: 'i', illegal: '✖', secluded: 'N' };
+  const categoryClassMap = { official: 'green', restricted: 'yellow', unofficial: 'blue', illegal: 'red', secluded: 'purple' };
 
   const toggleFilter = (cat) => {
     setFilter(prev => ({ ...prev, [cat]: !prev[cat] }));
@@ -627,7 +629,7 @@ function App() {
         )}
       </div>
       <div id="legend" className={legendOpen ? '' : 'hidden'}>
-        {['official','restricted','unofficial','illegal'].map(cat => (
+        {['official','restricted','unofficial','illegal', 'secluded'].map(cat => (
           <label key={cat} className="legend-item">
             <input
               type="checkbox"
@@ -678,6 +680,7 @@ function App() {
               <option value="restricted">restricted</option>
               <option value="unofficial">unofficial</option>
               <option value="illegal">illegal</option>
+              <option value="secluded">secluded</option>
             </select>
             <input
               value={formData.description}

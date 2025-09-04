@@ -146,6 +146,7 @@ html, body, #root {
 .legend-marker.restricted { background: #ffd84d; }
 .legend-marker.unofficial { background: #5a81ff; }
 .legend-marker.illegal { background: #fe6c9b; }
+.legend-marker.secluded { background: #9d5aff; }
 
 #legend .country-select {
     margin-top: 0.5rem;
@@ -375,6 +376,13 @@ input { padding:4px; }
     color: #ffd84d;
 }
 
+.card.purple,
+#marker-form.purple {
+    background: radial-gradient(ellipse at right top,#4b008282 0%,#151419 47%,#151419 100%);
+}
+.card.purple .icon { color: #9d5aff; }
+
+
 /* Form styling */
 #marker-form {
     width: 400px;
@@ -442,6 +450,11 @@ input { padding:4px; }
     color: #fff;
 }
 
+#marker-form select.purple {
+    background: radial-gradient(ellipse at right top,#4b008282 0%,#151419 47%,#151419 100%);
+    color: #fff;
+}
+
 /* Buttons inside popup cards */
 .card button {
     display: block;
@@ -504,6 +517,12 @@ input { padding:4px; }
 #marker-form.yellow button {
     background: #ffd84d;
     color: #111;
+}
+
+.card.purple button,
+#marker-form.purple button {
+    background: #9d5aff;
+    color: #fff;
 }
 
 /* Responsive tweaks */
