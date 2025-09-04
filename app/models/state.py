@@ -27,6 +27,9 @@ auto_approved = {}
 # pending_marker_actions[msg_id] = row from pending_marker_actions table
 pending_marker_actions = {}
 
+# pending_reminders[msg_id] = {"series": str, "created_ts": float}
+pending_reminders = {}
+
 _SEEN_FILE = Path("seen_ids.json")
 
 
