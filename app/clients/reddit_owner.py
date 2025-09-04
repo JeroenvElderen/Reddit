@@ -17,13 +17,16 @@ def create_reddit_owner() -> praw.Reddit:
 
     If ``OWNER_REDDIT_REFRESH_TOKEN`` is provided the refresh-token grant flow
     is used, avoiding password based tokens expiring.  Otherwise the legacy
-    password flow is used.  Required environment variables are validated and a
-    :class:`ValueError` is raised when any are missing.
+    password flow is used.  Regardless of the auth method,
+    ``OWNER_REDDIT_USERNAME`` must be set so the application can identify
+    posts made by the owner account.  Required environment variables are
+    validated and a :class:`ValueError` is raised when any are missing.
     """
 
     client_id = os.getenv("OWNER_REDDIT_CLIENT_ID")
     client_secret = os.getenv("OWNER_REDDIT_CLIENT_SECRET")
     user_agent = os.getenv("OWNER_REDDIT_USER_AGENT")
+    username = os.getenv("OWNER_REDDIT_USERNAME")
     refresh_token = os.getenv("OWNER_REDDIT_REFRESH_TOKEN")
 
     if refresh_token:
@@ -32,6 +35,7 @@ def create_reddit_owner() -> praw.Reddit:
             "OWNER_REDDIT_CLIENT_SECRET": client_secret,
             "OWNER_REDDIT_USER_AGENT": user_agent,
             "OWNER_REDDIT_REFRESH_TOKEN": refresh_token,
+            "OWNER_REDDIT_USERNAME": username,
         }
         missing = [name for name, val in required.items() if not val]
         if missing:
@@ -47,7 +51,6 @@ def create_reddit_owner() -> praw.Reddit:
         )
 
     # Fallback to username/password flow
-    username = os.getenv("OWNER_REDDIT_USERNAME")
     password = os.getenv("OWNER_REDDIT_PASSWORD")
     required = {
         "OWNER_REDDIT_CLIENT_ID": client_id,

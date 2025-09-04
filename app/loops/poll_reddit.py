@@ -6,6 +6,8 @@ route them to auto-approval or manual review.
 import os, asyncio, discord, threading, time
 from datetime import datetime, timezone
 
+import praw
+
 from app.clients.reddit_bot import reddit
 from app.clients.discord_bot import bot
 from app.clients.supabase import supabase
@@ -44,10 +46,16 @@ def handle_new_item(item):
 
     author_name = str(item.author)
     text = item_text(item)
+    text_lower = text.lower()
     bot_username = os.getenv("REDDIT_USERNAME", "").lower()
 
     # Owner posted a welcome comment
-    if author_name.lower() == OWNER_USERNAME and "welcome" in text.lower():
+    if (
+        isinstance(item, praw.models.Comment)
+        and author_name.lower() == OWNER_USERNAME
+        and "welcome" in text_lower
+        and "community" in text_lower
+    ):
         target_user = None
         try:
             parent = item.parent()
