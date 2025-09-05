@@ -126,7 +126,7 @@ function Profile() {
         </div>
       <div className="container-fluid mt--7">
         <div className="row">
-          <div className="col-xl-4 order-xl-2 mb-5 mb-xl-0">
+          <div className="col-xl-4 order-xl-2 mb-5 mb-lg-0">
             <div className="card card-profile shadow">
               <div className="row justify-content-center">
                 <div className="col-lg-3 order-lg-2">
