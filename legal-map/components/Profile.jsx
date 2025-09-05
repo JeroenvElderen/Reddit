@@ -3,6 +3,13 @@ function Profile() {
   const [newUsername, setNewUsername] = React.useState('');
   const [newPassword, setNewPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  const [firstName, setFirstName] = React.useState('');
+  const [lastName, setLastName] = React.useState('');
+  const [address, setAddress] = React.useState('');
+  const [city, setCity] = React.useState('');
+  const [country, setCountry] = React.useState('');
+  const [postalCode, setPostalCode] = React.useState('');
+  const [aboutMe, setAboutMe] = React.useState('');
 
   React.useEffect(() => {
     async function loadUser() {
@@ -15,6 +22,13 @@ function Profile() {
       }
       setUser(user);
       setNewUsername(user?.user_metadata?.username || '');
+      setFirstName(user?.user_metadata?.first_name || '');
+      setLastName(user?.user_metadata?.last_name || '');
+      setAddress(user?.user_metadata?.address || '');
+      setCity(user?.user_metadata?.city || '');
+      setCountry(user?.user_metadata?.country || '');
+      setPostalCode(user?.user_metadata?.postal_code || '');
+      setAboutMe(user?.user_metadata?.about_me || '');
     }
     loadUser();
   }, []);
@@ -22,10 +36,18 @@ function Profile() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const updates = {};
-    if (newUsername && newUsername !== user?.user_metadata?.username) {
-      updates.data = { username: newUsername };
-    }
+    const updates = {
+      data: {
+        username: newUsername,
+        first_name: firstName,
+        last_name: lastName,
+        address,
+        city,
+        country,
+        postal_code: postalCode,
+        about_me: aboutMe,
+      },
+    };
     if (newPassword) {
       updates.password = newPassword;
     }
@@ -37,6 +59,13 @@ function Profile() {
       alert('Profile updated');
       setUser(data.user);
       setNewPassword('');
+      setFirstName(data.user.user_metadata?.first_name || '');
+      setLastName(data.user.user_metadata?.last_name || '');
+      setAddress(data.user.user_metadata?.address || '');
+      setCity(data.user.user_metadata?.city || '');
+      setCountry(data.user.user_metadata?.country || '');
+      setPostalCode(data.user.user_metadata?.postal_code || '');
+      setAboutMe(data.user.user_metadata?.about_me || '');
     }
   };
 
@@ -229,6 +258,44 @@ function Profile() {
                         <div className="form-group focused">
                           <label
                             className="form-control-label"
+                            htmlFor="input-first-name"
+                          >
+                            First Name
+                          </label>
+                          <input
+                            type="text"
+                            id="input-first-name"
+                            className="form-control form-control-alternative"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            placeholder="First Name"
+                          />
+                        </div>
+                      </div>
+                      <div className="col-lg-6">
+                        <div className="form-group focused">
+                          <label
+                            className="form-control-label"
+                            htmlFor="input-last-name"
+                          >
+                            Last Name
+                          </label>
+                          <input
+                            type="text"
+                            id="input-last-name"
+                            className="form-control form-control-alternative"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            placeholder="Last Name"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="row">
+                      <div className="col-lg-6">
+                        <div className="form-group focused">
+                          <label
+                            className="form-control-label"
                             htmlFor="input-password"
                           >
                             New Password
@@ -246,6 +313,107 @@ function Profile() {
                     </div>
                   </div>
                   <hr className="my-4" />
+                  <h6 className="heading-small text-muted mb-4">
+                    Contact information
+                  </h6>
+                  <div className="pl-lg-4">
+                    <div className="row">
+                      <div className="col-md-12">
+                        <div className="form-group focused">
+                          <label
+                            className="form-control-label"
+                            htmlFor="input-address"
+                          >
+                            Address
+                          </label>
+                          <input
+                            id="input-address"
+                            className="form-control form-control-alternative"
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            placeholder="Address"
+                            type="text"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="row">
+                      <div className="col-lg-4">
+                        <div className="form-group focused">
+                          <label
+                            className="form-control-label"
+                            htmlFor="input-city"
+                          >
+                            City
+                          </label>
+                          <input
+                            type="text"
+                            id="input-city"
+                            className="form-control form-control-alternative"
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                            placeholder="City"
+                          />
+                        </div>
+                      </div>
+                      <div className="col-lg-4">
+                        <div className="form-group focused">
+                          <label
+                            className="form-control-label"
+                            htmlFor="input-country"
+                          >
+                            Country
+                          </label>
+                          <input
+                            type="text"
+                            id="input-country"
+                            className="form-control form-control-alternative"
+                            value={country}
+                            onChange={(e) => setCountry(e.target.value)}
+                            placeholder="Country"
+                          />
+                        </div>
+                      </div>
+                      <div className="col-lg-4">
+                        <div className="form-group focused">
+                          <label
+                            className="form-control-label"
+                            htmlFor="input-postal-code"
+                          >
+                            Postal code
+                          </label>
+                          <input
+                            type="number"
+                            id="input-postal-code"
+                            className="form-control form-control-alternative"
+                            value={postalCode}
+                            onChange={(e) => setPostalCode(e.target.value)}
+                            placeholder="Postal code"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-4" />
+                  <h6 className="heading-small text-muted mb-4">About me</h6>
+                  <div className="pl-lg-4">
+                    <div className="form-group focused">
+                      <label
+                        className="form-control-label"
+                        htmlFor="input-about-me"
+                      >
+                        About Me
+                      </label>
+                      <textarea
+                        rows="4"
+                        className="form-control form-control-alternative"
+                        id="input-about-me"
+                        value={aboutMe}
+                        onChange={(e) => setAboutMe(e.target.value)}
+                        placeholder="A few words about you ..."
+                      />
+                    </div>
+                  </div>
                   <div className="pl-lg-4">
                     <button
                       type="submit"
