@@ -105,6 +105,7 @@ REDDITBOT/
 │  │  ├─ pending_save.py                 # save_pending_review()
 │  │  ├─ pending_delete.py               # delete_pending_review()
 │  │  ├─ pending_restore.py              # restore_pending_reviews()
+│  │  ├─ seen_ids.py                     # Supabase storage for seen Reddit IDs
 │  │  └─ users_row.py                    # ensure user row, about_user_block()
 │  ├─ loops/
 │  │  ├─ __init__.py

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from app.clients.reddit_bot import reddit
 from app.config import SUBREDDIT_NAME
+from app.persistence.seen_ids import load_seen_ids, save_seen_id
 
 subreddit = reddit.subreddit(SUBREDDIT_NAME)
 
@@ -36,9 +37,11 @@ _SEEN_FILE = Path("seen_ids.json")
 def _load_seen_ids():
     try:
         with _SEEN_FILE.open("r") as fh:
-            return set(json.load(fh))
+            local = set(json.load(fh))
     except Exception:
-        return set()
+        local = set()
+    remote = load_seen_ids()
+    return local.union(remote)
 
 
 # Track seen Reddit IDs to avoid reprocessing
@@ -55,6 +58,10 @@ def add_seen_id(item_id: str) -> None:
             json.dump(list(seen_ids), fh)
     except Exception as e:
         print(f"⚠️ Failed to persist seen id {item_id}: {e}")
+    try:
+        save_seen_id(item_id)
+    except Exception as e:
+        print(f"⚠️ Failed to persist seen id {item_id} to Supabase: {e}")
         
 
 # Queue ETA state
