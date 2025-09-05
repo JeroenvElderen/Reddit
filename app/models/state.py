@@ -4,6 +4,7 @@ Shared in-memory state and subreddit reference.
 
 import json
 from pathlib import Path
+import praw
 from app.clients.reddit_bot import reddit
 from app.config import SUBREDDIT_NAME
 from app.persistence.seen_ids import load_seen_ids, save_seen_id
@@ -48,9 +49,10 @@ def _load_seen_ids():
 seen_ids = _load_seen_ids()
 
 
-def add_seen_id(item_id: str) -> None:
-    """Add a Reddit ID to the seen set and persist it."""
-    if item_id in seen_ids:
+def add_seen_id(item) -> None:
+    """Add a Reddit item to the seen set and persist it."""
+    item_id = getattr(item, "id", None)
+    if item_id is None or item_id in seen_ids:
         return
     seen_ids.add(item_id)
     try:
@@ -58,8 +60,10 @@ def add_seen_id(item_id: str) -> None:
             json.dump(list(seen_ids), fh)
     except Exception as e:
         print(f"⚠️ Failed to persist seen id {item_id}: {e}")
+
+    kind = "comment" if isinstance(item, praw.models.Comment) else "post"
     try:
-        save_seen_id(item_id)
+        save_seen_id(item_id, kind)
     except Exception as e:
         print(f"⚠️ Failed to persist seen id {item_id} to Supabase: {e}")
         

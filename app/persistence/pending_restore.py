@@ -46,7 +46,7 @@ def restore_pending_reviews():
                 )
                 delete_pending_review(row["msg_id"])
                 try:
-                    add_seen_id(item.id)
+                    add_seen_id(item)
                 except Exception:
                     pass
                 continue
