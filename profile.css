@@ -1344,10 +1344,6 @@ a.text-white:focus {
     page-break-after: avoid;
   }
 
-  @ page {
-    size: a3;
-  }
-
   body {
     min-width: 992px !important;
   }
