@@ -685,10 +685,16 @@ input { padding:4px; }
 #bottom-nav a {
     color: #fff;
     text-decoration: none;
+    padding: 0.25rem 0.75em;
+    border-radius: 0.75rem;
 }
 
 #bottom-nav a:hover {
     text-decoration: underline;
+}
+
+#bottom-nav a.active {
+    background: #5a81ff;
 }
 
 #hamburger {
@@ -727,10 +733,17 @@ input { padding:4px; }
     color: #fff;
     text-decoration: none;
     margin: 0.5rem 0;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
 }
 
 #mobile-menu.show {
     display: flex;
+}
+
+
+#mobile-menu a.active {
+    background: #5a81ff;
 }
 
 @media (max-width: 767px) {
