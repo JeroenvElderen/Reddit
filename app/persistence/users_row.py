@@ -38,7 +38,20 @@ def about_user_block(name: str):
 
 # ---------- Moderation checks ----------
 def already_moderated(item) -> bool:
+    """Best-effort check to see if a Reddit item was already handled."""
+    try:
+        # Refresh to ensure moderation fields (approved/removed) are populated
+        item.refresh()
+    except Exception:
+        pass
+
+    if getattr(item, "approved", False):
+        return True
     if getattr(item, "approved_by", None):
+        return True
+    if getattr(item, "approved_at_utc", None) is not None:
+        return True
+    if getattr(item, "removed", False):
         return True
     if getattr(item, "removed_by_category", None) is not None:
         return True
