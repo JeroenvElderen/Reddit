@@ -261,19 +261,6 @@ def apply_approval_awards(item, is_manual: bool):
         except Exception:
             pass
 
-    if not is_manual:
-        award_achievements_once(item, name, row)
-        return old_k, old_k, flair, 0, ""
-
-    if not is_manual:
-        flair = row.get("last_flair", "—")
-        try:
-            if hasattr(item, "title"):
-                auto_set_post_flair_if_missing(item)
-        except Exception:
-            pass
-        return old_k, old_k, flair, 0, ""
-
     last_date_s = row.get("last_approved_date")
     streak_days = int(row.get("streak_days", 0))
     welcomed = bool(row.get("welcomed", False))
