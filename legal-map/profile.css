@@ -870,7 +870,7 @@ textarea.form-control {
   z-index: 2;
 }
 
-input-group-prepend .btn+.btn,
+.input-group-prepend .btn+.btn,
 .input-group-prepend .btn+.input-group-text,
 .input-group-prepend .input-group-text+.input-group-text,
 .input-group-prepend .input-group-text+.btn {
@@ -1308,6 +1308,10 @@ button.bg-white:focus {
   color: #fff !important;
 }
 
+.text-white {
+  color: #fff !important;
+}
+
 a.text-white:hover,
 a.text-white:focus {
   color: #e6e6e6 !important;
@@ -1344,6 +1348,10 @@ a.text-white:focus {
     page-break-after: avoid;
   }
 
+  @ page {
+    size: a3;
+  }
+
   body {
     min-width: 992px !important;
   }
@@ -1375,6 +1383,10 @@ a.bg-white:focus,
 button.bg-white:hover,
 button.bg-white:focus {
   background-color: #e6e6e6 !important;
+}
+
+.bg-gradient-default {
+  background: linear-gradient(87deg, #172b4d 0, #1a174d 100%) !important;
 }
 
 .bg-gradient-default {
@@ -1427,6 +1439,10 @@ button.bg-white:focus {
   opacity: .8 !important;
 }
 
+.opacity-8 {
+  opacity: .9 !important;
+}
+
 .center {
   left: 50%;
   transform: translateX(-50%);
@@ -1442,6 +1458,15 @@ button.bg-white:focus {
 
 .text-sm {
   font-size: .875rem !important;
+}
+
+.text-white {
+  color: #fff !important;
+}
+
+a.text-white:hover,
+a.text-white:focus {
+  color: #e6e6e6 !important;
 }
 
 .avatar {
@@ -1819,7 +1844,7 @@ textarea[resize='horizontal'] {
   color: #5e72e4;
 }
 
-.nav-link i.fa {
+.nav-link i.ni {
   position: relative;
   top: 2px;
 }
@@ -1895,7 +1920,7 @@ textarea[resize='horizontal'] {
     left: auto;
   }
 
-  @keyframes show-navbar-dropdown {
+  @ keyframes show-navbar-dropdown {
     0% {
       transition: visibility .25s, opacity .25s, transform .25s;
       transform: translate(0, 10px) perspective(200px) rotateX(-2deg);
