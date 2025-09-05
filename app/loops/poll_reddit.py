@@ -252,7 +252,10 @@ def reddit_polling():
     """Continuously poll Reddit inbox & subreddit for new items."""
     print("📡 Reddit polling started...")
     sub = reddit.subreddit(SUBREDDIT_NAME)
-    skip_existing = not seen_ids
+    # Always fetch existing items so that submissions or comments made while the
+    # bot was offline still get processed. We rely on ``seen_ids`` to ignore
+    # anything we've already handled.
+    skip_existing = False
 
     def _submission_stream():
         for item in sub.stream.submissions(skip_existing=skip_existing):
