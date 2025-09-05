@@ -12,11 +12,19 @@ function Register() {
       return;
     }
     setLoading(true);
-    const { error } = await supabaseClient.auth.signUp({
+    const { data, error } = await supabaseClient.auth.signUp({
       email,
       password,
-      options: { data: { username } }
+      options: { data: { username } },
     });
+    if (!error && data?.user) {
+      const { error: profileError } = await supabaseClient
+        .from('profiles')
+        .insert({ id: data.user.id, username });
+      if (profileError) {
+        console.error(profileError);
+      }
+    }
     setLoading(false);
     if (error) {
       alert(error.message);
