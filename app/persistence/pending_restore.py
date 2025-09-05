@@ -9,6 +9,7 @@ from app.clients.discord_bot import bot
 from app.moderation.cards_send import send_discord_approval
 from app.persistence.pending_delete import delete_pending_review
 from app.persistence.users_row import already_moderated
+from app.models.state import add_seen_id
 from app.config import DISCORD_CHANNEL_ID
 
 
@@ -44,6 +45,10 @@ def restore_pending_reviews():
                     _delete_discord_card(row["msg_id"]), bot.loop
                 )
                 delete_pending_review(row["msg_id"])
+                try:
+                    add_seen_id(item.id)
+                except Exception:
+                    pass
                 continue
 
             # Delete the old msg_id record (since Discord card is gone)
