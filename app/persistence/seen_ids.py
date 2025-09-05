@@ -17,9 +17,10 @@ def load_seen_ids() -> set[str]:
         return set()
 
 
-def save_seen_id(item_id: str) -> None:
-    """Persist a Reddit item ID to Supabase."""
+def save_seen_id(item_id: str, kind: str) -> None:
+    """Persist a Reddit item ID and its type to Supabase."""
     try:
-        supabase.table(_TABLE).upsert({"id": item_id}).execute()
+        supabase.table(_TABLE).upsert({"id": item_id, "kind": kind}).execute()
     except Exception as e:
         print(f"⚠️ Failed to save seen id {item_id}: {e}")
+

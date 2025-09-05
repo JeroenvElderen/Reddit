@@ -94,7 +94,7 @@ def handle_new_item(item):
                                 f"⚠️ Failed to send welcome confirmation for {target_user}: {e}"
                             )
                         break
-        add_seen_id(item.id)
+        add_seen_id(item)
         return
     
     # 👇 ensure user row in Supabase
@@ -139,12 +139,12 @@ def handle_new_item(item):
 
     if author_name.lower() == bot_username:
         print(f"🤖 skipping queue for bot's own post/comment {item.id}")
-        add_seen_id(item.id)
+        add_seen_id(item)
         return
 
     # Fixed flair users bypass further checks - auto approve
     if author_name.lower() in FIXED_FLAIRS:
-        add_seen_id(item.id)
+        add_seen_id(item)
         item.mod.approve()
         old_k, new_k, flair, total_delta, extras = apply_approval_awards(
             item, is_manual=False
@@ -168,10 +168,10 @@ def handle_new_item(item):
 
     if already_moderated(item):
         print(f"⏩ Skipping {item.id} (already moderated)")
-        add_seen_id(item.id)
+        add_seen_id(item)
         return
 
-    add_seen_id(item.id)
+    add_seen_id(item)
 
     res = supabase.table("user_karma").select("*").ilike("username", author_name).execute()
     karma = int(res.data[0]["karma"]) if res.data else 0
