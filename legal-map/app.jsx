@@ -395,7 +395,13 @@ function App() {
           return;
         }
         if (confirm('Delete this marker?')) {
-          await deleteMarker(markerId, { name, country, category: cat, userId: authUser.id });
+          await deleteMarker(markerId, {
+            name,
+            country,
+            category: cat,
+            userId: authUser.id,
+            username: authUser.user_metadata?.username
+          });
         }
       });
     }
@@ -481,11 +487,14 @@ function App() {
     }
   };
 
-  const updateMarker = async (id, { name, country, category, coordinates, description = '', userId }) => {
+  const updateMarker = async (
+    id,
+    { name, country, category, coordinates, description = '', userId, username }
+  ) => {
     try {
       const coords = coordinates || await geocode(name, country);
       if (sb) {
-        await sb
+        const { error } = await sb
           .from('pending_marker_actions')
           .insert({
             action: 'edit',
@@ -495,9 +504,16 @@ function App() {
             category,
             coordinates: coords,
             description,
-            user_id: userId
+            user_id: userId,
+            username
           });
-        logDiscord(`Edit request by: ${userId}, ${name}, ${country}, ${category} — react with ✅ to approve or ❌ to reject`);
+        if (error) {
+          console.error('Supabase insert error', error);
+        } else {
+          logDiscord(
+            `Edit request by: ${username || userId}, ${name}, ${country}, ${category} — react with ✅ to approve or ❌ to reject`
+          );
+        }
       }
       alert('Edit request submitted for approval');
     } catch (err) {
@@ -505,15 +521,27 @@ function App() {
     }
   };
 
-  const deleteMarker = async (id, { name, country, category, userId }) => {
+  const deleteMarker = async (id, { name, country, category, userId, username }) => {
     try {
       if (sb) {
-        await sb
+        const { error } = await sb
           .from('pending_marker_actions')
-          .insert({ action: 'delete', marker_id: id, name, country, category, user_id: userId });
-        logDiscord(
-          `Delete request by: ${userId}, ${name}, ${country}, ${category} — react with 🗑️ to approve or ❌ to reject`
-        );
+          .insert({
+            action: 'delete',
+            marker_id: id,
+            name,
+            country,
+            category,
+            user_id: userId,
+            username
+          });
+        if (error) {
+          console.error('Supabase insert error', error);
+        } else {
+          logDiscord(
+            `Delete request by: ${username || userId}, ${name}, ${country}, ${category} — react with 🗑️ to approve or ❌ to reject`
+          );
+        }
       }
       alert('Deletion request submitted for approval');
     } catch (err) {
@@ -542,7 +570,8 @@ function App() {
         category,
         description,
         coordinates: pendingCoords,
-        userId: authUser.id
+        userId: authUser.id,
+        username: authUser.user_metadata?.username
       });
       setEditingId(null);
     } else {
