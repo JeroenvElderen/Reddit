@@ -400,7 +400,7 @@ function App() {
             country,
             category: cat,
             userId: authUser.id,
-            username: authUser.user_metadata?.username
+            username: authUser.user_metadata?.username || authUser.id
           });
         }
       });
@@ -505,7 +505,7 @@ function App() {
             coordinates: coords,
             description,
             user_id: userId,
-            username
+            username: username || userId
           });
         if (error) {
           console.error('Supabase insert error', error);
@@ -533,7 +533,7 @@ function App() {
             country,
             category,
             user_id: userId,
-            username
+            username: username || userId
           });
         if (error) {
           console.error('Supabase insert error', error);
@@ -571,7 +571,7 @@ function App() {
         description,
         coordinates: pendingCoords,
         userId: authUser.id,
-        username: authUser.user_metadata?.username
+        username: authUser.user_metadata?.username || authUser.id
       });
       setEditingId(null);
     } else {
