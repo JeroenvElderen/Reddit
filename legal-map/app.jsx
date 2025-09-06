@@ -385,12 +385,17 @@ function App() {
       deleteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         closeOpenInfo();
-        if (!user) {
+        if (!sb) {
+          alert('Supabase not configured');
+          return;
+        }
+        const { data: { user: authUser } } = await sb.auth.getUser();
+        if (!authUser) {
           alert('Please log in before deleting');
           return;
         }
         if (confirm('Delete this marker?')) {
-          await deleteMarker(markerId, { name, country, category: cat, userId: user.id });
+          await deleteMarker(markerId, { name, country, category: cat, userId: authUser.id });
         }
       });
     }
