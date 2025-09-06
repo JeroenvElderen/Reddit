@@ -2031,3 +2031,92 @@ p {
 #navbar .navbar {
   margin-bottom: 20px;
 }
+
+
+#bottom-nav {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
+  display: flex;
+  gap: 1rem;
+  font-family: "Poppins", sans-serif;
+}
+
+#bottom-nav a {
+  color: #fff;
+  text-decoration: none;
+  padding: 0.25rem 0.75em;
+  border-radius: 0.75rem;
+}
+
+#bottom-nav a:hover {
+  text-decoration: underline;
+}
+
+#bottom-nav a.active {
+  background: #5a81ff;
+}
+
+#hamburger {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  width: 48px;
+  height: 48px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
+  color: #fff;
+  border-radius: 1rem;
+  box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
+  cursor: pointer;
+}
+
+#mobile-menu {
+  position: fixed;
+  top: 60px;
+  right: 10px;
+  z-index: 999;
+  background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
+  display: none;
+  flex-direction: column;
+  font-family: "Poppins", sans-serif;
+}
+
+#mobile-menu a {
+  color: #fff;
+  text-decoration: none;
+  margin: 0.5rem 0;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+}
+
+#mobile-menu.show {
+  display: flex;
+}
+
+#mobile-menu a.active {
+  background: #5a81ff;
+}
+
+@media (max-width: 767px) {
+  #bottom-nav {
+    display: none;
+  }
+  #hamburger {
+    display: flex;
+  }
+}
