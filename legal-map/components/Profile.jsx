@@ -299,30 +299,25 @@ function Profile() {
               <div className="row justify-content-center">
                 <div className="col-lg-3 order-lg-2">
                   <div className="card-profile-image">
-                    {editing ? (
-                      <label htmlFor="avatar-upload" className="image-edit">
-                        <img
-                          src={avatarUrl || DEFAULT_AVATAR}
-                          className="rounded-circle"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = DEFAULT_AVATAR;
-                          }}
-                        />
-                        <span className="edit-overlay">
-                          <i className="fa-solid fa-plus-circle"></i>
-                        </span>
-                      </label>
-                    ) : (
+                    <label
+                      htmlFor="avatar-upload"
+                      className="image-edit"
+                      style={{ cursor: editing ? 'pointer' : 'default' }}
+                    >
                       <img
                         src={avatarUrl || DEFAULT_AVATAR}
                         className="rounded-circle"
                         onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = DEFAULT_AVATAR;
-                          }}
+                          e.target.onerror = null;
+                          e.target.src = DEFAULT_AVATAR;
+                        }}
                       />
+                      {editing && (
+                        <span className="edit-overlay">
+                          <i className="fa-solid fa-plus-circle"></i>
+                        </span>
                       )}
+                    </label>
                     {editing && (
                       <input
                         type="file"
