@@ -25,31 +25,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.supabaseClient = client;
   }
 
-  if (client) {
-    const { data: { session } } = await client.auth.getSession();
-    if (session) {
+  const updateAuth = (session) => {
+    window.currentUser = session?.user || null;
+    window.dispatchEvent(new CustomEvent('supabase-auth-changed', { detail: { user: window.currentUser } }));
+
+    if (window.currentUser) {
       links.forEach(link => {
         if (!link) return;
         link.textContent = 'Logout';
         link.href = '#';
-        link.addEventListener('click', async (e) => {
+        link.onclick = async (e) => {
           e.preventDefault();
           await client.auth.signOut();
           window.location.href = 'login.html';
-        });
+        };
       });
     } else {
       links.forEach(link => {
         if (!link) return;
         link.textContent = 'Login';
         link.href = 'login.html';
+        link.onclick = null;
       });
     }
-  } else {
-    links.forEach(link => {
-      if (!link) return;
-      link.textContent = 'Login';
-      link.href = 'login.html';
+  };
+
+  if (client) {
+    const { data: { session } } = await client.auth.getSession();
+    updateAuth(session);
+    client.auth.onAuthStateChange((_event, session) => {
+      updateAuth(session);
     });
+  } else {
+    updateAuth(null);
   }
 });
