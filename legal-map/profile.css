@@ -2146,6 +2146,12 @@ p {
   justify-content: center;
   color: #fff;
   font-size: 2rem;
+  transform: translateY(-30%);
+  transition: transform .15s ease;
+}
+
+.image-edit:hover .edit-overlay {
+  transform: translateY(-33%);
 }
 
 .header .edit-overlay {
