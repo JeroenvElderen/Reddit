@@ -55,14 +55,18 @@ function Profile() {
             const { data: aUrl } = supabaseClient.storage
               .from(STORAGE_BUCKET)
               .getPublicUrl(profile.avatar_url);
-            setAvatarUrl(aUrl.publicUrl);
+            if (aUrl?.publicUrl) {
+              setAvatarUrl(aUrl.publicUrl);
+            }
           }
           if (profile.cover_url) {
             setCoverPath(profile.cover_url);
             const { data: cUrl } = supabaseClient.storage
               .from(STORAGE_BUCKET)
               .getPublicUrl(profile.cover_url);
-            setCoverUrl(cUrl.publicUrl);
+            if (cUrl?.publicUrl) {
+              setCoverUrl(cUrl.publicUrl);
+            }
           }
         }
       }
@@ -115,7 +119,9 @@ function Profile() {
       .update({ avatar_url: filePath })
       .eq('id', user.id);
     setAvatarPath(filePath);
-    setAvatarUrl(urlData.publicUrl);
+    if (urlData?.publicUrl) {
+      setAvatarUrl(urlData.publicUrl);
+    }
   };
 
   const handleCoverUpload = async (e) => {
@@ -143,7 +149,9 @@ function Profile() {
       .update({ cover_url: filePath })
       .eq('id', user.id);
     setCoverPath(filePath);
-    setCoverUrl(urlData.publicUrl);
+    if (urlData?.publicUrl) {
+      setCoverUrl(urlData.publicUrl);
+    }
   };
 
   const handleSubmit = async (e) => {
