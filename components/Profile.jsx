@@ -1,3 +1,5 @@
+import React from "react";
+
 function Profile() {
   const [user, setUser] = React.useState();
   const [newUsername, setNewUsername] = React.useState('');
@@ -11,6 +13,16 @@ function Profile() {
   const [postalCode, setPostalCode] = React.useState('');
   const [aboutMe, setAboutMe] = React.useState('');
   const [birthdate, setBirthdate] = React.useState('');
+  const [editing, setEditing] = React.useState(false);
+  const [avatarPath, setAvatarPath] = React.useState('');
+  const [avatarUrl, setAvatarUrl] = React.useState('');
+  const [coverPath, setCoverPath] = React.useState('');
+  const [coverUrl, setCoverUrl] = React.useState('');
+  const DEFAULT_AVATAR =
+    'https://demos.creativetim.com/argon-dashboard/assets-old/img/theme/team-4.jpg';
+  const DEFAULT_COVER =
+    'https://raw.githubusercontent.com/creativetimofficial/argon-dashboard/gh-pages/assets-old/img/theme/profile-cover.jpg';
+  const STORAGE_BUCKET = 'profile-images';
 
   React.useEffect(() => {
     async function loadUser() {
@@ -31,6 +43,29 @@ function Profile() {
       setPostalCode(user?.user_metadata?.postal_code || '');
       setAboutMe(user?.user_metadata?.about_me || '');
       setBirthdate(user?.user_metadata?.birthdate || '');
+      if (user) {
+        const { data: profile, error: profileError } = await supabaseClient
+          .from('profiles')
+          .select('avatar_url, cover_url')
+          .eq('id', user.id)
+          .single();
+        if (!profileError && profile) {
+          if (profile.avatar_url) {
+            setAvatarPath(profile.avatar_url);
+            const { data: aUrl } = supabaseClient.storage
+              .from(STORAGE_BUCKET)
+              .getPublicUrl(profile.avatar_url);
+            setAvatarUrl(aUrl.publicUrl);
+          }
+          if (profile.cover_url) {
+            setCoverPath(profile.cover_url);
+            const { data: cUrl } = supabaseClient.storage
+              .from(STORAGE_BUCKET)
+              .getPublicUrl(profile.cover_url);
+            setCoverUrl(cUrl.publicUrl);
+          }
+        }
+      }
     }
     loadUser();
   }, []);
@@ -53,6 +88,62 @@ function Profile() {
     const today = new Date();
     const diffTime = today - createdDate;
     return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !user) return;
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
+    if (avatarPath) {
+      await supabaseClient.storage
+        .from(STORAGE_BUCKET)
+        .remove([avatarPath]);
+    }
+    const { error: uploadError } = await supabaseClient.storage
+      .from(STORAGE_BUCKET)
+      .upload(filePath, file);
+    if (uploadError) {
+      alert(uploadError.message);
+      return;
+    }
+    const { data: urlData } = supabaseClient.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(filePath);
+    await supabaseClient
+      .from('profiles')
+      .update({ avatar_url: filePath })
+      .eq('id', user.id);
+    setAvatarPath(filePath);
+    setAvatarUrl(urlData.publicUrl);
+  };
+
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !user) return;
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${user.id}/cover-${Date.now()}.${fileExt}`;
+    if (coverPath) {
+      await supabaseClient.storage
+        .from(STORAGE_BUCKET)
+        .remove([coverPath]);
+    }
+    const { error: uploadError } = await supabaseClient.storage
+      .from(STORAGE_BUCKET)
+      .upload(filePath, file);
+    if (uploadError) {
+      alert(uploadError.message);
+      return;
+    }
+    const { data: urlData } = supabaseClient.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(filePath);
+    await supabaseClient
+      .from('profiles')
+      .update({ cover_url: filePath })
+      .eq('id', user.id);
+    setCoverPath(filePath);
+    setCoverUrl(urlData.publicUrl);
   };
 
   const handleSubmit = async (e) => {
@@ -124,12 +215,26 @@ function Profile() {
         className="header pb-8 pt-5 pt-lg-8 d-flex align-items-center"
         style={{
           minHeight: '600px',
-          backgroundImage:
-            'url(https://raw.githubusercontent.com/creativetimofficial/argon-dashboard/gh-pages/assets-old/img/theme/profile-cover.jpg)',
+          backgroundImage: `url(${coverUrl || DEFAULT_COVER})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center top',
+          position: 'relative',
         }}
       >
+        {editing && (
+          <>
+            <label htmlFor="cover-upload" className="edit-overlay">
+              <i className="fa-solid fa-plus-circle"></i>
+            </label>
+            <input
+              type="file"
+              id="cover-upload"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleCoverUpload}
+            />
+          </>
+        )}
         <span className="mask bg-gradient-default opacity-8" />
         <div className="container-fluid d-flex align-items-center">
           <div className="row">
@@ -141,13 +246,17 @@ function Profile() {
                 This is your profile page. You can see the progress you've made
                 with your work and manage your projects or assigned tasks
               </p>
-              <a href="#" className="btn btn-info">
-                Edit profile
-              </a>
+              <button
+                className="btn btn-info"
+                onClick={() => setEditing(!editing)}
+                type="button"
+              >
+                {editing ? 'Done' : 'Settings'}
+              </button>
             </div>
           </div>
         </div>
-        </div>
+      </div>
       <div className="container-fluid mt--7">
         <div className="row">
           <div className="col-xl-4 order-xl-2 mb-5 mb-lg-0">
@@ -155,12 +264,31 @@ function Profile() {
               <div className="row justify-content-center">
                 <div className="col-lg-3 order-lg-2">
                   <div className="card-profile-image">
-                    <a href="#">
+                    {editing ? (
+                      <label htmlFor="avatar-upload" className="image-edit">
+                        <img
+                          src={avatarUrl || DEFAULT_AVATAR}
+                          className="rounded-circle"
+                        />
+                        <span className="edit-overlay">
+                          <i className="fa-solid fa-plus-circle"></i>
+                        </span>
+                      </label>
+                    ) : (
                       <img
-                        src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-4.jpg"
+                        src={avatarUrl || DEFAULT_AVATAR}
                         className="rounded-circle"
                       />
-                    </a>
+                      )}
+                    {editing && (
+                      <input
+                        type="file"
+                        id="avatar-upload"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleAvatarUpload}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -218,15 +346,12 @@ function Profile() {
                   <div className="col-8">
                     <h3 className="mb-0">My account</h3>
                   </div>
-                  <div className="col-4 text-right">
-                    <a href="#" className="btn btn-sm btn-primary">
-                      Settings
-                    </a>
-                  </div>
+                  <div className="col-4 text-right"></div>
                 </div>
               </div>
               <div className="card-body">
                 <form onSubmit={handleSubmit}>
+                  <fieldset disabled={!editing} style={{ border: 'none' }}>
                   <h6 className="heading-small text-muted mb-4">
                     User information
                   </h6>
@@ -452,6 +577,7 @@ function Profile() {
                       {loading ? 'Updating...' : 'Update Profile'}
                     </button>
                   </div>
+                  </fieldset>
                 </form>
               </div>
             </div>
