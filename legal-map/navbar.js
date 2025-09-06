@@ -1,4 +1,34 @@
-document.addEventListener('DOMContentLoaded', async () => {
+(function () {
+  const sendError = (payload) => {
+    try {
+      fetch('/client-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) {
+      // ignore network errors
+    }
+  };
+
+  window.addEventListener('error', (event) => {
+    sendError({ message: event.message, stack: event.error && event.error.stack });
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason instanceof Error
+      ? { message: event.reason.message, stack: event.reason.stack }
+      : { message: String(event.reason) };
+    sendError(reason);
+  });
+
+  const originalConsoleError = console.error;
+  console.error = function (...args) {
+    sendError({ message: args.map(String).join(' ') });
+    originalConsoleError.apply(console, args);
+  };
+
+  document.addEventListener('DOMContentLoaded', async () => {
   const hamburger = document.getElementById('hamburger');
   const mobileMenu = document.getElementById('mobile-menu');
 
@@ -60,3 +90,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateAuth(null);
   }
 });
+})();
