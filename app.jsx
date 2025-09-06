@@ -497,6 +497,7 @@ function App() {
             description,
             user_id: userId
           });
+        logDiscord(`Edit request by: ${userId}, ${name}, ${country}, ${category} — react with ✅ to approve or ❌ to reject`);
       }
       alert('Edit request submitted for approval');
     } catch (err) {
@@ -510,6 +511,7 @@ function App() {
         await sb
           .from('pending_marker_actions')
           .insert({ action: 'delete', marker_id: id, name, country, category, user_id: userId });
+        logDiscord(`Delete request by: ${userId}, ${name}, ${country}, ${category} — react with ✅ to approve or ❌ to reject`);
       }
       alert('Deletion request submitted for approval');
     } catch (err) {
