@@ -57,7 +57,14 @@ function Profile() {
               .from(STORAGE_BUCKET)
               .getPublicUrl(profile.avatar_url);
             if (aUrl?.publicUrl) {
-              setAvatarUrl(aUrl.publicUrl);
+              try {
+                const resp = await fetch(aUrl.publicUrl, { method: 'HEAD' });
+                if (resp.ok) {
+                  setAvatarUrl(aUrl.publicUrl);
+                }
+              } catch (err) {
+                console.warn('Failed to load avatar', err);
+              }
             }
           }
           if (profile.cover_url) {
@@ -66,7 +73,14 @@ function Profile() {
               .from(STORAGE_BUCKET)
               .getPublicUrl(profile.cover_url);
             if (cUrl?.publicUrl) {
-              setCoverUrl(cUrl.publicUrl);
+              try {
+                const resp = await fetch(cUrl.publicUrl, { method: 'HEAD' });
+                if (resp.ok) {
+                  setCoverUrl(cUrl.publicUrl);
+                }
+              } catch (err) {
+                console.warn('Failed to load cover', err);
+              }
             }
           }
         }
@@ -278,6 +292,10 @@ function Profile() {
                         <img
                           src={avatarUrl || DEFAULT_AVATAR}
                           className="rounded-circle"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = DEFAULT_AVATAR;
+                          }}
                         />
                         <span className="edit-overlay">
                           <i className="fa-solid fa-plus-circle"></i>
@@ -287,6 +305,10 @@ function Profile() {
                       <img
                         src={avatarUrl || DEFAULT_AVATAR}
                         className="rounded-circle"
+                        onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = DEFAULT_AVATAR;
+                          }}
                       />
                       )}
                     {editing && (
