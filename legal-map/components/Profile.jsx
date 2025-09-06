@@ -16,6 +16,7 @@ function Profile() {
   const [avatarUrl, setAvatarUrl] = React.useState('');
   const [coverPath, setCoverPath] = React.useState('');
   const [coverUrl, setCoverUrl] = React.useState('');
+  const [markersCount, setMarkersCount] = React.useState(0);
   // Use reliable placeholder images for avatars and cover photos. The previous
   // links pointed to Argon Dashboard assets that occasionally return 4xx/5xx
   // responses, leaving a broken image icon in the UI. By switching to static
@@ -45,6 +46,15 @@ function Profile() {
       setAboutMe(user?.user_metadata?.about_me || '');
       setBirthdate(user?.user_metadata?.birthdate || '');
       if (user) {
+        const { count: markerCount, error: markerError } = await supabaseClient
+          .from('map_markers')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+        if (markerError) {
+          console.error(markerError);
+        }
+        setMarkersCount(markerCount || 0);
+
         const { data: profile, error: profileError } = await supabaseClient
           .from('profiles')
           .select('avatar_url, cover_url')
@@ -348,7 +358,7 @@ function Profile() {
                     <div className="col">
                       <div className="card-profile-stats d-flex justify-content-center mt-md-5">
                         <div>
-                          <span className="heading">{user.user_metadata?.markers_created || 0}</span>
+                          <span className="heading">{markersCount}</span>
                           <span className="description">Markers</span>
                         </div>
                         <div>
