@@ -16,10 +16,13 @@ function Profile() {
   const [avatarUrl, setAvatarUrl] = React.useState('');
   const [coverPath, setCoverPath] = React.useState('');
   const [coverUrl, setCoverUrl] = React.useState('');
-  const DEFAULT_AVATAR =
-    'https://demos.creativetim.com/argon-dashboard/assets-old/img/theme/team-4.jpg';
-  const DEFAULT_COVER =
-    'https://raw.githubusercontent.com/creativetimofficial/argon-dashboard/gh-pages/assets-old/img/theme/profile-cover.jpg';
+  // Use reliable placeholder images for avatars and cover photos. The previous
+  // links pointed to Argon Dashboard assets that occasionally return 4xx/5xx
+  // responses, leaving a broken image icon in the UI. By switching to static
+  // placeholder URLs we ensure the profile renders a valid image even before a
+  // user uploads their own.
+  const DEFAULT_AVATAR = 'https://placehold.co/150x150.jpg?text=Avatar';
+  const DEFAULT_COVER = 'https://placehold.co/1200x400.jpg?text=Cover';
   const STORAGE_BUCKET = 'profile-images';
 
   React.useEffect(() => {
