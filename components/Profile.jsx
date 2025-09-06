@@ -282,13 +282,15 @@ function Profile() {
                 This is your profile page. You can see the progress you've made
                 with your work and manage your projects or assigned tasks
               </p>
-              <button
-                className="btn btn-info"
-                onClick={() => setEditing(!editing)}
-                type="button"
-              >
-                Settings
-              </button>
+              {!editing && (
+                <button
+                  className="btn btn-info"
+                  onClick={() => setEditing(true)}
+                  type="button"
+                >
+                  Settings
+                </button>
+              )}
             </div>
           </div>
         </div>
