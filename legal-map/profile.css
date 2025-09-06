@@ -2120,3 +2120,28 @@ p {
     display: flex;
   }
 }
+
+.image-edit {
+  position: relative;
+  cursor: pointer;
+}
+
+.image-edit .edit-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 2rem;
+}
+
+.header .edit-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 3rem;
+  cursor: pointer;
+  z-index: 10;
+}
