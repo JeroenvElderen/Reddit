@@ -61,9 +61,6 @@ html, body {
     flex: 1;
 }
 
-#search-bar .username-input {
-    width: 150px;
-}
 
 #overlay.centered {
     top: 50%;
@@ -81,8 +78,7 @@ html, body {
         width: 100%;
         gap: 2px;
     }
-    #search-bar .search-input,
-    #search-bar .username-input {
+    #search-bar .search-input {
         width: 100%;          /* full width inside overlay */
         max-width: 100%;
     }

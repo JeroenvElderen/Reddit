@@ -10,8 +10,8 @@ Reusable UI pieces live under the `components/` directory to keep the project or
 3. The app dynamically loads the Google Maps JavaScript API (with Places library). Ensure your API key has Maps and Places enabled.
 
 ## Usage
-- Click on the map to add a spot. Provide name, country, **Reddit username**, category, and a description.
-- Use the search box to find a location; you'll be prompted for your Reddit username before a marker is added.
+- Click on the map to add a spot. Provide name, country, category, and a description. You must be logged into Supabase to add or modify markers.
+- Use the search box to find a location.
 - You can also DM the Discord bot with `Name, Country, Category, Description` (category optional).
 - Events are optionally logged to Discord.
 - Markers are stored in Supabase and automatically loaded on every visit.

@@ -3,8 +3,6 @@ function SearchBar({
   onQueryChange,
   closeOpenInfo,
   handleSearchSubmit,
-  username,
-  setUsername,
   suggestions,
   handleSuggestionClick,
 }) {
@@ -18,12 +16,6 @@ function SearchBar({
           onKeyDown={e => { if (e.key === 'Enter') handleSearchSubmit(); }}
           placeholder="Search for a place"
           className="search-input"
-        />
-        <input
-          value={username}
-          onChange={e => setUsername(e.target.value)}
-          placeholder="Reddit username"
-          className="username-input"
         />
       </div>
       {suggestions.length > 0 && (

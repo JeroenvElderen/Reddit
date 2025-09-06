@@ -18,8 +18,7 @@ function App() {
   const [showForm, setShowForm] = useState(false);
   const showFormRef = useRef(false);
   const [formData, setFormData] = useState({ name: '', country: '', description: '' });
-  const [username, setUsername] = useState('');
-  const usernameRef = useRef('');
+  const [user, setUser] = useState(null);
   const [pendingCoords, setPendingCoords] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [filter, setFilter] = useState({
@@ -37,6 +36,15 @@ function App() {
   useEffect(() => {
     showFormRef.current = showForm;
   }, [showForm]);
+
+  useEffect(() => {
+    if (!sb) return;
+    sb.auth.getUser().then(({ data: { user } }) => setUser(user));
+    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription?.unsubscribe();
+  }, []);
 
   // ---- zIndex helpers (ADVANCED MARKERS sit above IWs otherwise) ----
   const pushMarkersBehind = () => {
@@ -267,11 +275,6 @@ function App() {
     searchPlaces(val);
   };
 
-  const handleUsernameChange = (val) => {
-    setUsername(val);
-    usernameRef.current = val;
-  };
-
   const logDiscord = (msg) => {
     if (typeof DISCORD_WEBHOOK_URL === 'string' && DISCORD_WEBHOOK_URL) {
       fetch(DISCORD_WEBHOOK_URL, {
@@ -382,12 +385,12 @@ function App() {
       deleteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         closeOpenInfo();
-        if (!usernameRef.current.trim()) {
-          alert('Please enter your Reddit username before deleting')
+        if (!user) {
+          alert('Please log in before deleting');
           return;
         }
         if (confirm('Delete this marker?')) {
-          await deleteMarker(markerId, { name, country, category: cat, username: usernameRef.current.trim() });
+          await deleteMarker(markerId, { name, country, category: cat, userId: user.id });
         }
       });
     }
@@ -443,7 +446,7 @@ function App() {
   }, []);
 
   const addMarker = async ({
-    name = 'Unnamed', country, category, coordinates, description = '', username
+    name = 'Unnamed', country, category, coordinates, description = '', userId
   }) => {
     try {
       const coords = coordinates || await geocode(name, country);
@@ -460,13 +463,13 @@ function App() {
         }
       }
       renderMarker({ id, name, country, category, coordinates: coords, description });
-      logDiscord(`New marker by: ${username}, ${name}, ${country}, ${category}`);
+      logDiscord(`New marker by: ${userId}, ${name}, ${country}, ${category}`);
     } catch (err) {
       console.error('Error adding marker', err);
     }
   };
 
-  const updateMarker = async (id, { name, country, category, coordinates, description = '', username }) => {
+  const updateMarker = async (id, { name, country, category, coordinates, description = '', userId }) => {
     try {
       const coords = coordinates || await geocode(name, country);
       if (sb) {
@@ -480,7 +483,7 @@ function App() {
             category,
             coordinates: coords,
             description,
-            username
+            user_id: userId
           });
       }
       alert('Edit request submitted for approval');
@@ -489,12 +492,12 @@ function App() {
     }
   };
 
-  const deleteMarker = async (id, { name, country, category, username }) => {
+  const deleteMarker = async (id, { name, country, category, userId }) => {
     try {
       if (sb) {
         await sb
           .from('pending_marker_actions')
-          .insert({ action: 'delete', marker_id: id, name, country, category, username });
+          .insert({ action: 'delete', marker_id: id, name, country, category, user_id: userId });
       }
       alert('Deletion request submitted for approval');
     } catch (err) {
@@ -506,18 +509,14 @@ function App() {
     e.preventDefault();
     if (!pendingCoords) return;
     const { name, country, description } = formData;
-    if (!country.trim() || !username.trim()) return;
+    if (!country.trim()) return;
     if (!sb) {
       alert('Supabase not configured');
       return;
     }
-    const { data: userRow, error: userErr } = await sb
-      .from('user_karma')
-      .select('username')
-      .eq('username', username.trim())
-      .single();
-    if (userErr || !userRow) {
-      alert('Username not found in database');
+    const { data: { user: authUser } } = await sb.auth.getUser();
+    if (!authUser) {
+      alert('Please log in before submitting');
       return;
     }
     if (editingId) {
@@ -527,7 +526,7 @@ function App() {
         category,
         description,
         coordinates: pendingCoords,
-        username: username.trim()
+        userId: authUser.id
       });
       setEditingId(null);
     } else {
@@ -537,7 +536,7 @@ function App() {
         category,
         description,
         coordinates: pendingCoords,
-        username: username.trim()
+        userId: authUser.id
       });
     }
     setShowForm(false);
@@ -619,8 +618,6 @@ function App() {
           onQueryChange={handleQueryChange}
           closeOpenInfo={closeOpenInfo}
           handleSearchSubmit={handleSearchSubmit}
-          username={username}
-          setUsername={handleUsernameChange}
           suggestions={suggestions}
           handleSuggestionClick={handleSuggestionClick}
         />
