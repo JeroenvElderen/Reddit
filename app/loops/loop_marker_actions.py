@@ -78,7 +78,10 @@ def marker_actions_loop():
                         supabase.table("pending_marker_actions").update({"discord_msg_id": msg.id}).eq("id", row["id"]).execute()
                         pending_marker_actions[msg.id] = row
                 else:
-                    pending_marker_actions[msg_id] = row
+                    try:
+                        pending_marker_actions[int(msg_id)] = row
+                    except (TypeError, ValueError):
+                        pending_marker_actions[msg_id] = row
         except Exception as e:
             print(f"⚠️ marker_actions_loop error: {e}")
         time.sleep(30)
