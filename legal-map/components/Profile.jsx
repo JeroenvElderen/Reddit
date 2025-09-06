@@ -52,10 +52,13 @@ function Profile() {
           .single();
         if (!profileError && profile) {
           if (profile.avatar_url) {
-            setAvatarPath(profile.avatar_url);
+            const avatarPath = profile.avatar_url.includes('/')
+              ? profile.avatar_url
+              : `${user.id}/${profile.avatar_url}`;
+            setAvatarPath(avatarPath);
             const { data: aUrl } = supabaseClient.storage
               .from(STORAGE_BUCKET)
-              .getPublicUrl(profile.avatar_url);
+              .getPublicUrl(avatarPath);
             if (aUrl?.publicUrl) {
               try {
                 const resp = await fetch(aUrl.publicUrl, { method: 'HEAD' });
@@ -68,10 +71,13 @@ function Profile() {
             }
           }
           if (profile.cover_url) {
-            setCoverPath(profile.cover_url);
+            const coverPath = profile.cover_url.includes('/')
+              ? profile.cover_url
+              : `${user.id}/${profile.cover_url}`;
+            setCoverPath(coverPath);
             const { data: cUrl } = supabaseClient.storage
               .from(STORAGE_BUCKET)
-              .getPublicUrl(profile.cover_url);
+              .getPublicUrl(coverPath);
             if (cUrl?.publicUrl) {
               try {
                 const resp = await fetch(cUrl.publicUrl, { method: 'HEAD' });
@@ -115,9 +121,12 @@ function Profile() {
     const fileExt = file.name.split('.').pop();
     const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
     if (avatarPath) {
+      const oldPath = avatarPath.includes('/')
+        ? avatarPath
+        : `${user.id}/${avatarPath}`;
       await supabaseClient.storage
         .from(STORAGE_BUCKET)
-        .remove([avatarPath]);
+        .remove([oldPath]);
     }
     const { error: uploadError } = await supabaseClient.storage
       .from(STORAGE_BUCKET)
@@ -145,9 +154,12 @@ function Profile() {
     const fileExt = file.name.split('.').pop();
     const filePath = `${user.id}/cover-${Date.now()}.${fileExt}`;
     if (coverPath) {
+      const oldPath = coverPath.includes('/')
+        ? coverPath
+        : `${user.id}/${coverPath}`;
       await supabaseClient.storage
         .from(STORAGE_BUCKET)
-        .remove([coverPath]);
+        .remove([oldPath]);
     }
     const { error: uploadError } = await supabaseClient.storage
       .from(STORAGE_BUCKET)
