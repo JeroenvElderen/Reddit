@@ -1539,20 +1539,17 @@ a.text-white:focus {
 }
 
 .card-profile-image img {
-  position: absolute;
-  left: 50%;
-  top: 0;
   width: 180px;
   height: 180px;
   object-fit: cover;
   object-position: center;
   transition: all .15s ease;
-  transform: translate(-50%, -30%);
+  transform: translateY(-30%);
   border-radius: 50%;
 }
 
 .card-profile-image img:hover {
-  transform: translate(-50%, -33%);
+  transform: translateY(-33%);
 }
 
 .card-profile-stats {
@@ -2131,25 +2128,35 @@ p {
 .image-edit {
   position: relative;
   cursor: pointer;
-  display: block;
+  display: flex;
   width: 100%;
   height: 100%;
+  align-items: center;
+  justify-content: center;
 }
 
 .image-edit .edit-overlay {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #fff;
   font-size: 2rem;
 }
 
 .header .edit-overlay {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #fff;
   font-size: 3rem;
   cursor: pointer;
