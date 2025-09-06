@@ -10,6 +10,7 @@ function Profile() {
   const [country, setCountry] = React.useState('');
   const [postalCode, setPostalCode] = React.useState('');
   const [aboutMe, setAboutMe] = React.useState('');
+  const [birthdate, setBirthdate] = React.useState('');
 
   React.useEffect(() => {
     async function loadUser() {
@@ -29,9 +30,30 @@ function Profile() {
       setCountry(user?.user_metadata?.country || '');
       setPostalCode(user?.user_metadata?.postal_code || '');
       setAboutMe(user?.user_metadata?.about_me || '');
+      setBirthdate(user?.user_metadata?.birthdate || '');
     }
     loadUser();
   }, []);
+
+  const calculateAge = (dob) => {
+    if (!dob) return '';
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const calculateNaturistDays = (createdAt) => {
+    if (!createdAt) return 0;
+    const createdDate = new Date(createdAt);
+    const today = new Date();
+    const diffTime = today - createdDate;
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -46,6 +68,7 @@ function Profile() {
         country,
         postal_code: postalCode,
         about_me: aboutMe,
+        birthdate,
       },
     };
     if (newPassword) {
@@ -66,6 +89,7 @@ function Profile() {
       setCountry(data.user.user_metadata?.country || '');
       setPostalCode(data.user.user_metadata?.postal_code || '');
       setAboutMe(data.user.user_metadata?.about_me || '');
+      setBirthdate(data.user.user_metadata?.birthdate || '');
     }
   };
 
@@ -152,50 +176,40 @@ function Profile() {
               </div>
               <div className="card-body pt-0 pt-md-4">
                 <div className="row">
-                  <div className="col">
-                    <div className="card-profile-stats d-flex justify-content-center mt-md-5">
-                      <div>
-                        <span className="heading">22</span>
-                        <span className="description">Friends</span>
-                      </div>
-                      <div>
-                        <span className="heading">10</span>
-                        <span className="description">Photos</span>
-                      </div>
-                      <div>
-                        <span className="heading">89</span>
-                        <span className="description">Comments</span>
+                    <div className="col">
+                      <div className="card-profile-stats d-flex justify-content-center mt-md-5">
+                        <div>
+                          <span className="heading">{user.user_metadata?.markers_created || 0}</span>
+                          <span className="description">Markers</span>
+                        </div>
+                        <div>
+                          <span className="heading">{calculateNaturistDays(user?.created_at)}</span>
+                          <span className="description">Days as Naturist</span>
+                        </div>
+                        <div>
+                          <span className="heading">{user.user_metadata?.comments || 0}</span>
+                          <span className="description">Comments</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
                 <div className="text-center">
                   <h3>
-                    {user.user_metadata?.username || 'Username'}
-                    <span className="font-weight-light">, 27</span>
-                  </h3>
+                      {user.user_metadata?.username || 'Username'}
+                      {birthdate && (
+                        <span className="font-weight-light">, {calculateAge(birthdate)}</span>
+                      )}
+                    </h3>
                   <div className="h5 font-weight-300">
                     <i className="fa fa-location-dot mr-2" />
                     Bucharest, Romania
                   </div>
-                  <div className="h5 mt-4">
-                    <i className="fa fa-briefcase mr-2" />
-                    Solution Manager - Creative Tim Officer
-                  </div>
-                  <div>
-                    <i className="fa fa-graduation-cap mr-2" />
-                    University of Computer Science
-                  </div>
                   <hr className="my-4" />
-                  <p>
-                    Ryan — the name taken by Melbourne-raised, Brooklyn-based
-                    Nick Murphy — writes, performs and records all of his own
-                    music.
-                  </p>
-                  <a href="#">Show more</a>
+                    <p>{aboutMe}</p>
+                    <a href="#">Show more</a>
+                  </div>
                 </div>
               </div>
-            </div>
           </div>
           <div className="col-xl-8 order-xl-1">
             <div className="card bg-secondary shadow">
@@ -397,6 +411,21 @@ function Profile() {
                   <hr className="my-4" />
                   <h6 className="heading-small text-muted mb-4">About me</h6>
                   <div className="pl-lg-4">
+                    <div className="form-group focused">
+                      <label
+                        className="form-control-label"
+                        htmlFor="input-birthdate"
+                      >
+                        Birthdate
+                      </label>
+                      <input
+                        type="date"
+                        id="input-birthdate"
+                        className="form-control form-control-alternative"
+                        value={birthdate}
+                        onChange={(e) => setBirthdate(e.target.value)}
+                      />
+                    </div>
                     <div className="form-group focused">
                       <label
                         className="form-control-label"
