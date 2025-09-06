@@ -10,8 +10,11 @@ from app.config import DISCORD_MAP_CHANNEL_ID
 
 async def _send_action(row):
     channel = bot.get_channel(DISCORD_MAP_CHANNEL_ID)
-    if not channel:
-        return None
+    if channel is None:
+        try:
+            channel = await bot.fetch_channel(DISCORD_MAP_CHANNEL_ID)
+        except Exception:
+            return None
     action = row.get("action")
     user = row.get("username", "unknown")
     name = row.get("name", "")
