@@ -1,5 +1,3 @@
-import React from "react";
-
 function Profile() {
   const [user, setUser] = React.useState();
   const [newUsername, setNewUsername] = React.useState('');
