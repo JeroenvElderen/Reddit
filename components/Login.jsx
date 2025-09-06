@@ -11,7 +11,7 @@ function Login() {
     if (error) {
       alert(error.message);
     } else {
-      alert('Logged in!');
+      window.location.href = 'profile.html';
     }
   };
 
