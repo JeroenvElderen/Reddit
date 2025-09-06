@@ -216,6 +216,7 @@ function Profile() {
       setPostalCode(data.user.user_metadata?.postal_code || '');
       setAboutMe(data.user.user_metadata?.about_me || '');
       setBirthdate(data.user.user_metadata?.birthdate || '');
+      setEditing(false);
     }
   };
 
@@ -286,7 +287,7 @@ function Profile() {
                 onClick={() => setEditing(!editing)}
                 type="button"
               >
-                {editing ? 'Done' : 'Settings'}
+                Settings
               </button>
             </div>
           </div>
@@ -606,15 +607,17 @@ function Profile() {
                       />
                     </div>
                   </div>
-                  <div className="pl-lg-4">
-                    <button
-                      type="submit"
-                      className="btn btn-primary"
-                      disabled={loading}
-                    >
-                      {loading ? 'Updating...' : 'Update Profile'}
-                    </button>
-                  </div>
+                  {editing && (
+                    <div className="pl-lg-4">
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={loading}
+                      >
+                        {loading ? 'Updating...' : 'Update Profile'}
+                      </button>
+                    </div>
+                  )}
                   </fieldset>
                 </form>
               </div>
