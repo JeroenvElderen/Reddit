@@ -12,11 +12,11 @@ function MarkerDetails() {
     { name: 'swimming', label: 'Zwemmen' },
     { name: 'sanitary', label: 'Staat van het sanitair' },
     { name: 'food', label: 'Eten & drinken' },
-    { name: 'interest', label: 'Ook interessant (tel niet mee in de score)' },
     { name: 'location', label: 'Ligging' },
     { name: 'child', label: 'Kindvriendelijkheid' },
     { name: 'disabled', label: 'Geschikt voor mindervaliden' }
   ];
+  const extraRatingLabel = 'Ook interessant (telt niet mee in de score)';
   const [ratings, setRatings] = useState(
     Object.fromEntries(ratingFields.map(f => [f.name, 0]))
   );
@@ -106,8 +106,8 @@ function MarkerDetails() {
 
   const photos = marker.photos || [];
   const PLACEHOLDER_IMAGE = 'https://placehol.com/600x400?text=No+Image+Available';
-  const primaryFields = ratingFields.filter(f => !['overall','interest','location','child','disabled'].includes(f.name));
-  const secondaryFields = ratingFields.filter(f => ['location','child','disabled'].includes(f.name));
+    const primaryFields = ratingFields.filter(f => !['overall','location','child','disabled'].includes(f.name));
+    const secondaryFields = ratingFields.filter(f => ['location','child','disabled'].includes(f.name));
 
   return (
     <div className="marker-page">
@@ -257,25 +257,62 @@ function MarkerDetails() {
               <p className="rating-note">
                 LET OP: Beoordeel alléén de onderdelen die op deze locatie aanwezig zijn. Is er bijvoorbeeld geen zwemgelegenheid, geef dan geen beoordeling voor het onderdeel 'zwemmen'. Anders trekt deze beoordeling onterecht het gemiddelde cijfer omlaag.
               </p>
-              {ratingFields.map(field => (
-                <div className="rating-field" key={field.name}>
-                  <span>{field.label}</span>
+                <div className="rating-field">
+                  <span>{ratingFields.find(f => f.name === 'overall').label}</span>
                   <div className="rating">
                     {[5,4,3,2,1].map(n => (
                       <React.Fragment key={n}>
                         <input
                           type="radio"
-                          id={`${field.name}-${n}`}
-                          name={field.name}
+                          id={`overall-${n}`}
+                          name="overall"
                           value={n}
-                          onChange={() => handleRatingChange(field.name, n)}
+                          onChange={() => handleRatingChange('overall', n)}
                         />
-                        <label htmlFor={`${field.name}-${n}`}></label>
+                        <label htmlFor={`overall-${n}`}></label>
                       </React.Fragment>
                     ))}
                   </div>
                 </div>
-              ))}
+                {primaryFields.map(field => (
+                  <div className="rating-field" key={field.name}>
+                    <span>{field.label}</span>
+                    <div className="rating">
+                      {[5,4,3,2,1].map(n => (
+                        <React.Fragment key={n}>
+                          <input
+                            type="radio"
+                            id={`${field.name}-${n}`}
+                            name={field.name}
+                            value={n}
+                            onChange={() => handleRatingChange(field.name, n)}
+                          />
+                          <label htmlFor={`${field.name}-${n}`}></label>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <p className="rating-note">{extraRatingLabel}</p>
+                {secondaryFields.map(field => (
+                  <div className="rating-field" key={field.name}>
+                    <span>{field.label}</span>
+                    <div className="rating">
+                      {[5,4,3,2,1].map(n => (
+                        <React.Fragment key={n}>
+                          <input
+                            type="radio"
+                            id={`${field.name}-${n}`}
+                            name={field.name}
+                            value={n}
+                            onChange={() => handleRatingChange(field.name, n)}
+                          />
+                          <label htmlFor={`${field.name}-${n}`}></label>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               <div className="form-row">
                 <label htmlFor="review-title">Geef je beoordeling een titel</label>
                 <input id="review-title" type="text" />
@@ -303,11 +340,11 @@ function MarkerDetails() {
                     </li>
                   ))}
                 </ul>
-                {secondaryFields.length > 0 && (
-                  <>
-                    <h3>Ook interessant (telt niet mee in de score)</h3>
-                    <ul>
-                      {secondaryFields.map(field => (
+                  {secondaryFields.length > 0 && (
+                    <>
+                      <h3>{extraRatingLabel}</h3>
+                      <ul>
+                        {secondaryFields.map(field => (
                         <li key={field.name}>
                           <span>{field.label}</span>
                           <span>{formatRating(avgRatings[field.name] ?? 0)}</span>
