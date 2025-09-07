@@ -41,6 +41,35 @@ function MarkerDetails() {
     }
   };
 
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!marker) return;
+    const formData = new FormData(e.target);
+    const payload = {
+      marker_id: marker.id,
+      name: formData.get('name'),
+      email: formData.get('email'),
+      visited: formData.get('visited'),
+      title: formData.get('title'),
+      text: formData.get('text'),
+      ...ratings,
+    };
+    try {
+      const { error } = await window.supabaseClient
+        .from('marker_reviews')
+        .insert(payload);
+      if (error) throw error;
+      alert('Review submitted!');
+      e.target.reset();
+      setRatings(Object.fromEntries(ratingFields.map(f => [f.name, 0])));
+      setReviewCount(c => c + 1);
+      setMarker(prev => ({ ...prev, review_count: (prev?.review_count ?? 0) + 1 }));
+    } catch (err) {
+      console.error('Error saving review', err);
+      alert('Error saving review');
+    }
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
@@ -236,18 +265,18 @@ function MarkerDetails() {
           </div>
           <div id="reviews" className="marker-section">
             <h2>Plaats een review</h2>
-            <form className="review-form">
+            <form className="review-form" onSubmit={handleReviewSubmit}>
               <div className="form-row">
                 <label htmlFor="review-name">Naam*</label>
-                <input id="review-name" type="text" required />
+                <input id="review-name" name="name" type="text" required />
               </div>
               <div className="form-row">
                 <label htmlFor="review-email">E-mail*</label>
-                <input id="review-email" type="email" required />
+                <input id="review-email" name="email" type="email" required />
               </div>
               <div className="form-row">
                 <label htmlFor="review-visited">Met wie bezocht je de locatie</label>
-                <select id="review-visited">
+                <select id="review-visited" name="visited">
                   <option>Alleen</option>
                   <option>Partner</option>
                   <option>Gezin</option>
@@ -315,11 +344,11 @@ function MarkerDetails() {
                 ))}
               <div className="form-row">
                 <label htmlFor="review-title">Geef je beoordeling een titel</label>
-                <input id="review-title" type="text" />
+                <input id="review-title" name="title" type="text" />
               </div>
               <div className="form-row">
                 <label htmlFor="review-text">Schrijf hier je review (max. 300 woorden)</label>
-                <textarea id="review-text" maxLength="300"></textarea>
+                <textarea id="review-text" name="text" maxLength="300"></textarea>
               </div>
               <div className="form-row terms">
                 <label>
