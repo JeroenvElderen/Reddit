@@ -295,10 +295,10 @@ input { padding:4px; }
 .marker-section {
     margin-bottom: 2rem;
     padding: 1.5rem;
-    border-radius: 1rem;
-    box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
-    background: radial-gradient(ellipse at left top,#00458f8f 0%,#151419 45%,#151419 100%);
-    color: #fff;
+    border-radius: 0;
+    box-shadow: none;
+    background: none;
+    color: #000;
 }
 
 .marker-section h2 {
@@ -326,7 +326,7 @@ input { padding:4px; }
 .review-form textarea {
     padding: 0.5rem;
     border: none;
-    border-radius: 0.5rem;
+    border-radius: 0;
 }
 
 .review-form textarea {
@@ -337,7 +337,7 @@ input { padding:4px; }
     align-self: flex-start;
     padding: 0.5rem 1rem;
     border: none;
-    border-radius: 0.5rem;
+    border-radius: 0;
     background: #fe6c9b;
     color: #fff;
     cursor: pointer;
@@ -384,7 +384,7 @@ input { padding:4px; }
 .rating-note {
     font-size: 0.75rem;
     line-height: 1.2;
-    color: #ddd;
+    color: #000;
 }
 
 #address {
