@@ -42,12 +42,12 @@ function MarkerDetails() {
   let lat, lng;
   const coords = marker.coordinates;
   if (Array.isArray(coords)) {
-    [lng, lat] = coords;
+    [lat, lng] = coords;
   } else if (coords && typeof coords === 'object') {
     ({ lat, lng } = coords);
   } else if (typeof coords === 'string') {
     const parts = coords.split(',').map(parseFloat);
-    [lng, lat] = parts;
+    [lat, lng] = parts;
   }
 
   const photos = marker.photos || [];

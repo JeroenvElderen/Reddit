@@ -294,9 +294,11 @@ function App() {
 
   const renderMarker = ({ id, name, country, category, coordinates, description, law }) => {
     const pos = Array.isArray(coordinates)
-      ? { lat: coordinates[1], lng: coordinates[0] }
+      ? { lat: coordinates[0], lng: coordinates[1] }
       : coordinates;
-    const coordsArr = Array.isArray(coordinates) ? coordinates : [coordinates.lng, coordinates.lat];
+    const coordsArr = Array.isArray(coordinates)
+      ? [coordinates[1], coordinates[0]]
+      : [coordinates.lng, coordinates.lat];
     const markerId = id ?? Date.now() + Math.random();
 
     const cat = (category || '').toLowerCase().trim();
@@ -444,6 +446,7 @@ function App() {
   }) => {
     try {
       const coords = coordinates || await geocode(name, country);
+      const dbCoords = [coords[1], coords[0]];
       let id = null;
       if (sb) {
         const { data: inserted, error } = await sb
@@ -452,7 +455,7 @@ function App() {
             name,
             country,
             category,
-            coordinates: coords,
+            coordinates: dbCoords,
             description,
             user_id: userId
           })
@@ -463,7 +466,7 @@ function App() {
           id = inserted[0].id;
         }
       }
-      renderMarker({ id, name, country, category, coordinates: coords, description });
+      renderMarker({ id, name, country, category, coordinates: dbCoords, description });
       logDiscord(`New marker by: ${userId}, ${name}, ${country}, ${category}`);
     } catch (err) {
       console.error('Error adding marker', err);
@@ -475,7 +478,7 @@ function App() {
     { name, country, category, coordinates, description = '', userId, username }
   ) => {
     try {
-      const coords = coordinates || await geocode(name, country);
+      const dbCoords = [coords[1], coords[0]]
       if (sb) {
         const { error } = await sb
           .from('pending_marker_actions')
@@ -485,7 +488,7 @@ function App() {
             name,
             country,
             category,
-            coordinates: coords,
+            coordinates: dbCoords,
             description,
             user_id: userId,
             username: username || userId
