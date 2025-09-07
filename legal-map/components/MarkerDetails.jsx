@@ -1,16 +1,37 @@
 const { useEffect, useState } = React;
 
 function MarkerDetails() {
-  const [marker, setMarker] = useState(null);
-  const [currentPhoto, setCurrentPhoto] = useState(0);
-    const handleShare = async () => {
-        try {
-            await navigator.clipboard.writeText(window.location.href);
-            alert('Link copied to clipboard!');
-        } catch (err) {
-            console.error('Failed to copy: ', err);
-        }
-    };
+    const [marker, setMarker] = useState(null);
+    const [currentPhoto, setCurrentPhoto] = useState(0);
+    const ratingFields = [
+    { name: 'overall', label: 'Rating*' },
+    { name: 'nudity', label: 'Blootvriendelijkheid' },
+    { name: 'hygiene', label: 'Hygiëne' },
+    { name: 'price', label: 'Prijs / kwaliteit' },
+    { name: 'facilities', label: 'Faciliteiten' },
+    { name: 'swimming', label: 'Zwemmen' },
+    { name: 'sanitary', label: 'Staat van het sanitair' },
+    { name: 'food', label: 'Eten & drinken' },
+    { name: 'interest', label: 'Ook interessant (tel niet mee in de score)' },
+    { name: 'location', label: 'Ligging' },
+    { name: 'child', label: 'Kindvriendelijkheid' },
+    { name: 'disabled', label: 'Geschikt voor mindervaliden' }
+  ];
+  const [ratings, setRatings] = useState(
+    Object.fromEntries(ratingFields.map(f => [f.name, 0]))
+  );
+  const handleRatingChange = (field, value) => {
+    setRatings(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      alert('Link copied to clipboard!');
+    } catch (err) {
+      console.error('Failed to copy: ', err);
+    }
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -89,6 +110,7 @@ function MarkerDetails() {
             <li><a href="#photos">Photos</a></li>
             <li><a href="#features">Features</a></li>
             <li><a href="#description">Description</a></li>
+            <li><a href="#reviews">Reviews</a></li>
             {lat != null && lng != null && (
               <li>
                 <a
@@ -103,7 +125,7 @@ function MarkerDetails() {
           </ul>
         </nav>
         <section className="marker-main">
-          <div id="photos">
+          <div id="photos" className="marker-section">
             <div className="photo-gallery">
               <img
                 className="main-photo"
@@ -128,7 +150,7 @@ function MarkerDetails() {
               )}
             </div>
           </div>
-          <div id="features">
+          <div id="features" className="marker-section">
             <h2>Features</h2>
             <div className="feature-group">
               <h3>General</h3>
@@ -141,11 +163,11 @@ function MarkerDetails() {
               </ul>
             </div>
           </div>
-          <div id="description">
+          <div id="description" className="marker-section">
             <h2>Description</h2>
             <p>{marker.description}</p>
           </div>
-          <div id="address">
+          <div id="address" className="marker-section">
             <h2>Address Details</h2>
             <div className="address-info">
               <div className="address-block">
@@ -176,6 +198,64 @@ function MarkerDetails() {
                 </div>
               )}
             </div>
+          </div>
+          <div id="reviews" className="marker-section">
+            <h2>Plaats een review</h2>
+            <form className="review-form">
+              <div className="form-row">
+                <label htmlFor="review-name">Naam*</label>
+                <input id="review-name" type="text" required />
+              </div>
+              <div className="form-row">
+                <label htmlFor="review-email">E-mail*</label>
+                <input id="review-email" type="email" required />
+              </div>
+              <div className="form-row">
+                <label htmlFor="review-visited">Met wie bezocht je de locatie</label>
+                <select id="review-visited">
+                  <option>Alleen</option>
+                  <option>Partner</option>
+                  <option>Gezin</option>
+                  <option>Vrienden</option>
+                </select>
+              </div>
+              <p className="rating-note">
+                LET OP: Beoordeel alléén de onderdelen die op deze locatie aanwezig zijn. Is er bijvoorbeeld geen zwemgelegenheid, geef dan geen beoordeling voor het onderdeel 'zwemmen'. Anders trekt deze beoordeling onterecht het gemiddelde cijfer omlaag.
+              </p>
+              {ratingFields.map(field => (
+                <div className="rating-field" key={field.name}>
+                  <span>{field.label}</span>
+                  <div className="rating">
+                    {[5,4,3,2,1].map(n => (
+                      <React.Fragment key={n}>
+                        <input
+                          type="radio"
+                          id={`${field.name}-${n}`}
+                          name={field.name}
+                          value={n}
+                          onChange={() => handleRatingChange(field.name, n)}
+                        />
+                        <label htmlFor={`${field.name}-${n}`}></label>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div className="form-row">
+                <label htmlFor="review-title">Geef je beoordeling een titel</label>
+                <input id="review-title" type="text" />
+              </div>
+              <div className="form-row">
+                <label htmlFor="review-text">Schrijf hier je review (max. 300 woorden)</label>
+                <textarea id="review-text" maxLength="300"></textarea>
+              </div>
+              <div className="form-row terms">
+                <label>
+                  <input type="checkbox" required /> Ik ga akkoord met de <a href="#">Spelregels</a> en <a href="#">Privacy Policy</a>
+                </label>
+              </div>
+              <button type="submit">Review plaatsen</button>
+            </form>
           </div>
         </section>
       </div>
