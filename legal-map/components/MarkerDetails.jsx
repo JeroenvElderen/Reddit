@@ -51,6 +51,7 @@ function MarkerDetails() {
   }
 
   const photos = marker.photos || [];
+  const PLACEHOLDER_IMAGE = 'https://placehol.com/600x400?text=No+Image+Available';
 
   return (
     <div className="marker-page">
@@ -103,13 +104,13 @@ function MarkerDetails() {
         </nav>
         <section className="marker-main">
           <div id="photos">
-            {photos.length > 0 && (
-              <div className="photo-gallery">
-                <img
-                  className="main-photo"
-                  src={photos[currentPhoto]}
-                  alt={marker.name}
-                />
+            <div className="photo-gallery">
+              <img
+                className="main-photo"
+                src={photos.length > 0 ? photos[currentPhoto] : PLACEHOLDER_IMAGE}
+                alt={photos.length > 0 ? marker.name : 'No image available'}
+              />
+              {photos.length > 1 && (
                 <div className="thumbnails">
                   {photos.map((url, idx) => (
                     <img
@@ -121,8 +122,11 @@ function MarkerDetails() {
                     />
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+              {photos.length === 0 && (
+                <p>No image available</p>
+              )}
+            </div>
           </div>
           <div id="features">
             <h2>Features</h2>
