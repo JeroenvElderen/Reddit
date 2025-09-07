@@ -419,12 +419,18 @@ input { padding:4px; }
     display: flex;
     align-items: center;
     margin-bottom: 0.25rem;
+    justify-content: space-between;
 }
 
 .review-summary li span:first-child {
     flex: 1;
     border-bottom: 1px dotted #ccc;
     margin-right: 0.5rem;
+}
+
+.review-summary li span:last-child {
+    width: 3rem;
+    text-align: right;
 }
 
 .review-summary h3 {
