@@ -201,9 +201,9 @@ input { padding:4px; }
 
 /* Marker details layout */
 .marker-page {
-    max-width: 1200px;
+    max-width: 1000px;
     margin: 0 auto;
-    padding: 1rem;
+    padding: 1rem 2rem;
     font-family: "Poppins", sans-serif;
 }
 
@@ -258,10 +258,18 @@ input { padding:4px; }
     display: flex;
     gap: 2rem;
     margin-top: 1rem;
+    align-items: flex-start;
 }
 
 .marker-nav {
     min-width: 160px;
+    position: sticky;
+    top: 1rem;
+    align-self: flex-start;
+    background: #fff;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .marker-nav ul {
