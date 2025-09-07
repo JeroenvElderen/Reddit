@@ -46,6 +46,9 @@ function MarkerDetails() {
     e.stopPropagation();
     if (!marker) return;
     const formData = new FormData(e.target);
+    const cleanRatings = Object.fromEntries(
+      Object.entries(ratings).map(([key, value]) => [key, value > 0 ? value : null])
+    );
     const payload = {
       marker_id: marker.id,
       name: formData.get('name'),
@@ -53,7 +56,7 @@ function MarkerDetails() {
       visited: formData.get('visited'),
       title: formData.get('title'),
       text: formData.get('text'),
-      ...ratings,
+      ...cleanRatings,
     };
     try {
       const { error } = await window.supabaseClient
