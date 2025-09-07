@@ -3,6 +3,14 @@ const { useEffect, useState } = React;
 function MarkerDetails() {
   const [marker, setMarker] = useState(null);
   const [currentPhoto, setCurrentPhoto] = useState(0);
+    const handleShare = async () => {
+        try {
+            await navigator.clipboard.writeText(window.location.href);
+            alert('Link copied to clipboard!');
+        } catch (err) {
+            console.error('Failed to copy: ', err);
+        }
+    };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -41,8 +49,32 @@ function MarkerDetails() {
   return (
     <div className="marker-page">
       <header className="marker-header">
-        <h1>{marker.name}</h1>
-        <p>{marker.country}</p>
+        <div className="marker-header-left">
+          <h1>{marker.name}</h1>
+          <div className="marker-meta">
+            <i className="fa-solid fa-star"></i>
+            <span>{marker.rating ?? '5.0'}</span>
+            <span className="marker-reviews">• {marker.review_count ?? 0} reviews</span>
+          </div>
+        </div>
+        <div className="marker-actions">
+          {lat && lng && (
+            <a
+              className="marker-action"
+              href={`https://www.google.com/maps?q=${lat},${lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <i className="fa-solid fa-map"></i> View on map
+            </a>
+          )}
+          <button className="marker-action" onClick={handleShare}>
+            <i className="fa-solid fa-share-nodes"></i> Share location
+          </button>
+          <a className="marker-action" href="register.html">
+            <i className="fa-solid fa-user-plus"></i> Join
+          </a>
+        </div>
       </header>
       <div className="marker-content">
         <nav className="marker-nav">
