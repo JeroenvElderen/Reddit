@@ -39,10 +39,16 @@ function MarkerDetails() {
     );
     }
 
-  const coords = typeof marker.coordinates === 'string'
-    ? marker.coordinates.split(',').map(parseFloat)
-    : marker.coordinates || [];
-  const [lat, lng] = coords;
+  let lat, lng;
+  const coords = marker.coordinates;
+  if (Array.isArray(coords)) {
+    [lng, lat] = coords;
+  } else if (coords && typeof coords === 'object') {
+    ({ lat, lng } = coords);
+  } else if (typeof coords === 'string') {
+    const parts = coords.split(',').map(parseFloat);
+    [lng, lat] = parts;
+  }
 
   const photos = marker.photos || [];
 
@@ -82,7 +88,7 @@ function MarkerDetails() {
             <li><a href="#photos">Photos</a></li>
             <li><a href="#features">Features</a></li>
             <li><a href="#description">Description</a></li>
-            {lat && lng && (
+            {lat != null && lng != null && (
               <li>
                 <a
                   href={`https://www.google.com/maps?q=${lat},${lng}`}
