@@ -130,7 +130,16 @@ function MarkerDetails() {
           </div>
           <div id="features">
             <h2>Features</h2>
-            <p>{marker.category}</p>
+            <div className="feature-group">
+              <h3>General</h3>
+              <ul>
+                {marker.features && marker.features.length > 0 ? (
+                  marker.features.map((feat, idx) => <li key={idx}>{feat}</li>)
+                ) : (
+                  <li>{marker.category}</li>
+                )}
+              </ul>
+            </div>
           </div>
           <div id="description">
             <h2>Description</h2>
