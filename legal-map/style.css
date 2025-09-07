@@ -198,6 +198,91 @@ input { padding:4px; }
     color: #fff;
     font-family: "Poppins", sans-serif;
 }
+
+/* Marker details layout */
+.marker-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    font-family: "Poppins", sans-serif;
+}
+
+.marker-header h1 {
+    margin-bottom: 0.25rem;
+}
+
+.marker-content {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1rem;
+}
+
+.marker-nav {
+    min-width: 160px;
+}
+
+.marker-nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.marker-nav li {
+    margin-bottom: 0.5rem;
+}
+
+.marker-nav a {
+    text-decoration: none;
+    color: #333;
+}
+
+.marker-main {
+    flex: 1;
+}
+
+.photo-gallery {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.photo-gallery .main-photo {
+    max-width: 100%;
+    border-radius: 0.5rem;
+}
+
+.photo-gallery .thumbnails {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.photo-gallery .thumbnails img {
+    width: 100px;
+    height: 75px;
+    object-fit: cover;
+    cursor: pointer;
+    border-radius: 0.25rem;
+    opacity: 0.7;
+}
+
+.photo-gallery .thumbnails img.active,
+.photo-gallery .thumbnails img:hover {
+    opacity: 1;
+}
+
+@media (max-width: 767px) {
+    .marker-content {
+        flex-direction: column;
+    }
+    .photo-gallery {
+        flex-direction: column;
+    }
+    .photo-gallery .thumbnails {
+        flex-direction: row;
+    }
+}
+
 #overlay input::placeholder {
     color: #cccccc;
 }
