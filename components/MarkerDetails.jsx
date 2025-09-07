@@ -22,6 +22,12 @@ function MarkerDetails() {
   );
   const [reviewCount, setReviewCount] = useState(0);
   const [avgRatings, setAvgRatings] = useState({});
+  const formatRating = value => {
+    const num = number(value);
+    if (number.isNaN(num)) return '0';
+    return num.toFixed(1).replace(/\.0$/, '');
+  };
+
   const handleRatingChange = (field, value) => {
     setRatings(prev => ({ ...prev, [field]: value }));
   };
@@ -288,27 +294,29 @@ function MarkerDetails() {
             <h2>Reviews over deze locatie</h2>
             <div className="review-summary">
               <div className="review-count">{reviewCount}</div>
-              <ul>
-                {primaryFields.map(field => (
-                  <li key={field.name}>
-                    <span>{field.label}</span>
-                    <span>{avgRatings[field.name] ?? 0}</span>
-                  </li>
-                ))}
-              </ul>
-              {secondaryFields.length > 0 && (
-                <>
-                  <h3>Ook interessant (telt niet mee in de score)</h3>
-                  <ul>
-                    {secondaryFields.map(field => (
-                      <li key={field.name}>
-                        <span>{field.label}</span>
-                        <span>{avgRatings[field.name] ?? 0}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
+              <div className="review-lists">
+                <ul>
+                  {primaryFields.map(field => (
+                    <li key={field.name}>
+                      <span>{field.label}</span>
+                      <span>{formatRating(avgRatings[field.name] ?? 0)}</span>
+                    </li>
+                  ))}
+                </ul>
+                {secondaryFields.length > 0 && (
+                  <>
+                    <h3>Ook interessant (telt niet mee in de score)</h3>
+                    <ul>
+                      {secondaryFields.map(field => (
+                        <li key={field.name}>
+                          <span>{field.label}</span>
+                          <span>{formatRating(avgRatings[field.name] ?? 0)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </section>
