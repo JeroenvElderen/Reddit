@@ -43,6 +43,7 @@ function MarkerDetails() {
 
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!marker) return;
     const formData = new FormData(e.target);
     const payload = {
@@ -265,7 +266,7 @@ function MarkerDetails() {
           </div>
           <div id="reviews" className="marker-section">
             <h2>Plaats een review</h2>
-            <form className="review-form" onSubmit={handleReviewSubmit}>
+            <form className="review-form" onSubmit={handleReviewSubmit} method="post">
               <div className="form-row">
                 <label htmlFor="review-name">Naam*</label>
                 <input id="review-name" name="name" type="text" required />
