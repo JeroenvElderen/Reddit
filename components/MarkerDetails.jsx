@@ -68,7 +68,7 @@ function MarkerDetails() {
           {lat && lng && (
             <a
               className="marker-action"
-              href={`https://www.google.com/maps?q=${lat},${lng}`}
+              href={`https://www.google.com/maps?q=${lng},${lat}`}
               target="_blank"
               rel="noopener noreferrer"
             >
