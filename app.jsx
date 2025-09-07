@@ -331,7 +331,7 @@ function App() {
           <p>${category}</p>
           <p class="card-text">${text}</p>
           <button class="edit-marker">Edit Marker</button>
-          <button class="delete-marker">Delete Marker</button>
+          <button class="read-more">Read More</button>
           <button onclick="window.open('https://www.google.com/maps?q=${pos.lat},${pos.lng}', '_blank')">View on Google Maps</button>
         </div>
       </div>`;
@@ -380,29 +380,12 @@ function App() {
       });
     }
 
-    const deleteBtn = content.querySelector('.delete-marker');
-    if (deleteBtn) {
-      deleteBtn.addEventListener('click', async (e) => {
+    const readMoreBtn = content.querySelector('.read-more');
+    if (readMoreBtn) {
+      readMoreBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         closeOpenInfo();
-        if (!sb) {
-          alert('Supabase not configured');
-          return;
-        }
-        const { data: { user: authUser } } = await sb.auth.getUser();
-        if (!authUser) {
-          alert('Please log in before deleting');
-          return;
-        }
-        if (confirm('Delete this marker?')) {
-          await deleteMarker(markerId, {
-            name,
-            country,
-            category: cat,
-            userId: authUser.id,
-            username: authUser.user_metadata?.username || authUser.id
-          });
-        }
+        window.location.href = `marker.html?id=${markerId}`;
       });
     }
 
