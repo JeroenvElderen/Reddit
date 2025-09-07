@@ -207,8 +207,51 @@ input { padding:4px; }
     font-family: "Poppins", sans-serif;
 }
 
-.marker-header h1 {
-    margin-bottom: 0.25rem;
+.marker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.marker-header-left h1 {
+    margin: 0;
+}
+
+.marker-meta {
+    font-size: 0.875rem;
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.marker-meta .fa-star {
+    color: #f5a623;
+}
+
+.marker-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.marker-action {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 0.5rem;
+    background: #fff;
+    color: #333;
+    text-decoration: none;
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.marker-action:hover {
+    background: #f0f0f0;
 }
 
 .marker-content {
