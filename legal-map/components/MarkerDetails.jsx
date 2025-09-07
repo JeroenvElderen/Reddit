@@ -23,8 +23,8 @@ function MarkerDetails() {
   const [reviewCount, setReviewCount] = useState(0);
   const [avgRatings, setAvgRatings] = useState({});
   const formatRating = value => {
-    const num = number(value);
-    if (number.isNaN(num)) return '0';
+    const num = Number(value);
+    if (Number.isNaN(num)) return '0';
     return num.toFixed(1).replace(/\.0$/, '');
   };
 
