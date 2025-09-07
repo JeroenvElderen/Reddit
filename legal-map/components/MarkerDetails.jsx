@@ -20,6 +20,8 @@ function MarkerDetails() {
   const [ratings, setRatings] = useState(
     Object.fromEntries(ratingFields.map(f => [f.name, 0]))
   );
+  const [reviewCount, setReviewCount] = useState(0);
+  const [avgRatings, setAvgRatings] = useState({});
   const handleRatingChange = (field, value) => {
     setRatings(prev => ({ ...prev, [field]: value }));
   };
@@ -37,7 +39,7 @@ function MarkerDetails() {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
     if (!id) return;
-    const fetchMarker = async () => {
+    const fetchData = async () => {
       const { data, error } = await window.supabaseClient
         .from('map_markers')
         .select()
@@ -48,8 +50,33 @@ function MarkerDetails() {
       } else {
         setMarker(data);
       }
+      const { data: reviews, error: reviewError } = await window.supabaseClient
+        .from('marker_reviews')
+        .select(ratingFields.map(f => f.name).join(','))
+        .eq('marker_id', id);
+      if (reviewError) {
+        console.error('Error fetching reviews', reviewError);
+      } else if (reviews) {
+        setReviewCount(reviews.length);
+        const averages = {};
+        ratingFields.forEach(field => {
+          const values = reviews
+            .map(r => r[field.name])
+            .filter(v => typeof v === 'number' && v > 0);
+          const avg = values.length
+            ? values.reduce((a, b) => a + b, 0) / values.length
+            : 0;
+          averages[field.name] = Number(avg.toFixed(1));
+        });
+        setAvgRatings(averages);
+        setMarker(prev => ({
+          ...prev,
+          rating: averages.overall ?? prev?.rating,
+          review_count: reviews.length,
+        }));
+      }
     };
-    fetchMarker();
+    fetchData();
   }, []);
 
   if (!marker) {
@@ -73,6 +100,8 @@ function MarkerDetails() {
 
   const photos = marker.photos || [];
   const PLACEHOLDER_IMAGE = 'https://placehol.com/600x400?text=No+Image+Available';
+  const primaryFields = ratingFields.filter(f => !['overall','interest','location','child','disabled'].includes(f.name));
+  const secondaryFields = ratingFields.filter(f => ['location','child','disabled'].includes(f.name));
 
   return (
     <div className="marker-page">
@@ -256,6 +285,31 @@ function MarkerDetails() {
               </div>
               <button type="submit">Review plaatsen</button>
             </form>
+            <h2>Reviews over deze locatie</h2>
+            <div className="review-summary">
+              <div className="review-count">{reviewCount}</div>
+              <ul>
+                {primaryFields.map(field => (
+                  <li key={field.name}>
+                    <span>{field.label}</span>
+                    <span>{avgRatings[field.name] ?? 0}</span>
+                  </li>
+                ))}
+              </ul>
+              {secondaryFields.length > 0 && (
+                <>
+                  <h3>Ook interessant (telt niet mee in de score)</h3>
+                  <ul>
+                    {secondaryFields.map(field => (
+                      <li key={field.name}>
+                        <span>{field.label}</span>
+                        <span>{avgRatings[field.name] ?? 0}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
           </div>
         </section>
       </div>
