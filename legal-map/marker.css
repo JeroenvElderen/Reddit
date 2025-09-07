@@ -153,6 +153,13 @@
     gap: 0.5rem;
 }
 
+@media (max-width: 768px) {
+    .rating-field {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
 .rating {
     display: inline-flex;
     flex-direction: row-reverse;
