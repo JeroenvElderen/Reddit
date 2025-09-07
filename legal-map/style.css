@@ -387,6 +387,50 @@ input { padding:4px; }
     color: #000;
 }
 
+.review-summary {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.review-summary .review-count {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: #f4f4f4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.25rem;
+}
+
+.review-summary .review-lists {
+    flex: 1;
+}
+
+.review-summary ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.review-summary li {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+.review-summary li span:first-child {
+    flex: 1;
+    border-bottom: 1px dotted #ccc;
+    margin-right: 0.5rem;
+}
+
+.review-summary h3 {
+    margin-top: 1rem;
+}
+
 #address {
     margin-top: 2rem;
 }
