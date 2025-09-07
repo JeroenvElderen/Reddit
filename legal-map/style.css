@@ -266,10 +266,11 @@ input { padding:4px; }
     position: sticky;
     top: 1rem;
     align-self: flex-start;
-    background: #fff;
     padding: 1rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-radius: 1rem;
+    box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
+    background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
+    color: #fff;
 }
 
 .marker-nav ul {
@@ -284,7 +285,7 @@ input { padding:4px; }
 
 .marker-nav a {
     text-decoration: none;
-    color: #333;
+    color: #fff;
 }
 
 .marker-main {
