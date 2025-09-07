@@ -370,7 +370,7 @@ input { padding:4px; }
 }
 
 .rating label:before {
-    content: '\\f005';
+    content: '\f005';
     font-family: "Font Awesome 6 Free";
     font-weight: 900;
 }
