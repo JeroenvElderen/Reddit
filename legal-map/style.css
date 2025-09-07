@@ -292,6 +292,33 @@ input { padding:4px; }
     flex: 1;
 }
 
+#address {
+    margin-top: 2rem;
+}
+
+.address-info {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.address-block {
+    flex: 1;
+}
+
+.address-block h3 {
+    margin-top: 0;
+}
+
+.address-block p {
+    margin: 0.25rem 0;
+}
+
+.address-block .marker-action {
+    margin-top: 0.5rem;
+    display: inline-flex;
+}
+
 .photo-gallery {
     display: flex;
     gap: 1rem;

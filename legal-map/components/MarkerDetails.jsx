@@ -145,6 +145,38 @@ function MarkerDetails() {
             <h2>Description</h2>
             <p>{marker.description}</p>
           </div>
+          <div id="address">
+            <h2>Address Details</h2>
+            <div className="address-info">
+              <div className="address-block">
+                <h3>Address</h3>
+                {marker.address ? (
+                  marker.address.split(',').map((line, idx) => (
+                    <p key={idx}>{line.trim()}</p>
+                  ))
+                ) : (
+                  <p>No address available</p>
+                )}
+              </div>
+              {lat != null && lng != null && (
+                <div className="address-block">
+                  <h3>Navigation Address</h3>
+                  <p>Google coordinates</p>
+                  <p>
+                    {lat}, {lng}
+                  </p>
+                  <a
+                    className="marker-action"
+                    href={`https://www.google.com/maps?q=${lat},${lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <i className="fa-solid fa-map"></i> Open map
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
         </section>
       </div>
     </div>
