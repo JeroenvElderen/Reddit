@@ -1,27 +1,31 @@
 const { useEffect, useState } = React;
 
 function MarkerDetails() {
-    const [marker, setMarker] = useState(null);
-    const [currentPhoto, setCurrentPhoto] = useState(0);
-    const ratingFields = [
-    { name: 'overall', label: 'Rating*' },
-    { name: 'nudity', label: 'Blootvriendelijkheid' },
-    { name: 'hygiene', label: 'Hygiëne' },
-    { name: 'price', label: 'Prijs / kwaliteit' },
-    { name: 'facilities', label: 'Faciliteiten' },
-    { name: 'swimming', label: 'Zwemmen' },
-    { name: 'sanitary', label: 'Staat van het sanitair' },
-    { name: 'food', label: 'Eten & drinken' },
-    { name: 'location', label: 'Ligging' },
-    { name: 'child', label: 'Kindvriendelijkheid' },
-    { name: 'disabled', label: 'Geschikt voor mindervaliden' }
+  const [marker, setMarker] = useState(null);
+  const [currentPhoto, setCurrentPhoto] = useState(0);
+
+  // ✅ Use Supabase column names
+  const ratingFields = [
+    { name: 'rating_overall', label: 'Rating*' },
+    { name: 'rating_nudity', label: 'Blootvriendelijkheid' },
+    { name: 'rating_hygiene', label: 'Hygiëne' },
+    { name: 'rating_price_quality', label: 'Prijs / kwaliteit' },
+    { name: 'rating_facilities', label: 'Faciliteiten' },
+    { name: 'rating_swimming', label: 'Zwemmen' },
+    { name: 'rating_sanitary', label: 'Staat van het sanitair' },
+    { name: 'rating_food_drink', label: 'Eten & drinken' },
+    { name: 'rating_location', label: 'Ligging' },
+    { name: 'rating_child_friendly', label: 'Kindvriendelijkheid' },
+    { name: 'rating_disabled_friendly', label: 'Geschikt voor mindervaliden' }
   ];
+
   const extraRatingLabel = 'Ook interessant (telt niet mee in de score)';
   const [ratings, setRatings] = useState(
     Object.fromEntries(ratingFields.map(f => [f.name, 0]))
   );
   const [reviewCount, setReviewCount] = useState(0);
   const [avgRatings, setAvgRatings] = useState({});
+
   const formatRating = value => {
     const num = Number(value);
     if (Number.isNaN(num)) return '0';
@@ -45,19 +49,23 @@ function MarkerDetails() {
     e.preventDefault();
     e.stopPropagation();
     if (!marker) return;
+
     const formData = new FormData(e.target);
+
     const cleanRatings = Object.fromEntries(
       Object.entries(ratings).map(([key, value]) => [key, value > 0 ? value : null])
     );
+
     const payload = {
       marker_id: marker.id,
       name: formData.get('name'),
       email: formData.get('email'),
-      visited: formData.get('visited'),
+      visited_with: formData.get('visited_with'),
       title: formData.get('title'),
-      text: formData.get('text'),
+      review: formData.get('review'),
       ...cleanRatings,
     };
+
     try {
       const { error } = await window.supabaseClient
         .from('marker_reviews')
@@ -78,6 +86,7 @@ function MarkerDetails() {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
     if (!id) return;
+
     const fetchData = async () => {
       const { data, error } = await window.supabaseClient
         .from('map_markers')
@@ -89,10 +98,12 @@ function MarkerDetails() {
       } else {
         setMarker(data);
       }
+
       const { data: reviews, error: reviewError } = await window.supabaseClient
         .from('marker_reviews')
         .select(ratingFields.map(f => f.name).join(','))
         .eq('marker_id', id);
+
       if (reviewError) {
         console.error('Error fetching reviews', reviewError);
       } else if (reviews) {
@@ -110,7 +121,7 @@ function MarkerDetails() {
         setAvgRatings(averages);
         setMarker(prev => ({
           ...prev,
-          rating: averages.overall ?? prev?.rating,
+          rating: averages.rating_overall ?? prev?.rating,
           review_count: reviews.length,
         }));
       }
@@ -120,11 +131,11 @@ function MarkerDetails() {
 
   if (!marker) {
     return (
-        <div class="page-content">
-            <p>Loading...</p>
-        </div>
+      <div className="page-content">
+        <p>Loading...</p>
+      </div>
     );
-    }
+  }
 
   let lat, lng;
   const coords = marker.coordinates;
@@ -139,8 +150,13 @@ function MarkerDetails() {
 
   const photos = marker.photos || [];
   const PLACEHOLDER_IMAGE = 'https://placehol.com/600x400?text=No+Image+Available';
-    const primaryFields = ratingFields.filter(f => !['overall','location','child','disabled'].includes(f.name));
-    const secondaryFields = ratingFields.filter(f => ['location','child','disabled'].includes(f.name));
+
+  const primaryFields = ratingFields.filter(
+    f => !['rating_overall', 'rating_location', 'rating_child_friendly', 'rating_disabled_friendly'].includes(f.name)
+  );
+  const secondaryFields = ratingFields.filter(
+    f => ['rating_location', 'rating_child_friendly', 'rating_disabled_friendly'].includes(f.name)
+  );
 
   return (
     <div className="marker-page">
@@ -172,6 +188,7 @@ function MarkerDetails() {
           </a>
         </div>
       </header>
+
       <div className="marker-content">
         <nav className="marker-nav">
           <ul>
@@ -192,7 +209,9 @@ function MarkerDetails() {
             )}
           </ul>
         </nav>
+
         <section className="marker-main">
+          {/* Photos */}
           <div id="photos" className="marker-section">
             <div className="photo-gallery">
               <img
@@ -213,11 +232,11 @@ function MarkerDetails() {
                   ))}
                 </div>
               )}
-              {photos.length === 0 && (
-                <p>No image available</p>
-              )}
+              {photos.length === 0 && <p>No image available</p>}
             </div>
           </div>
+
+          {/* Features */}
           <div id="features" className="marker-section">
             <h2>Features</h2>
             <div className="feature-group">
@@ -231,10 +250,14 @@ function MarkerDetails() {
               </ul>
             </div>
           </div>
+
+          {/* Description */}
           <div id="description" className="marker-section">
             <h2>Description</h2>
             <p>{marker.description}</p>
           </div>
+
+          {/* Address */}
           <div id="address" className="marker-section">
             <h2>Address Details</h2>
             <div className="address-info">
@@ -252,9 +275,7 @@ function MarkerDetails() {
                 <div className="address-block">
                   <h3>Navigation Address</h3>
                   <p>Google coordinates</p>
-                  <p>
-                    {lat}, {lng}
-                  </p>
+                  <p>{lat}, {lng}</p>
                   <a
                     className="marker-action"
                     href={`https://www.google.com/maps?q=${lng},${lat}`}
@@ -267,6 +288,8 @@ function MarkerDetails() {
               )}
             </div>
           </div>
+
+          {/* Reviews */}
           <div id="reviews" className="marker-section">
             <h2>Plaats een review</h2>
             <form className="review-form" onSubmit={handleReviewSubmit} method="post">
@@ -280,79 +303,90 @@ function MarkerDetails() {
               </div>
               <div className="form-row">
                 <label htmlFor="review-visited">Met wie bezocht je de locatie</label>
-                <select id="review-visited" name="visited">
+                <select id="review-visited" name="visited_with">
                   <option>Alleen</option>
                   <option>Partner</option>
                   <option>Gezin</option>
                   <option>Vrienden</option>
                 </select>
               </div>
+
               <p className="rating-note">
-                LET OP: Beoordeel alléén de onderdelen die op deze locatie aanwezig zijn. Is er bijvoorbeeld geen zwemgelegenheid, geef dan geen beoordeling voor het onderdeel 'zwemmen'. Anders trekt deze beoordeling onterecht het gemiddelde cijfer omlaag.
+                LET OP: Beoordeel alléén de onderdelen die op deze locatie aanwezig zijn.
+                Is er bijvoorbeeld geen zwemgelegenheid, geef dan geen beoordeling voor het onderdeel 'zwemmen'.
+                Anders trekt deze beoordeling onterecht het gemiddelde cijfer omlaag.
               </p>
-                <div className="rating-field">
-                  <span>{ratingFields.find(f => f.name === 'overall').label}</span>
+
+              {/* Main rating */}
+              <div className="rating-field">
+                <span>{ratingFields.find(f => f.name === 'rating_overall').label}</span>
+                <div className="rating">
+                  {[5, 4, 3, 2, 1].map(n => (
+                    <React.Fragment key={n}>
+                      <input
+                        type="radio"
+                        id={`rating_overall-${n}`}
+                        name="rating_overall"
+                        value={n}
+                        onChange={() => handleRatingChange('rating_overall', n)}
+                      />
+                      <label htmlFor={`rating_overall-${n}`}></label>
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+
+              {/* Primary fields */}
+              {primaryFields.map(field => (
+                <div className="rating-field" key={field.name}>
+                  <span>{field.label}</span>
                   <div className="rating">
-                    {[5,4,3,2,1].map(n => (
+                    {[5, 4, 3, 2, 1].map(n => (
                       <React.Fragment key={n}>
                         <input
                           type="radio"
-                          id={`overall-${n}`}
-                          name="overall"
+                          id={`${field.name}-${n}`}
+                          name={field.name}
                           value={n}
-                          onChange={() => handleRatingChange('overall', n)}
+                          onChange={() => handleRatingChange(field.name, n)}
                         />
-                        <label htmlFor={`overall-${n}`}></label>
+                        <label htmlFor={`${field.name}-${n}`}></label>
                       </React.Fragment>
                     ))}
                   </div>
                 </div>
-                {primaryFields.map(field => (
-                  <div className="rating-field" key={field.name}>
-                    <span>{field.label}</span>
-                    <div className="rating">
-                      {[5,4,3,2,1].map(n => (
-                        <React.Fragment key={n}>
-                          <input
-                            type="radio"
-                            id={`${field.name}-${n}`}
-                            name={field.name}
-                            value={n}
-                            onChange={() => handleRatingChange(field.name, n)}
-                          />
-                          <label htmlFor={`${field.name}-${n}`}></label>
-                        </React.Fragment>
-                      ))}
-                    </div>
+              ))}
+
+              <p className="rating-note">{extraRatingLabel}</p>
+
+              {/* Secondary fields */}
+              {secondaryFields.map(field => (
+                <div className="rating-field" key={field.name}>
+                  <span>{field.label}</span>
+                  <div className="rating">
+                    {[5, 4, 3, 2, 1].map(n => (
+                      <React.Fragment key={n}>
+                        <input
+                          type="radio"
+                          id={`${field.name}-${n}`}
+                          name={field.name}
+                          value={n}
+                          onChange={() => handleRatingChange(field.name, n)}
+                        />
+                        <label htmlFor={`${field.name}-${n}`}></label>
+                      </React.Fragment>
+                    ))}
                   </div>
-                ))}
-                <p className="rating-note">{extraRatingLabel}</p>
-                {secondaryFields.map(field => (
-                  <div className="rating-field" key={field.name}>
-                    <span>{field.label}</span>
-                    <div className="rating">
-                      {[5,4,3,2,1].map(n => (
-                        <React.Fragment key={n}>
-                          <input
-                            type="radio"
-                            id={`${field.name}-${n}`}
-                            name={field.name}
-                            value={n}
-                            onChange={() => handleRatingChange(field.name, n)}
-                          />
-                          <label htmlFor={`${field.name}-${n}`}></label>
-                        </React.Fragment>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                </div>
+              ))}
+
               <div className="form-row">
                 <label htmlFor="review-title">Geef je beoordeling een titel</label>
                 <input id="review-title" name="title" type="text" />
               </div>
               <div className="form-row">
                 <label htmlFor="review-text">Schrijf hier je review (max. 300 woorden)</label>
-                <textarea id="review-text" name="text" maxLength="300"></textarea>
+                <textarea id="review-text" name="review" maxLength="300"></textarea>
               </div>
               <div className="form-row terms">
                 <label>
@@ -361,6 +395,7 @@ function MarkerDetails() {
               </div>
               <button type="submit">Review plaatsen</button>
             </form>
+
             <h2>Reviews over deze locatie</h2>
             <div className="review-summary">
               <div className="review-count">{reviewCount}</div>
@@ -373,11 +408,11 @@ function MarkerDetails() {
                     </li>
                   ))}
                 </ul>
-                  {secondaryFields.length > 0 && (
-                    <>
-                      <h3>{extraRatingLabel}</h3>
-                      <ul>
-                        {secondaryFields.map(field => (
+                {secondaryFields.length > 0 && (
+                  <>
+                    <h3>{extraRatingLabel}</h3>
+                    <ul>
+                      {secondaryFields.map(field => (
                         <li key={field.name}>
                           <span>{field.label}</span>
                           <span>{formatRating(avgRatings[field.name] ?? 0)}</span>
