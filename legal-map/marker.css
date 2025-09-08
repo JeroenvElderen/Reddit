@@ -150,7 +150,13 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    gap: 0.5rem;
+    gap: 1.25rem;
+}
+
+.rating-field span {
+    flex: 0 0 260px;
+    text-align: left;
+    line-height: 1.25;
 }
 
 @media (max-width: 768px) {
@@ -306,4 +312,91 @@
     .photo-gallery .thumbnails {
         flex-direction: row;
     }
+}
+
+/* Individual review card — matches summary look */
+.review {
+  padding: 1rem 0;
+  border-top: 1px solid #eee;
+}
+
+.review:first-of-type {
+  border-top: none;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.review-score {
+  min-width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: #f4f4f4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.review-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.review-meta {
+  margin: 0.125rem 0 0 0;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.review-text {
+  margin: 0.5rem 0 0.75rem 0;
+}
+
+/* Reuse the summary list look */
+.review .review-lists ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.review .review-lists li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.review .review-lists li span:first-child {
+  flex: 1;
+  border-bottom: 1px dotted #ccc;
+  margin-right: 0.5rem;
+}
+
+.review-extra-heading {
+  margin: 0.75rem 0 0.25rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Match the sticky nav look on score bubbles */
+.review-score,
+.review-summary .review-count {
+  background: radial-gradient(ellipse at right top, #00458f8f 0%, #151419 45%, #151419 100%);
+  box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.08);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.4); /* helps readability on dark bg */
+}
+
+/* (Optional) make the numbers feel a touch bolder/larger */
+.review-score {
+  font-weight: 800;
+}
+
+.review-summary .review-count {
+  font-weight: 800;
 }
