@@ -27,10 +27,10 @@ function MarkerDetails() {
   const [avgRatings, setAvgRatings] = useState({});
 
   const formatRating = value => {
-    const num = Number(value);
-    if (Number.isNaN(num)) return '0';
-    return num.toFixed(1).replace(/\.0$/, '');
-  };
+  const num = Number(value);
+  if (Number.isNaN(num)) return '0.0';
+  return num.toFixed(1); // always keep one decimal, e.g. 4.0, 4.9
+};
 
   const handleRatingChange = (field, value) => {
     setRatings(prev => ({ ...prev, [field]: value }));
@@ -165,7 +165,7 @@ function MarkerDetails() {
           <h1>{marker.name}</h1>
           <div className="marker-meta">
             <i className="fa-solid fa-star"></i>
-            <span>{marker.rating ?? '5.0'}</span>
+            <span>{formatRating(marker.rating ?? '5.0')}</span>
             <span className="marker-reviews">• {marker.review_count ?? 0} reviews</span>
           </div>
         </div>
