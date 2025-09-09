@@ -1,412 +1,409 @@
-/* Marker details layout */
-.marker-page {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 1rem 2rem;
-    font-family: "Poppins", sans-serif;
+/* Reset / page bg */
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  font-family: "Poppins", sans-serif;
+  background: #eee; /* background outside bands */
 }
 
+/* The page wrapper no longer constrains width; each section does */
+.marker-page { max-width: none; }
+
+
+/* ------- Full-bleed bands ------- */
+.page-section {
+  padding-top: 2rem;
+  grid-column: 2;
+  position: relative;
+  isolation: isolate;
+}
+
+#section-hero {
+  grid-column: 1 / -1;                         /* across both columns */
+  display: grid;                                /* internal grid to align header/photos */
+  grid-template-columns: 200px minmax(0,1fr);   /* same width as page-rail */
+  column-gap: 2rem;
+  row-gap: 1rem;
+}
+
+/* Hoist hero children so they participate in the hero grid */
+#section-hero .section-inner { display: contents; }
+
+/* Wide header (title/rating/actions) */
+#section-hero .marker-header { grid-column: 1 / -1; }
+
+/* Photos stay in the right column */
+#section-hero #photos { grid-column: 2; }
+
+.page-section::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+
+  /* spill past both sides so it always covers the viewport */
+  left: -50vw;
+  right: -50vw;
+
+  /* no width/transform/margins needed */
+  background: inherit;
+}
+
+/* ensure the bands have the colors you want */
+.page-section--muted { background: #eee; color: #111; }
+.page-section--white { background: #fff; color: #111; }
+.page-section--light { background: #f7f7f7; color: #111; }
+
+
+/* Constrained inner container per band */
+.section-inner {
+  max-width: none;
+  margin: 0 auto;
+  padding: 2rem 0; /* vertical rhythm for bands */
+}
+.rail-content { display: contents; }
+
+/* Two-column layout inside each band (nav + content) */
+.two-col {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+/* Band colors (match your reference look) */
+.page-section--muted { background: #eee; color: #111; }  /* hero (header + photos) */
+.page-section--white { background: #fff; color: #111; }  /* info */
+.page-section--light { background: #f7f7f7; color: #111; } /* reviews */
+
+/* Keep columns aligned when no visible nav in a band */
+.nav-spacer { min-width: 200px; }
+
+/* ------- Header & actions ------- */
 .marker-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
-
-.marker-header-left h1 {
-    margin: 0;
-}
-
+.marker-header-left h1 { margin: 0; }
 .marker-meta {
-    font-size: 0.875rem;
-    color: #555;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
+  font-size: 0.875rem;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
+.marker-meta .fa-star { color: #f5a623; }
 
-.marker-meta .fa-star {
-    color: #f5a623;
-}
-
-.marker-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
+.marker-actions { display: flex; gap: 0.5rem; }
 .marker-action {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.4rem 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 0.5rem;
-    background: #fff;
-    color: #333;
-    text-decoration: none;
-    font-size: 0.875rem;
-    cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #333;
+  text-decoration: none;
+  font-size: 0.875rem;
+  cursor: pointer;
 }
+.marker-action:hover { background: #f0f0f0; }
 
-.marker-action:hover {
-    background: #f0f0f0;
-}
-
-.marker-content {
-    display: flex;
-    gap: 2rem;
-    margin-top: 1rem;
-    align-items: flex-start;
-}
-
+/* ------- Nav (now inside bands) ------- */
 .marker-nav {
-    min-width: 160px;
-    position: sticky;
-    top: 1rem;
-    align-self: flex-start;
-    padding: 1rem;
-    border-radius: 1rem;
-    box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
-    background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
-    color: #fff;
+  grid-row: 1 / -1;
+  grid-column: 1;
+  min-width: 160px;
+  position: sticky;
+  margin-top: 7.7rem;
+  top: 1rem;
+  align-self: start;
+  padding: 1rem;
+  border-radius: 1rem;
+  box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
+  background: radial-gradient(ellipse at right top,#00458f8f 0%,#151419 45%,#151419 100%);
+  color: #fff;
+  z-index: 100;
 }
+.marker-nav ul { list-style: none; margin: 0; padding: 0; }
+.marker-nav li { margin-bottom: 0.5rem; }
+.marker-nav a { text-decoration: none; color: #fff; }
 
-.marker-nav ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.marker-nav li {
-    margin-bottom: 0.5rem;
-}
-
-.marker-nav a {
-    text-decoration: none;
-    color: #fff;
-}
-
-.marker-main {
-    flex: 1;
-}
-
+/* ------- Sections / text blocks ------- */
+.marker-main { flex: 1; }
 .marker-section {
-    margin-bottom: 2rem;
-    padding: 1.5rem;
-    border-radius: 0;
-    box-shadow: none;
-    background: none;
-    color: #000;
+  margin-bottom: 2rem;
+  padding: 1.5rem 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  color: #000;
+}
+.marker-section h2 { margin-top: 0; }
+
+/* ------- Photos ------- */
+/* Gallery layout – big left, 2x2 right */
+.photo-gallery {
+  padding-top: 3rem;
+  display: grid;
+  grid-template-columns: 2.2fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
 }
 
-.marker-section h2 {
-    margin-top: 0;
+/* Big image */
+.photo-gallery .main-photo {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 1rem;
+  display: block;
+  box-shadow: 0 1px 0 rgba(0,0,0,.02), 0 8px 24px rgba(0,0,0,.06);
 }
 
-.review-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+/* Right grid of four */
+.thumbnails-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
 }
 
-.review-form .form-row {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+.thumb {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 1rem;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(0,0,0,.02), 0 8px 24px rgba(0,0,0,.06);
+}
+.thumb img {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
 }
 
-.review-form label {
-    font-size: 0.875rem;
+/* Optional: hover/active states */
+.thumb:hover { transform: translateY(-1px); }
+.thumb.active { outline: 2px solid rgba(0,0,0,.12); }
+
+/* Optional: “video” play badge like the example */
+.thumb.is-video::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(rgba(0,0,0,.25), rgba(0,0,0,.25)) center/100% 100% no-repeat;
+}
+.thumb.is-video::before {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 84px; height: 60px;          /* play badge size */
+  transform: translate(-50%, -50%);
+  border-radius: 12px;
+  background: #ff0040;                 /* badge color */
+  box-shadow: 0 6px 16px rgba(0,0,0,.35);
+}
+.thumb.is-video > img { filter: saturate(1.05); }
+.thumb.is-video::after,
+.thumb.is-video::before {
+  pointer-events: none;
+}
+.thumb.is-video::before {
+  /* white triangle */
+  --s: 18px;
+  clip-path: polygon(36% 25%, 36% 75%, 75% 50%);
+  background:
+    radial-gradient(circle at 50% 50%, #fff 99.5%, #fff0 100%) no-repeat;
 }
 
+/* “Meer foto’s” pill button under the right column */
+.gallery-more {
+  grid-column: 2;
+  justify-self: center;
+  margin-top: 0.5rem;
+  padding: 1rem 1.5rem;
+  border-radius: 999px;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(0,0,0,.02), 0 8px 24px rgba(0,0,0,.06);
+}
+.gallery-more:hover { background: #f8f8f8; }
+
+/* Responsive: stack on small screens */
+@media (max-width: 900px) {
+  .photo-gallery {
+    grid-template-columns: 1fr;
+  }
+  .gallery-more {
+    grid-column: 1;
+    width: max-content;
+    justify-self: start;
+  }
+}
+
+
+/* ------- Address ------- */
+#address { margin-top: 2rem; }
+.address-info { display: flex; gap: 2rem; flex-wrap: wrap; }
+.address-block { flex: 1; }
+.address-block h3 { margin-top: 0; }
+.address-block p { margin: 0.25rem 0; }
+.address-block .marker-action { margin-top: 0.5rem; display: inline-flex; }
+
+/* ------- Review form ------- */
+.review-form { display: flex; flex-direction: column; gap: 0.75rem; }
+.review-form .form-row { display: flex; flex-direction: column; gap: 0.25rem; }
+.review-form label { font-size: 0.875rem; }
 .review-form input,
 .review-form select,
 .review-form textarea {
-    padding: 0.5rem;
-    border: none;
-    border-radius: 0;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 0;
+  background: #fff;
 }
-
-.review-form textarea {
-    min-height: 120px;
-}
-
+.review-form textarea { min-height: 120px; }
 .review-form button {
-    align-self: flex-start;
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 0;
-    background: #fe6c9b;
-    color: #fff;
-    cursor: pointer;
+  align-self: flex-start;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0;
+  background: #fe6c9b;
+  color: #fff;
+  cursor: pointer;
 }
-
-.review-form button:hover {
-    opacity: 0.9;
-}
+.review-form button:hover { opacity: 0.9; }
 
 .rating-field {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1.25rem;
 }
-
 .rating-field span {
-    flex: 0 0 260px;
-    text-align: left;
-    line-height: 1.25;
+  flex: 0 0 260px;
+  text-align: left;
+  line-height: 1.25;
 }
-
-@media (max-width: 768px) {
-    .rating-field {
-        width: 100%;
-        justify-content: flex-start;
-        gap: 0.25rem;
-    }
-
-    .rating-field span {
-        flex: 0 0 180px;
-        text-align: left;
-    }
-
-    .rating {
-        justify-content: flex-start;
-    }
-}
-
-.rating {
-    display: inline-flex;
-    flex-direction: row-reverse;
-    justify-content: flex-end;
-}
-
-.rating input {
-    display: none;
-}
-
-.rating label {
-    font-size: 1.25rem;
-    color: #ccc;
-    cursor: pointer;
-}
-
+.rating { display: inline-flex; flex-direction: row-reverse; justify-content: flex-end; }
+.rating input { display: none; }
+.rating label { font-size: 1.25rem; color: #ccc; cursor: pointer; }
 .rating label:before {
-    content: "\f005";
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
+  content: "\f005";
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
 }
-
 .rating input:checked ~ label,
 .rating label:hover,
-.rating label:hover ~ label {
-    color: #f5a623;
-}
+.rating label:hover ~ label { color: #f5a623; }
 
-.rating-note {
-    font-size: 0.75rem;
-    line-height: 1.2;
-    color: #000;
+/* Touch tweaks */
+.rating, .rating label { -webkit-tap-highlight-color: transparent; }
+.rating label { display: inline-block; line-height: 1; user-select: none; -webkit-touch-callout: none; backface-visibility: hidden; transform: translateZ(0); }
+@media (hover: none) and (pointer: coarse) {
+  .rating label:hover, .rating label:hover ~ label { color: inherit; }
+  .rating label { transition: none !important; }
 }
+.rating label:focus { outline: none; }
+.rating-note { font-size: 0.75rem; line-height: 1.2; color: #000; }
 
-.review-summary {
-    display: flex;
-    gap: 1.5rem;
-    align-items: flex-start;
-}
-
+/* ------- Review summary & cards ------- */
+.review-summary { display: flex; gap: 1.5rem; align-items: flex-start; }
 .review-summary .review-count {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 50%;
-    background: #f4f4f4;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 1.25rem;
+  width: 3rem; height: 3rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.25rem;
 }
+.review-summary .review-lists { flex: 1; }
+.review-summary ul { list-style: none; margin: 0; padding: 0; }
+.review-summary li { display: flex; align-items: center; margin-bottom: 0.25rem; }
+.review-summary li span:first-child { flex: 1; border-bottom: 1px dotted #ccc; margin-right: 0.5rem; }
+.review-summary h3 { margin-top: 1rem; }
 
-.review-summary .review-lists {
-    flex: 1;
-}
-
-.review-summary ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.review-summary li {
-    display: flex;
-    align-items: center;
-    margin-bottom: 0.25rem;
-}
-
-.review-summary li span:first-child {
-    flex: 1;
-    border-bottom: 1px dotted #ccc;
-    margin-right: 0.5rem;
-}
-
-.review-summary h3 {
-    margin-top: 1rem;
-}
-
-#address {
-    margin-top: 2rem;
-}
-
-.address-info {
-    display: flex;
-    gap: 2rem;
-    flex-wrap: wrap;
-}
-
-.address-block {
-    flex: 1;
-}
-
-.address-block h3 {
-    margin-top: 0;
-}
-
-.address-block p {
-    margin: 0.25rem 0;
-}
-
-.address-block .marker-action {
-    margin-top: 0.5rem;
-    display: inline-flex;
-}
-
-.photo-gallery {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.photo-gallery .main-photo {
-    max-width: 100%;
-    border-radius: 0.5rem;
-}
-
-.photo-gallery .thumbnails {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.photo-gallery .thumbnails img {
-    width: 100px;
-    height: 75px;
-    object-fit: cover;
-    cursor: pointer;
-    border-radius: 0.25rem;
-    opacity: 0.7;
-}
-
-.photo-gallery .thumbnails img.active,
-.photo-gallery .thumbnails img:hover {
-    opacity: 1;
-}
-
-@media (max-width: 767px) {
-    .marker-content {
-        flex-direction: column;
-    }
-    .photo-gallery {
-        flex-direction: column;
-    }
-    .photo-gallery .thumbnails {
-        flex-direction: row;
-    }
-}
-
-/* Individual review card — matches summary look */
-.review {
-  padding: 1rem 0;
-  border-top: 1px solid #eee;
-}
-
-.review:first-of-type {
-  border-top: none;
-}
-
-.review-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
+.review { padding: 1rem 0; border-top: 1px solid #eee; }
+.review:first-of-type { border-top: none; }
+.review-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
 .review-score {
-  min-width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  background: #f4f4f4;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
+  min-width: 2.5rem; height: 2.5rem; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 700;
 }
+.review-title { margin: 0; font-size: 1rem; }
+.review-meta { margin: 0.125rem 0 0 0; font-size: 0.85rem; color: #666; }
+.review-text { margin: 0.5rem 0 0.75rem 0; }
+.review .review-lists ul { list-style: none; margin: 0; padding: 0; }
+.review .review-lists li { display: flex; align-items: center; margin-bottom: 0.25rem; }
+.review .review-lists li span:first-child { flex: 1; border-bottom: 1px dotted #ccc; margin-right: 0.5rem; }
+.review-extra-heading { margin: 0.75rem 0 0.25rem 0; font-size: 0.95rem; font-weight: 600; }
 
-.review-title {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.review-meta {
-  margin: 0.125rem 0 0 0;
-  font-size: 0.85rem;
-  color: #666;
-}
-
-.review-text {
-  margin: 0.5rem 0 0.75rem 0;
-}
-
-/* Reuse the summary list look */
-.review .review-lists ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.review .review-lists li {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.25rem;
-}
-
-.review .review-lists li span:first-child {
-  flex: 1;
-  border-bottom: 1px dotted #ccc;
-  margin-right: 0.5rem;
-}
-
-.review-extra-heading {
-  margin: 0.75rem 0 0.25rem 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
-/* Match the sticky nav look on score bubbles */
+/* Match sticky nav look on score bubbles */
 .review-score,
 .review-summary .review-count {
   background: radial-gradient(ellipse at right top, #00458f8f 0%, #151419 45%, #151419 100%);
   box-shadow: 0.063em 0.75em 1.563em rgb(0 0 0 / 78%);
   color: #fff;
   border: 1px solid rgba(255,255,255,0.08);
-  text-shadow: 0 1px 0 rgba(0,0,0,0.4); /* helps readability on dark bg */
-}
-
-/* (Optional) make the numbers feel a touch bolder/larger */
-.review-score {
+  text-shadow: 0 1px 0 rgba(0,0,0,0.4);
   font-weight: 800;
 }
 
-.review-summary .review-count {
-  font-weight: 800;
+/* ------- Responsive ------- */
+@media (max-width: 1024px) {
+  .two-col { grid-template-columns: 180px 1fr; gap: 1.5rem; }
+  .nav-spacer { min-width: 180px; }
+}
+@media (max-width: 767px) {
+  .section-inner { padding: 1.25rem 0; }
+  .two-col { grid-template-columns: 1fr; }
+  .marker-nav { position: static; margin-bottom: 1rem; }
+  .nav-spacer { display: none; }
+  .photo-gallery { flex-direction: column; }
+  .photo-gallery .thumbnails { flex-direction: row; }
+  .rating-field { width: 100%; justify-content: flex-start; gap: 0.25rem; }
+  .rating-field span { flex: 0 0 180px; text-align: left; }
+  .rating { justify-content: flex-start; }
+}
+
+.page-rail {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 200px minmax(0,1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+/* Put the whole hero (incl. gallery) in the right column */
+#section-hero {
+  grid-column: 2;            /* nav stays in col 1 */
+  display: block;            /* no inner grid needed */
+}
+
+/* Make the header look wider by bleeding into the left nav column */
+#section-hero .marker-header {
+  /* left column is 200px wide, gap is 2rem (matches .page-rail) */
+  margin-left: calc(-200px - 2rem);
+  width: calc(100% + 200px + 2rem);
+}
+
+/* Mobile: undo the header bleed when columns stack */
+@media (max-width: 767px) {
+  #section-hero { grid-column: 1; }
+  #section-hero .marker-header {
+    margin-left: 0;
+    width: 100%;
+  }
 }
