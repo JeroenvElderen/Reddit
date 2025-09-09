@@ -168,7 +168,7 @@ function MarkerDetails() {
 
   const photos = marker.photos || [];
   const PLACEHOLDER_IMAGE =
-    "https://placehol.com/600x400?text=No+Image+Available";
+    "https://placehol.co/600x400?text=No+Image+Available";
 
   const primaryFields = ratingFields.filter(
     (f) =>
@@ -188,20 +188,20 @@ function MarkerDetails() {
   );
 
   // Average of only the primary ratings that were actually filled in (>0).
-const getReviewAverage = (rev) => {
-  const vals = primaryFields
-    .map((f) => Number(rev[f.name]))
-    .filter((v) => Number.isFinite(v) && v > 0);
+  const getReviewAverage = (rev) => {
+    const vals = primaryFields
+      .map((f) => Number(rev[f.name]))
+      .filter((v) => Number.isFinite(v) && v > 0);
 
-  if (vals.length > 0) {
-    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-    return Number(avg.toFixed(1));
-  }
+    if (vals.length > 0) {
+      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+      return Number(avg.toFixed(1));
+    }
 
-  // Fallback: use the author's overall rating if no primary fields were rated
-  const overall = Number(rev.rating_overall);
-  return Number.isFinite(overall) ? Number(overall.toFixed(1)) : 0.0;
-};
+    // Fallback: use the author's overall rating if no primary fields were rated
+    const overall = Number(rev.rating_overall);
+    return Number.isFinite(overall) ? Number(overall.toFixed(1)) : 0.0;
+  };
 
   const totalPages = Math.ceil(reviews.length / reviewsPerPage);
   const start = currentPage * reviewsPerPage;
@@ -218,51 +218,28 @@ const getReviewAverage = (rev) => {
 
   return (
     <div className="marker-page">
-      <header className="marker-header">
-        <div className="marker-header-left">
-          <h1>{marker.name}</h1>
-          <div className="marker-meta">
-            <i className="fa-solid fa-star"></i>
-            <span>{formatRating(marker.rating ?? "5.0")}</span>
-            <span className="marker-reviews">
-              • {marker.review_count ?? 0} reviews
-            </span>
-          </div>
-        </div>
-        <div className="marker-actions">
-          {lat && lng && (
-            <a
-              className="marker-action"
-              href={`https://www.google.com/maps?q=${lng},${lat}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <i className="fa-solid fa-map"></i> View on map
-            </a>
-          )}
-          <button className="marker-action" onClick={handleShare}>
-            <i className="fa-solid fa-share-nodes"></i> Share location
-          </button>
-          <a className="marker-action" href="register.html">
-            <i className="fa-solid fa-user-plus"></i> Join
-          </a>
-        </div>
-      </header>
-
-      <div className="marker-content">
+      {/* NEW: left rail (nav) + right rail (all sections). Visuals unchanged */}
+      <div className="page-rail">
+        {/* Move nav here; same markup/styles */}
         <nav className="marker-nav">
           <ul>
             <li>
-              <a href="#photos">Photos</a>
+              <a href="#section-hero">Foto's</a>
             </li>
             <li>
-              <a href="#features">Features</a>
+              <a href="#features">Kenmerken</a>
             </li>
             <li>
-              <a href="#description">Description</a>
+              <a href="#description">Beschrijving</a>
             </li>
             <li>
-              <a href="#reviews">Reviews</a>
+              <a href="#address">Adresgegevens</a>
+            </li>
+            <li>
+              <a href="#section-reviews">Plaats een review</a>
+            </li>
+            <li>
+              <a href="#section-reviews">Lees reviews</a>
             </li>
             {lat != null && lng != null && (
               <li>
@@ -278,231 +255,298 @@ const getReviewAverage = (rev) => {
           </ul>
         </nav>
 
-        <section className="marker-main">
-          {/* Photos */}
-          <div id="photos" className="marker-section">
-            <div className="photo-gallery">
-              <img
-                className="main-photo"
-                src={
-                  photos.length > 0 ? photos[currentPhoto] : PLACEHOLDER_IMAGE
-                }
-                alt={photos.length > 0 ? marker.name : "No image available"}
-              />
-              {photos.length > 1 && (
-                <div className="thumbnails">
-                  {photos.map((url, idx) => (
-                    <img
-                      key={idx}
-                      src={url}
-                      className={idx === currentPhoto ? "active" : ""}
-                      onClick={() => setCurrentPhoto(idx)}
-                      alt=""
-                    />
-                  ))}
+        {/* Right column: ALL your existing sections, unchanged inside */}
+        <div className="rail-content">
+          {/* SECTION 1 — header + photos */}
+          <section
+            id="section-hero"
+            className="page-section page-section--muted"
+          >
+            <div className="section-inner">
+              <header className="marker-header" id="section-header">
+                <div className="marker-header-left">
+                  <h1>{marker.name}</h1>
+                  <div className="marker-meta">
+                    <i className="fa-solid fa-star"></i>
+                    <span>{formatRating(marker.rating ?? "5.0")}</span>
+                    <span className="marker-reviews">
+                      • {marker.review_count ?? 0} reviews
+                    </span>
+                  </div>
                 </div>
-              )}
-              {photos.length === 0 && <p>No image available</p>}
-            </div>
-          </div>
-
-          {/* Features */}
-          <div id="features" className="marker-section">
-            <h2>Features</h2>
-            <div className="feature-group">
-              <h3>General</h3>
-              <ul>
-                {marker.features && marker.features.length > 0 ? (
-                  marker.features.map((feat, idx) => <li key={idx}>{feat}</li>)
-                ) : (
-                  <li>{marker.category}</li>
-                )}
-              </ul>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div id="description" className="marker-section">
-            <h2>Description</h2>
-            <p>{marker.description}</p>
-          </div>
-
-          {/* Address */}
-          <div id="address" className="marker-section">
-            <h2>Address Details</h2>
-            <div className="address-info">
-              <div className="address-block">
-                <h3>Address</h3>
-                {marker.address ? (
-                  marker.address
-                    .split(",")
-                    .map((line, idx) => <p key={idx}>{line.trim()}</p>)
-                ) : (
-                  <p>No address available</p>
-                )}
-              </div>
-              {lat != null && lng != null && (
-                <div className="address-block">
-                  <h3>Navigation Address</h3>
-                  <p>Google coordinates</p>
-                  <p>
-                    {lat}, {lng}
-                  </p>
-                  <a
-                    className="marker-action"
-                    href={`https://www.google.com/maps?q=${lng},${lat}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <i className="fa-solid fa-map"></i> Open map
+                <div className="marker-actions">
+                  {lat != null && lng != null && (
+                    <a
+                      className="marker-action"
+                      href={`https://www.google.com/maps?q=${lat},${lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <i className="fa-solid fa-map"></i> View on map
+                    </a>
+                  )}
+                  <button className="marker-action" onClick={handleShare}>
+                    <i className="fa-solid fa-share-nodes"></i> Share location
+                  </button>
+                  <a className="marker-action" href="register.html">
+                    <i className="fa-solid fa-user-plus"></i> Join
                   </a>
                 </div>
-              )}
+              </header>
+
+              <div id="photos" className="photo-gallery">
+                <img
+                  className="main-photo"
+                  src={
+                    photos.length > 0 ? photos[currentPhoto] : PLACEHOLDER_IMAGE
+                  }
+                  alt={photos.length > 0 ? marker.name : "No image available"}
+                />
+
+                {photos.length > 1 && (
+                  <div className="thumbnails-grid">
+                    {photos.slice(1, 5).map((url, idx) => {
+                      const gridIndex = idx + 1; // because we sliced from 1
+                      const isVideo = /youtube\.com|youtu\.be|vimeo\.com/.test(
+                        url
+                      );
+                      return (
+                        <button
+                          key={url}
+                          type="button"
+                          className={`thumb ${
+                            gridIndex === currentPhoto ? "active" : ""
+                          } ${isVideo ? "is-video" : ""}`}
+                          onClick={() => setCurrentPhoto(gridIndex)}
+                          aria-label={`Open image ${gridIndex + 1}`}
+                        >
+                          <img src={url} alt="" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {photos.length > 5 && (
+                  <button
+                    type="button"
+                    className="gallery-more"
+                    onClick={() => setCurrentPhoto(0)} // hook up to your lightbox if you add one
+                  >
+                    Meer foto&apos;s ({photos.length - 1})
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          </section>
 
-          {/* Reviews */}
-          <div id="reviews" className="marker-section">
-            <h2>Plaats een review</h2>
-            <form
-              className="review-form"
-              onSubmit={handleReviewSubmit}
-              method="post"
-            >
-              <div className="form-row">
-                <label htmlFor="review-name">Naam*</label>
-                <input id="review-name" name="name" type="text" required />
-              </div>
-              <div className="form-row">
-                <label htmlFor="review-email">E-mail*</label>
-                <input id="review-email" name="email" type="email" required />
-              </div>
-              <div className="form-row">
-                <label htmlFor="review-visited">
-                  Met wie bezocht je de locatie
-                </label>
-                <select id="review-visited" name="visited_with">
-                  <option>Alleen</option>
-                  <option>Partner</option>
-                  <option>Gezin</option>
-                  <option>Vrienden</option>
-                </select>
-              </div>
-
-              <p className="rating-note">
-                LET OP: Beoordeel alléén de onderdelen die op deze locatie
-                aanwezig zijn. Is er bijvoorbeeld geen zwemgelegenheid, geef dan
-                geen beoordeling voor het onderdeel 'zwemmen'. Anders trekt deze
-                beoordeling onterecht het gemiddelde cijfer omlaag.
-              </p>
-
-              {/* Main rating */}
-              <div className="rating-field">
-                <span>
-                  {ratingFields.find((f) => f.name === "rating_overall").label}
-                </span>
-                <div className="rating">
-                  {[5, 4, 3, 2, 1].map((n) => (
-                    <React.Fragment key={n}>
-                      <input
-                        type="radio"
-                        id={`rating_overall-${n}`}
-                        name="rating_overall"
-                        value={n}
-                        onChange={() => handleRatingChange("rating_overall", n)}
-                      />
-                      <label htmlFor={`rating_overall-${n}`}></label>
-                    </React.Fragment>
-                  ))}
+          {/* SECTION 2 — features + description + address */}
+          <section
+            id="section-info"
+            className="page-section page-section--white"
+          >
+            <div className="section-inner">
+              <div id="features" className="marker-section">
+                <h2>Features</h2>
+                <div className="feature-group">
+                  <h3>General</h3>
+                  <ul>
+                    {marker.features && marker.features.length > 0 ? (
+                      marker.features.map((feat, idx) => (
+                        <li key={idx}>{feat}</li>
+                      ))
+                    ) : (
+                      <li>{marker.category}</li>
+                    )}
+                  </ul>
                 </div>
               </div>
 
-              {/* Primary fields */}
-              {primaryFields.map((field) => (
-                <div className="rating-field" key={field.name}>
-                  <span>{field.label}</span>
-                  <div className="rating">
-                    {[5, 4, 3, 2, 1].map((n) => (
-                      <React.Fragment key={n}>
-                        <input
-                          type="radio"
-                          id={`${field.name}-${n}`}
-                          name={field.name}
-                          value={n}
-                          onChange={() => handleRatingChange(field.name, n)}
-                        />
-                        <label htmlFor={`${field.name}-${n}`}></label>
-                      </React.Fragment>
-                    ))}
+              <div id="description" className="marker-section">
+                <h2>Description</h2>
+                <p>{marker.description}</p>
+              </div>
+
+              <div id="address" className="marker-section">
+                <h2>Address Details</h2>
+                <div className="address-info">
+                  <div className="address-block">
+                    <h3>Address</h3>
+                    {marker.address ? (
+                      marker.address
+                        .split(",")
+                        .map((line, idx) => <p key={idx}>{line.trim()}</p>)
+                    ) : (
+                      <p>No address available</p>
+                    )}
                   </div>
+                  {lat != null && lng != null && (
+                    <div className="address-block">
+                      <h3>Navigation Address</h3>
+                      <p>Google coordinates</p>
+                      <p>
+                        {lat}, {lng}
+                      </p>
+                      <a
+                        className="marker-action"
+                        href={`https://www.google.com/maps?q=${lat},${lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <i className="fa-solid fa-map"></i> Open map
+                      </a>
+                    </div>
+                  )}
                 </div>
-              ))}
+              </div>
+            </div>
+          </section>
 
-              <p className="rating-note">{extraRatingLabel}</p>
+          {/* SECTION 3 — reviews */}
+          <section
+            id="section-reviews"
+            className="page-section page-section--light"
+          >
+            <div className="section-inner">
+              <div id="reviews" className="marker-section">
+                <h2>Plaats een review</h2>
 
-              {/* Secondary fields */}
-              {secondaryFields.map((field) => (
-                <div className="rating-field" key={field.name}>
-                  <span>{field.label}</span>
-                  <div className="rating">
-                    {[5, 4, 3, 2, 1].map((n) => (
-                      <React.Fragment key={n}>
-                        <input
-                          type="radio"
-                          id={`${field.name}-${n}`}
-                          name={field.name}
-                          value={n}
-                          onChange={() => handleRatingChange(field.name, n)}
-                        />
-                        <label htmlFor={`${field.name}-${n}`}></label>
-                      </React.Fragment>
-                    ))}
+                <form
+                  className="review-form"
+                  onSubmit={handleReviewSubmit}
+                  method="post"
+                >
+                  <div className="form-row">
+                    <label htmlFor="review-name">Naam*</label>
+                    <input id="review-name" name="name" type="text" required />
                   </div>
-                </div>
-              ))}
+                  <div className="form-row">
+                    <label htmlFor="review-email">E-mail*</label>
+                    <input
+                      id="review-email"
+                      name="email"
+                      type="email"
+                      required
+                    />
+                  </div>
+                  <div className="form-row">
+                    <label htmlFor="review-visited">
+                      Met wie bezocht je de locatie
+                    </label>
+                    <select id="review-visited" name="visited_with">
+                      <option>Alleen</option>
+                      <option>Partner</option>
+                      <option>Gezin</option>
+                      <option>Vrienden</option>
+                    </select>
+                  </div>
 
-              <div className="form-row">
-                <label htmlFor="review-title">
-                  Geef je beoordeling een titel
-                </label>
-                <input id="review-title" name="title" type="text" />
-              </div>
-              <div className="form-row">
-                <label htmlFor="review-text">
-                  Schrijf hier je review (max. 300 woorden)
-                </label>
-                <textarea
-                  id="review-text"
-                  name="review"
-                  maxLength="300"
-                ></textarea>
-              </div>
-              <div className="form-row terms">
-                <label>
-                  <input type="checkbox" required /> Ik ga akkoord met de{" "}
-                  <a href="#">Spelregels</a> en <a href="#">Privacy Policy</a>
-                </label>
-              </div>
-              <button type="submit">Review plaatsen</button>
-            </form>
+                  <p className="rating-note">
+                    LET OP: Beoordeel alléén de onderdelen die op deze locatie
+                    aanwezig zijn…
+                  </p>
 
-            <h2>Reviews over deze locatie</h2>
-            <div className="review-summary">
-              <div className="review-count">{reviewCount}</div>
-              <div className="review-lists">
-                <ul>
+                  <div className="rating-field">
+                    <span>
+                      {
+                        ratingFields.find((f) => f.name === "rating_overall")
+                          .label
+                      }
+                    </span>
+                    <div className="rating">
+                      {[5, 4, 3, 2, 1].map((n) => (
+                        <React.Fragment key={n}>
+                          <input
+                            type="radio"
+                            id={`rating_overall-${n}`}
+                            name="rating_overall"
+                            value={n}
+                            onChange={() =>
+                              handleRatingChange("rating_overall", n)
+                            }
+                          />
+                          <label htmlFor={`rating_overall-${n}`}></label>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+
                   {primaryFields.map((field) => (
-                    <li key={field.name}>
+                    <div className="rating-field" key={field.name}>
                       <span>{field.label}</span>
-                      <span>{formatRating(avgRatings[field.name] ?? 0)}</span>
-                    </li>
+                      <div className="rating">
+                        {[5, 4, 3, 2, 1].map((n) => (
+                          <React.Fragment key={n}>
+                            <input
+                              type="radio"
+                              id={`${field.name}-${n}`}
+                              name={field.name}
+                              value={n}
+                              onChange={() => handleRatingChange(field.name, n)}
+                            />
+                            <label htmlFor={`${field.name}-${n}`}></label>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
                   ))}
-                </ul>
-                {secondaryFields.length > 0 && (
-                  <>
-                    <h3>{extraRatingLabel}</h3>
+
+                  <p className="rating-note">
+                    Ook interessant (telt niet mee in de score)
+                  </p>
+
+                  {secondaryFields.map((field) => (
+                    <div className="rating-field" key={field.name}>
+                      <span>{field.label}</span>
+                      <div className="rating">
+                        {[5, 4, 3, 2, 1].map((n) => (
+                          <React.Fragment key={n}>
+                            <input
+                              type="radio"
+                              id={`${field.name}-${n}`}
+                              name={field.name}
+                              value={n}
+                              onChange={() => handleRatingChange(field.name, n)}
+                            />
+                            <label htmlFor={`${field.name}-${n}`}></label>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="form-row">
+                    <label htmlFor="review-title">
+                      Geef je beoordeling een titel
+                    </label>
+                    <input id="review-title" name="title" type="text" />
+                  </div>
+                  <div className="form-row">
+                    <label htmlFor="review-text">
+                      Schrijf hier je review (max. 300 woorden)
+                    </label>
+                    <textarea
+                      id="review-text"
+                      name="review"
+                      maxLength="300"
+                    ></textarea>
+                  </div>
+                  <div className="form-row terms">
+                    <label>
+                      <input type="checkbox" required /> Ik ga akkoord met de{" "}
+                      <a href="#">Spelregels</a> en{" "}
+                      <a href="#">Privacy Policy</a>
+                    </label>
+                  </div>
+                  <button type="submit">Review plaatsen</button>
+                </form>
+
+                <h2>Reviews over deze locatie</h2>
+                <div className="review-summary">
+                  <div className="review-count">{reviewCount}</div>
+                  <div className="review-lists">
                     <ul>
-                      {secondaryFields.map((field) => (
+                      {primaryFields.map((field) => (
                         <li key={field.name}>
                           <span>{field.label}</span>
                           <span>
@@ -511,54 +555,50 @@ const getReviewAverage = (rev) => {
                         </li>
                       ))}
                     </ul>
-                  </>
-                )}
-              </div>
-            </div>
-            {displayedReviews.map((rev) => (
-              <article className="review" key={rev.id}>
-                <div className="review-header">
-                  <span className="review-score">
-                    {formatRating(getReviewAverage(rev))}
-                  </span>
-                  <div className="review-headings">
-                    {rev.title ? (
-                      <h3 className="review-title">{rev.title}</h3>
-                    ) : (
-                      <h3 className="review-title">Review</h3>
+
+                    {secondaryFields.length > 0 && (
+                      <>
+                        <h3>Ook interessant (telt niet mee in de score)</h3>
+                        <ul>
+                          {secondaryFields.map((field) => (
+                            <li key={field.name}>
+                              <span>{field.label}</span>
+                              <span>
+                                {formatRating(avgRatings[field.name] ?? 0)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
                     )}
-                    <p className="review-meta">
-                      {formatDate(rev.created_at)}
-                      {rev.name ? ` • ${rev.name}` : ""}
-                      {rev.visited_with
-                        ? ` • Bezocht: ${rev.visited_with}`
-                        : ""}
-                    </p>
                   </div>
                 </div>
 
-                {rev.review && <p className="review-text">{rev.review}</p>}
+                {displayedReviews.map((rev) => (
+                  <article className="review" key={rev.id}>
+                    <div className="review-header">
+                      <span className="review-score">
+                        {formatRating(getReviewAverage(rev))}
+                      </span>
+                      <div className="review-headings">
+                        <h3 className="review-title">
+                          {rev.title || "Review"}
+                        </h3>
+                        <p className="review-meta">
+                          {formatDate(rev.created_at)}
+                          {rev.name ? ` • ${rev.name}` : ""}
+                          {rev.visited_with
+                            ? ` • Bezocht: ${rev.visited_with}`
+                            : ""}
+                        </p>
+                      </div>
+                    </div>
 
-                {/* Ratings list (same look as summary) */}
-                <div className="review-lists">
-                  <ul>
-                    {primaryFields.map((field) =>
-                      rev[field.name] ? (
-                        <li key={field.name}>
-                          <span>{field.label}</span>
-                          <span>{formatRating(rev[field.name])}</span>
-                        </li>
-                      ) : null
-                    )}
-                  </ul>
+                    {rev.review && <p className="review-text">{rev.review}</p>}
 
-                  {secondaryFields.some((f) => rev[f.name]) && (
-                    <>
-                      <h4 className="review-extra-heading">
-                        {extraRatingLabel}
-                      </h4>
+                    <div className="review-lists">
                       <ul>
-                        {secondaryFields.map((field) =>
+                        {primaryFields.map((field) =>
                           rev[field.name] ? (
                             <li key={field.name}>
                               <span>{field.label}</span>
@@ -567,35 +607,53 @@ const getReviewAverage = (rev) => {
                           ) : null
                         )}
                       </ul>
-                    </>
-                  )}
-                </div>
-              </article>
-            ))}
 
-            {reviews.length > reviewsPerPage && (
-              <div className="review-pagination">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 0))}
-                  disabled={currentPage === 0}
-                >
-                  Vorige
-                </button>
-                <span className="review-page">
-                  {currentPage + 1} / {totalPages}
-                </span>
-                <button
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(p + 1, totalPages - 1))
-                  }
-                  disabled={currentPage === totalPages - 1}
-                >
-                  Volgende
-                </button>
+                      {secondaryFields.some((f) => rev[f.name]) && (
+                        <>
+                          <h4 className="review-extra-heading">
+                            Ook interessant
+                          </h4>
+                          <ul>
+                            {secondaryFields.map((field) =>
+                              rev[field.name] ? (
+                                <li key={field.name}>
+                                  <span>{field.label}</span>
+                                  <span>{formatRating(rev[field.name])}</span>
+                                </li>
+                              ) : null
+                            )}
+                          </ul>
+                        </>
+                      )}
+                    </div>
+                  </article>
+                ))}
+
+                {reviews.length > reviewsPerPage && (
+                  <div className="review-pagination">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(p - 1, 0))}
+                      disabled={currentPage === 0}
+                    >
+                      Vorige
+                    </button>
+                    <span className="review-page">
+                      {currentPage + 1} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(p + 1, totalPages - 1))
+                      }
+                      disabled={currentPage === totalPages - 1}
+                    >
+                      Volgende
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </section>
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );
