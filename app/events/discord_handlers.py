@@ -295,8 +295,7 @@ async def on_reaction_add(reaction, user):
         return
 
     # Active card
-    entry = pending_reviews.pop(msg_id, None)
-    delete_pending_review(msg_id)
+    entry = pending_reviews.get(msg_id)
     if not entry:
         print("⚠️ Missing entry for msg_id.")
         return
@@ -309,6 +308,8 @@ async def on_reaction_add(reaction, user):
         level = entry.get("level", 0)
         await send_discord_approval(item, "English", note="↻ Manual refresh", priority_level=level)
         await _lock_and_delete_message(reaction.message)
+        pending_reviews.pop(msg_id, None)
+        delete_pending_review(msg_id)
         print(f"🔄 Card refreshed for u/{author_name} (level={level})")
         return
 
@@ -324,6 +325,8 @@ async def on_reaction_add(reaction, user):
             record_mod_decision(entry.get("created_ts"), user.id)
             await _lock_and_delete_message(reaction.message)
             await log_approval(item, old_k, new_k, flair, note, extras)
+            pending_reviews.pop(msg_id, None)
+            delete_pending_review(msg_id)
 
         # ⚠️ warn for context
         elif str(reaction.emoji) == "⚠️":
@@ -337,6 +340,8 @@ async def on_reaction_add(reaction, user):
             record_mod_decision(entry.get("created_ts"), user.id)
             await _lock_and_delete_message(reaction.message)
             await log_approval(item, old_k, new_k, flair, note, extras)
+            pending_reviews.pop(msg_id, None)
+            delete_pending_review(msg_id)
 
         # ❌ reject
         elif str(reaction.emoji) == "❌":
@@ -384,6 +389,8 @@ async def on_reaction_add(reaction, user):
                 await reaction.message.channel.send("⏳ No rejection reason chosen, skipping DM/log reason.")
             record_mod_decision(entry.get("created_ts"), user.id)
             await _lock_and_delete_message(reaction.message)
+            pending_reviews.pop(msg_id, None)
+            delete_pending_review(msg_id)
         # ⛔ ban
         elif str(reaction.emoji) == "⛔":
             item.mod.remove()
@@ -434,6 +441,8 @@ async def on_reaction_add(reaction, user):
             record_mod_decision(entry.get("created_ts"), user.id)
             await _lock_and_delete_message(reaction.message)
             await log_ban(item, old_k, new_k, flair, reason_text)
+            pending_reviews.pop(msg_id, None)
+            delete_pending_review(msg_id)
 
     except Exception as e:
         print(f"🔥 Error handling reaction {reaction.emoji} for u/{author_name}: {e}")
