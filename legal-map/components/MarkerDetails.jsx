@@ -244,7 +244,7 @@ function MarkerDetails() {
             {lat != null && lng != null && (
               <li>
                 <a
-                  href={`https://www.google.com/maps?q=${lat},${lng}`}
+                  href={`https://www.google.com/maps?q=${lng},${lat}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
