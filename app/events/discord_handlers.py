@@ -29,8 +29,6 @@ from app.loops.poll_reddit import reddit_polling
 from app.loops.poll_dm import reddit_dm_polling
 from app.loops.loop_decay import decay_loop
 from app.loops.loop_sla import sla_loop
-from app.loops.loop_daily_prompt import daily_prompt_poster
-from app.loops.loop_daily_fact import daily_fact_poster
 from app.posters.post_feedback import feedback_loop
 from app.posters.post_achievements_weekly import weekly_achievements_loop
 from app.loops.loop_upvotes import upvote_reward_loop
@@ -50,8 +48,6 @@ async def on_ready():
     threading.Thread(target=reddit_dm_polling, daemon=True).start()
     threading.Thread(target=decay_loop, daemon=True).start()
     threading.Thread(target=sla_loop, daemon=True).start()
-    threading.Thread(target=daily_prompt_poster, daemon=True).start()
-    threading.Thread(target=daily_fact_poster, daemon=True).start()
     threading.Thread(target=feedback_loop, daemon=True).start()
     threading.Thread(target=weekly_achievements_loop, daemon=True).start()
     threading.Thread(target=upvote_reward_loop, daemon=True).start()
