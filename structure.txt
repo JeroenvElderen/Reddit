@@ -91,11 +91,7 @@ REDDITBOT/
 │  ├─ posters/
 │  │  ├─ __init__.py
 │  │  ├─ gen_trivia.py                   # generate_trivia()
-│  │  ├─ gen_body_positive.py            # generate_body_positive()
 │  │  ├─ gen_mindfulness.py              # generate_mindfulness()
-│  │  ├─ gen_fact.py                     # generate_naturist_fact()
-│  │  ├─ post_prompt.py                  # daily_prompt_poster()
-│  │  ├─ post_fact.py                    # daily_fact_poster()
 │  │  ├─ post_feedback.py                # feedback_loop() + DMs
 │  │  ├─ post_upvotes.py                  
 │  │  ├─ post_achievements_weekly.py     # weekly_achievements_loop() + formatter
@@ -116,8 +112,6 @@ REDDITBOT/
 │  │  ├─ loop_upvotes.py                 # upvote_reward_loop()
 │  │  ├─ loop_cah.py                     # cah_loop() (orchestrates rounds_* modules)
 │  │  ├─ loop_pack_sched.py              # pack_schedule_loop() + prompt scheduling
-│  │  ├─ loop_daily_prompt.py            # wrapper around posters.post_prompt
-│  │  └─ loop_daily_fact.py              # wrapper around posters.post_fact
 │  └─ events/
 │     ├─ __init__.py
 │     └─ discord_handlers.py             # on_ready (start threads), on_reaction_add
