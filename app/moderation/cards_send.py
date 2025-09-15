@@ -97,11 +97,6 @@ async def send_discord_approval(item, lang_label=None, note=None, night_guard_pi
             _last_mod_ping_ts = now
 
     msg = await channel.send(content=mention.strip() or None, embed=embed)
-    await msg.add_reaction("✅")
-    await msg.add_reaction("⚠️")
-    await msg.add_reaction("❌")
-    await msg.add_reaction("⛔")
-    await msg.add_reaction("🔄")
 
     pending_reviews[msg.id] = {
         "item": item,
@@ -110,4 +105,10 @@ async def send_discord_approval(item, lang_label=None, note=None, night_guard_pi
         "level": priority_level,
     }
     save_pending_review(msg.id, item, priority_level)
+
+    await msg.add_reaction("✅")
+    await msg.add_reaction("⚠️")
+    await msg.add_reaction("❌")
+    await msg.add_reaction("⛔")
+    await msg.add_reaction("🔄")
     print(f"📨 Sent {item_type} by u/{author} to Discord (priority={priority_level}, ETA={eta_text}, night_ping={bool(mention)})")
