@@ -45,6 +45,12 @@ async def send_discord_approval(item, lang_label=None, note=None, night_guard_pi
     """Send item to Discord for manual review; supports Night Guard ping + SLA priority + ETA."""
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
     if not channel:
+        try:
+            channel = await bot.fetch_channel(DISCORD_CHANNEL_ID)
+        except Exception as e:
+            print(f"⚠️ Discord channel fetch failed: {e}")
+            return
+    if not channel:
         print("⚠️ Discord channel not found")
         return
 
