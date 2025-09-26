@@ -19,7 +19,7 @@ async def _delete_discord_card(msg_id: int) -> None:
         channel = bot.get_channel(DISCORD_CHANNEL_ID)
         if not channel:
             return
-        msg = await channel.fetch_message(msg_id)
+        msg = channel.get_partial_message(msg_id)
         await msg.delete()
         print(f"🗑️ Deleted old Discord card {msg_id}")
     except Exception:

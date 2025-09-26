@@ -73,10 +73,10 @@ def handle_new_item(item):
                         and data.get("username", "").lower() == target_user.lower()
                     ):
                         try:
-                            msg = asyncio.run_coroutine_threadsafe(
-                                channel.fetch_message(msg_id), bot.loop
+                            msg = channel.get_partial_message(msg_id)
+                            asyncio.run_coroutine_threadsafe(
+                                msg.delete(), bot.loop
                             ).result()
-                            asyncio.run_coroutine_threadsafe(msg.delete(), bot.loop)
                         except Exception as e:
                             print(
                                 f"⚠️ Failed to delete reminder msg {msg_id} for {target_user}: {e}"
