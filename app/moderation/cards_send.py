@@ -114,10 +114,14 @@ async def send_discord_approval(
     msg = await channel.send(content=mention.strip() or None, embed=embed)
 
     now = time.time()
+
     created_utc = getattr(item, "created_utc", None)
     item_created_ts = created_utc if isinstance(created_utc, (int, float)) else None
     first_seen_candidates = [ts for ts in (first_seen_ts, item_created_ts, now) if ts]
     first_seen = min(first_seen_candidates) if first_seen_candidates else now
+
+    first_seen = first_seen_ts or now
+
     created_ts = now if priority_level == 0 else (now - SLA_MINUTES * 60 * priority_level)
 
     pending_reviews[msg.id] = {
