@@ -3,6 +3,7 @@ Discord senders for review cards (approval queue).
 """
 
 import time, asyncio, discord
+from typing import Optional
 from app.clients.discord_bot import bot
 from app.models.state import pending_reviews
 from app.models.ruleset import REJECTION_REASONS
@@ -41,7 +42,15 @@ async def _lock_and_delete_message(msg: discord.Message):
         pass
 
 
-async def send_discord_approval(item, lang_label=None, note=None, night_guard_ping=False, priority_level:int=0):
+async def send_discord_approval(
+    item,
+    lang_label=None,
+    note=None,
+    night_guard_ping=False,
+    priority_level: int = 0,
+    first_seen_ts: Optional[float] = None,
+    last_reminder_ts: Optional[float] = None,
+):
     """Send item to Discord for manual review; supports Night Guard ping + SLA priority + ETA."""
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
     if not channel:
@@ -104,11 +113,20 @@ async def send_discord_approval(item, lang_label=None, note=None, night_guard_pi
 
     msg = await channel.send(content=mention.strip() or None, embed=embed)
 
+    now = time.time()
+    created_utc = getattr(item, "created_utc", None)
+    item_created_ts = created_utc if isinstance(created_utc, (int, float)) else None
+    first_seen_candidates = [ts for ts in (first_seen_ts, item_created_ts, now) if ts]
+    first_seen = min(first_seen_candidates) if first_seen_candidates else now
+    created_ts = now if priority_level == 0 else (now - SLA_MINUTES * 60 * priority_level)
+
     pending_reviews[msg.id] = {
         "item": item,
-        "created_ts": time.time() if priority_level == 0 else (time.time() - SLA_MINUTES * 60 * priority_level),
-        "last_escalated_ts": time.time(),
+        "created_ts": created_ts,
+        "last_escalated_ts": now,
         "level": priority_level,
+        "first_seen_ts": first_seen,
+        "last_reminder_ts": last_reminder_ts or 0.0,
     }
     save_pending_review(msg.id, item, priority_level)
 

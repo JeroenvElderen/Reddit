@@ -15,6 +15,8 @@ async def _escalate_card(msg_id: int):
         return
     item = entry["item"]
     level = entry.get("level", 0) + 1
+    first_seen = entry.get("first_seen_ts")
+    last_reminder_ts = entry.get("last_reminder_ts")
 
     try:
         channel = bot.get_channel(DISCORD_CHANNEL_ID)
@@ -28,6 +30,8 @@ async def _escalate_card(msg_id: int):
         lang_label="English",
         note=f"{SLA_PRIORITY_PREFIX}: waiting > {level * SLA_MINUTES} minutes",
         priority_level=level,
+        first_seen_ts=first_seen,
+        last_reminder_ts=last_reminder_ts,
     )
 
 
