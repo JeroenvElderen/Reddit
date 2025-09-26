@@ -13,9 +13,14 @@ DISCORD_AUTO_APPROVAL_CHANNEL_ID = int(os.getenv("DISCORD_AUTO_APPROVAL_CHANNEL_
 DISCORD_FEEDBACK_LOG_CHANNEL_ID = int(os.getenv("DISCORD_FEEDBACK_LOG_CHANNEL_ID", "0"))
 DISCORD_BAN_LOG_CHANNEL_ID = int(os.getenv("DISCORD_BAN_LOG_CHANNEL_ID", "1412070270683840637"))
 DISCORD_POSTING_CHANNEL_ID = int(os.getenv("DISCORD_POSTING_CHANNEL_ID", "1412924735863652535"))
-DISCORD_MAP_CHANNEL_ID = int(os.getenv("DISCORD_MAP_CHANNEL_ID", "1411042968999166033"))
+_DEFAULT_MAP_CHANNEL_ID = "1411042968999166033"
+_map_channel_override = os.getenv("DISCORD_MAP_CHANNEL_ID") or ""
+_legal_map_override = os.getenv("LEGAL_MAP_CHANNEL_ID") or ""
+_map_channel_value = _map_channel_override.strip() or _legal_map_override.strip() or _DEFAULT_MAP_CHANNEL_ID
+_legal_map_value = _legal_map_override.strip() or _map_channel_override.strip() or _DEFAULT_MAP_CHANNEL_ID
+DISCORD_MAP_CHANNEL_ID = int(_map_channel_value)
+LEGAL_MAP_CHANNEL_ID = int(_legal_map_value)
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
-LEGAL_MAP_CHANNEL_ID = int(os.getenv("LEGAL_MAP_CHANNEL_ID", "1411042968999166033"))
 LEGAL_MAP_MARKERS_PATH = Path(__file__).resolve().parent.parent / "legal-map" / "markers.json"
 
 # =========================
