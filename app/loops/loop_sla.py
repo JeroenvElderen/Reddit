@@ -18,7 +18,7 @@ async def _escalate_card(msg_id: int):
 
     try:
         channel = bot.get_channel(DISCORD_CHANNEL_ID)
-        old_msg = await channel.fetch_message(msg_id)
+        old_msg = channel.get_partial_message(msg_id)
         await old_msg.delete()
     except Exception:
         pass
