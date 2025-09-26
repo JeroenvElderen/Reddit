@@ -36,6 +36,7 @@ from app.loops.loop_cah import cah_loop
 from app.loops.loop_pack_sched import pack_schedule_loop
 from app.loops.loop_marker_actions import marker_actions_loop
 from app.loops.loop_reminders import reminder_loop, cleanup_old_reminders
+from app.loops.loop_not_moderated import not_moderated_loop
 
 @bot.event
 async def on_ready():
@@ -55,6 +56,7 @@ async def on_ready():
     threading.Thread(target=pack_schedule_loop, daemon=True).start()
     threading.Thread(target=marker_actions_loop, daemon=True).start()
     threading.Thread(target=reminder_loop, daemon=True).start()
+    threading.Thread(target=not_moderated_loop, daemon=True).start()
 
 
 @bot.event
