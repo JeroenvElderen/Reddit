@@ -20,8 +20,22 @@ def reddit_dm_polling():
                 command = body.split()[0]  # first word
                 handler = COMMANDS.get(command)
                 if handler:
-                    handler(author, message)
-                    print(f"✅ Executed {command} for u/{author}")
+                    try:
+                        handler(author, message)
+                        print(f"✅ Executed {command} for u/{author}")
+                    except Exception as handler_error:
+                        print(
+                            f"🔥 Error executing {command} for u/{author}: {handler_error}"
+                        )
+                        try:
+                            message.reply(
+                                "⚠️ Sorry, I ran into an issue handling that command. "
+                                "Please try again in a few minutes."
+                            )
+                        except Exception as reply_error:
+                            print(
+                                f"⚠️ Failed to reply about error for {command} from u/{author}: {reply_error}"
+                            )
                 else:
                     message.reply(
                         f"⚠️ Unknown command `{command}`.\n"
