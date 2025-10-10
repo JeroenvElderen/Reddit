@@ -48,7 +48,7 @@ def handle_new_item(item):
     text = item_text(item)
     text_lower = text.lower()
     bot_username = os.getenv("REDDIT_USERNAME", "").lower()
-
+ 
     # Owner posted a welcome comment
     if (
         isinstance(item, praw.models.Comment)
