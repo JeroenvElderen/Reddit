@@ -261,16 +261,6 @@ def reddit_polling():
         while True:
             try:
                 for item in sub.stream.submissions(skip_existing=skip_existing_local):
-
-    def _run_stream(stream_name, stream_fn):
-        """Spin forever on a PRAW stream, auto-recovering on failures."""
-
-        skip_stream_existing = False
-
-        while True:
-            try:
-                for item in stream_fn(skip_existing=skip_stream_existing):
-
                     if item is None:
                         continue
 
