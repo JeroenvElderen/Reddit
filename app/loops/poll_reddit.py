@@ -258,22 +258,38 @@ def reddit_polling():
     skip_existing = False
 
     def _submission_stream():
-        for item in sub.stream.submissions(skip_existing=skip_existing):
+        nonlocal skip_existing
+        while True:
             try:
-                handle_new_item(item)
-            except Exception as e:
-                print(
-                    f"⚠️ Error handling submission {getattr(item, 'id', '?')}: {e}"
-                )
-    
+                for item in sub.stream.submissions(skip_existing=skip_existing):
+                    try:
+                        handle_new_item(item)
+                    except Exception as e:
+                        print(
+                            f"⚠️ Error handling submission {getattr(item, 'id', '?')}: {e}"
+                        )
+                    finally:
+                        skip_existing = True
+            except Exception as stream_error:
+                print(f"⚠️ Submission stream error: {stream_error}")
+                time.sleep(5)
+
     def _comment_stream():
-        for item in sub.stream.comments(skip_existing=skip_existing):
+        nonlocal skip_existing
+        while True:
             try:
-                handle_new_item(item)
-            except Exception as e:
-                print(
-                    f"⚠️ Error handling comment {getattr(item, 'id', '?')} {e}"
-                )
+                for item in sub.stream.comments(skip_existing=skip_existing):
+                    try:
+                        handle_new_item(item)
+                    except Exception as e:
+                        print(
+                            f"⚠️ Error handling comment {getattr(item, 'id', '?')} {e}"
+                        )
+                    finally:
+                        skip_existing = True
+            except Exception as stream_error:
+                print(f"⚠️ Comment stream error: {stream_error}")
+                time.sleep(5)
     
     threads = [
         threading.Thread(target=_submission_stream, daemon=True),
