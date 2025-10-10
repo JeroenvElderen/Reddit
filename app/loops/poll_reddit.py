@@ -252,28 +252,41 @@ def reddit_polling():
     """Continuously poll Reddit inbox & subreddit for new items."""
     print("📡 Reddit polling started...")
     sub = reddit.subreddit(SUBREDDIT_NAME)
-    # Always fetch existing items so that submissions or comments made while the
-    # bot was offline still get processed. We rely on ``seen_ids`` to ignore
-    # anything we've already handled.
-    skip_existing = False
+    def _run_stream(stream_name, stream_fn):
+        """Spin forever on a PRAW stream, auto-recovering on failures."""
+
+        skip_stream_existing = False
+
+        while True:
+            try:
+                for item in stream_fn(skip_existing=skip_stream_existing):
+                    if item is None:
+                        continue
+
+                    try:
+                        handle_new_item(item)
+                    except Exception as item_error:
+                        print(
+                            f"⚠️ Error handling {stream_name} "
+                            f"{getattr(item, 'id', '?')}: {item_error}"
+                        )
+
+                # After the first successful pass we can safely skip existing
+                # items on subsequent reconnects to avoid replaying the entire
+                # backlog repeatedly. ``seen_ids`` still guards against
+                # duplicates, but skipping saves us from unnecessary API calls.
+                skip_stream_existing = True
+
+            except Exception as stream_error:
+                skip_stream_existing = True
+                print(f"⚠️ {stream_name} stream encountered an error: {stream_error}")
+                time.sleep(5)
 
     def _submission_stream():
-        for item in sub.stream.submissions(skip_existing=skip_existing):
-            try:
-                handle_new_item(item)
-            except Exception as e:
-                print(
-                    f"⚠️ Error handling submission {getattr(item, 'id', '?')}: {e}"
-                )
-    
+        _run_stream("submission", sub.stream.submissions)
+
     def _comment_stream():
-        for item in sub.stream.comments(skip_existing=skip_existing):
-            try:
-                handle_new_item(item)
-            except Exception as e:
-                print(
-                    f"⚠️ Error handling comment {getattr(item, 'id', '?')} {e}"
-                )
+        _run_stream("comment", sub.stream.comments)
     
     threads = [
         threading.Thread(target=_submission_stream, daemon=True),
