@@ -252,6 +252,7 @@ def reddit_polling():
     """Continuously poll Reddit inbox & subreddit for new items."""
     print("📡 Reddit polling started...")
     sub = reddit.subreddit(SUBREDDIT_NAME)
+    
     # Each stream worker processes the backlog once and then flips
     # ``skip_existing`` so reconnects don't replay everything again.
     def _submission_stream():
@@ -260,6 +261,16 @@ def reddit_polling():
         while True:
             try:
                 for item in sub.stream.submissions(skip_existing=skip_existing_local):
+
+    def _run_stream(stream_name, stream_fn):
+        """Spin forever on a PRAW stream, auto-recovering on failures."""
+
+        skip_stream_existing = False
+
+        while True:
+            try:
+                for item in stream_fn(skip_existing=skip_stream_existing):
+
                     if item is None:
                         continue
 
