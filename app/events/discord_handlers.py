@@ -59,6 +59,26 @@ async def _rename_ticket_channel(channel: discord.TextChannel, prefix: str) -> N
     """Rename a Ticket Tool channel once the opener can be determined."""
 
     await asyncio.sleep(3)
+    me = getattr(channel.guild, "me", None)
+    perms = channel.permissions_for(me) if me else None
+    if not perms or not perms.manage_channels:
+        print(
+            f"⚠️ Skipping rename for channel {channel.id}: bot lacks manage_channels permission."
+        )
+        return
+
+    if not perms.view_channel:
+        print(
+            f"⚠️ Skipping rename for channel {channel.id}: bot lacks view_channel permission."
+        )
+        return
+
+    if not perms.read_message_history:
+        print(
+            f"⚠️ Skipping rename for channel {channel.id}: bot lacks read_message_history permission."
+        )
+        return
+
     try:
         async for message in channel.history(limit=5):
             if message.author.bot and message.mentions:
@@ -67,12 +87,24 @@ async def _rename_ticket_channel(channel: discord.TextChannel, prefix: str) -> N
                 display_name = getattr(member, "display_name", None) or user.display_name or user.name
                 new_name = _normalize_ticket_name(prefix, display_name)
                 if channel.name != new_name:
-                    await channel.edit(name=new_name)
-                    await channel.send(f"✅ Renamed to **{new_name}** 🌿")
+                    try:
+                        await channel.edit(name=new_name)
+                    except discord.Forbidden as exc:
+                        print(
+                            f"⚠️ Missing permission to rename ticket channel {channel.id}: {exc}"
+                        )
+                        return
+                    except discord.HTTPException as exc:
+                        print(
+                            f"🔥 Discord API error renaming ticket channel {channel.id}: {exc}"
+                        )
+                        return
                 return
         print(f"ℹ️ No ticket opener mention found in channel {channel.id}; skipping rename.")
-    except Exception as exc:  # pragma: no cover - best effort logging
-        print(f"🔥 Error renaming ticket channel {channel.id}: {exc}")
+    except discord.Forbidden as exc:
+        print(f"⚠️ Missing access while reading ticket channel {channel.id}: {exc}")
+    except discord.HTTPException as exc:
+        print(f"🔥 Discord API error while reading ticket channel {channel.id}: {exc}")
 
 
 @bot.event
@@ -89,6 +121,7 @@ async def on_guild_channel_create(channel: discord.abc.GuildChannel) -> None:
     prefix = prefix_map.get(category_id)
     if prefix:
         await _rename_ticket_channel(channel, prefix)
+
 
 
 @bot.event
