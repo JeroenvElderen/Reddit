@@ -2,18 +2,46 @@
 Permalink + URL parsing helpers.
 """
 
+import re
 from urllib.parse import urlparse
 import discord
 from app.clients.reddit_bot import reddit
 
-def _get_permalink_from_embed(msg: discord.Message) -> str | None:
+_REDDIT_URL_RE = re.compile(r"https?://(?:www\.)?(?:reddit\.com|redd\.it)[^\s<>]*", re.IGNORECASE)
+
+
+async def _get_permalink_from_embed(msg: discord.Message) -> str | None:
     try:
-        emb = msg.embeds[0] if msg.embeds else None
-        if not emb or not emb.fields:
-            return None
-        for f in emb.fields:
-            if f.name.lower() == "link":
-                return (f.value or "").strip()
+        message = msg
+        embeds = getattr(message, "embeds", None) or []
+        if not embeds and getattr(message, "channel", None):
+            try:
+                fetched = await message.channel.fetch_message(message.id)
+                if fetched:
+                    message = fetched
+                    embeds = getattr(message, "embeds", None) or []
+            except Exception:
+                embeds = []
+
+        for emb in embeds:
+            fields = getattr(emb, "fields", None)
+            if fields:
+                for f in fields:
+                    if getattr(f, "name", "").lower() == "link":
+                        value = (getattr(f, "value", "") or "").strip().strip("<>")
+                        if value:
+                            return value
+            url = getattr(emb, "url", None)
+            if url:
+                url = str(url).strip().strip("<>")
+                if url:
+                    return url
+
+        content = getattr(message, "content", "") or ""
+        if content:
+            match = _REDDIT_URL_RE.search(content)
+            if match:
+                return match.group(0).strip("<>")
     except Exception:
         pass
     return None

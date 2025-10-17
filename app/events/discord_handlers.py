@@ -363,7 +363,7 @@ async def on_reaction_add(reaction, user):
     # Stale card
     if msg_id not in pending_reviews:
         print("⚠️ Reaction on stale card → auto-refresh")
-        link = _get_permalink_from_embed(reaction.message)
+        link = await _get_permalink_from_embed(reaction.message)
         if not link:
             await reaction.message.channel.send("⚠️ I can't find the original link on this card.")
             return
