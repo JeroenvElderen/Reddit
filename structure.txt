@@ -39,7 +39,7 @@ REDDITBOT/
 │  │  ├─ night_window.py                 # in_night_guard_window()
 │  │  ├─ text_lang.py                    # likely_english()
 │  │  ├─ text_misc.py                    # item_text(), sprinkle_emojis()
-│  │  ├─ url_parts.py                    # url host, _get_permalink_from_embed()
+│  │  ├─ url_parts.py                    # url host helpers
 │  │  ├─ reddit_images.py                # image detection/flags
 │  │  └─ flair_text.py                   # flair text normalize/read (richtext first)
 │  ├─ moderation/
