@@ -23,7 +23,7 @@ from app.moderation.cards_send import send_discord_approval, _lock_and_delete_me
 from app.moderation.queue_eta_record import record_mod_decision
 from app.persistence.users_row import already_moderated
 from app.models.ruleset import REJECTION_REASONS
-from app.utils.url_parts import _get_permalink_from_embed, _fetch_item_from_permalink
+from app.utils.url_parts import _fetch_item_from_permalink
 from app.moderation.spots import approve_spot, reject_spot
 from app.moderation.context_warning import issue_context_warning
 from app.config import (
@@ -362,23 +362,7 @@ async def on_reaction_add(reaction, user):
     
     # Stale card
     if msg_id not in pending_reviews:
-        print("⚠️ Reaction on stale card → auto-refresh")
-        link = await _get_permalink_from_embed(reaction.message)
-        if not link:
-            await reaction.message.channel.send("⚠️ I can't find the original link on this card.")
-            return
-        item = _fetch_item_from_permalink(link)
-        if not item:
-            await reaction.message.channel.send("⚠️ I couldn't reconstruct the original item from the link.")
-            return
-        if already_moderated(item):
-            await reaction.message.channel.send("ℹ️ This item is already moderated — no need to refresh.")
-            return
-        await send_discord_approval(item, "English", note="↻ Auto-refreshed stale card", priority_level=0)
-        try:
-            await reaction.message.delete()
-        except Exception:
-            pass
+        print("⚠️ Reaction on stale card ignored (auto-refresh disabled)")
         return
 
     # Active card
