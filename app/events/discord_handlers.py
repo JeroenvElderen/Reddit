@@ -7,7 +7,6 @@ import re
 import threading
 
 import discord
-from discord.utils import find
 from datetime import datetime
 from app.clients.discord_bot import bot
 from app.clients.reddit_bot import reddit
@@ -45,9 +44,6 @@ from app.loops.loop_cah import cah_loop
 from app.loops.loop_pack_sched import pack_schedule_loop
 from app.loops.loop_marker_actions import marker_actions_loop
 from app.loops.loop_reminders import reminder_loop, cleanup_old_reminders
-
-COUNTRY_ROLE_MESSAGE_ID = 1429841307538423838
-COUNTRY_ROLE_CHANNEL_ID = 1429840375387914311
 
 def _normalize_ticket_name(prefix: str, raw_name: str) -> str:
     """Return a Discord-friendly channel name with the given prefix."""
@@ -157,51 +153,6 @@ async def on_reaction_add(reaction, user):
     print(f"➡️ Reaction received: {reaction.emoji} by {user} on msg {msg_id}")
 
     channel = reaction.message.channel
-    guild = reaction.message.guild
-
-    if (
-        guild
-        and channel
-        and channel.id == COUNTRY_ROLE_CHANNEL_ID
-        and msg_id == COUNTRY_ROLE_MESSAGE_ID
-    ):
-        emoji_str = str(reaction.emoji)
-        role = find(
-            lambda r: r.name == emoji_str or r.name.startswith(f"{emoji_str} "),
-            guild.roles,
-        )
-        if not role:
-            print(
-                f"⚠️ Role matching emoji {emoji_str} not found in guild {guild.name}."
-            )
-            return
-
-        member = guild.get_member(user.id)
-        if not member:
-            try:
-                member = await guild.fetch_member(user.id)
-            except discord.HTTPException:
-                member = None
-        if not member:
-            print(f"⚠️ Could not resolve guild member for user {user}.")
-            return
-
-        if role in member.roles:
-            print(f"ℹ️ Member {member} already has role {role.name}; no action taken.")
-            return
-
-        try:
-            await member.add_roles(role, reason="Self-assigned country role reaction")
-            print(f"✅ Added role {role.name} to {member} via reaction {emoji_str}.")
-        except discord.Forbidden:
-            print(
-                f"🔥 Missing permissions to add role {role.name} to {member}."
-            )
-        except discord.HTTPException as exc:
-            print(
-                f"🔥 Discord API error while adding role {role.name} to {member}: {exc}"
-            )
-        return
 
     # Spot submissions moderation
     if msg_id in pending_spots:
