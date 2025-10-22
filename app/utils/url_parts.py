@@ -3,20 +3,9 @@ Permalink + URL parsing helpers.
 """
 
 from urllib.parse import urlparse
-import discord
+
 from app.clients.reddit_bot import reddit
 
-def _get_permalink_from_embed(msg: discord.Message) -> str | None:
-    try:
-        emb = msg.embeds[0] if msg.embeds else None
-        if not emb or not emb.fields:
-            return None
-        for f in emb.fields:
-            if f.name.lower() == "link":
-                return (f.value or "").strip()
-    except Exception:
-        pass
-    return None
 
 def _fetch_item_from_permalink(url: str):
     """
