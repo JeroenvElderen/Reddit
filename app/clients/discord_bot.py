@@ -8,5 +8,6 @@ intents.dm_messages = True
 intents.reactions = True
 intents.guilds = True
 intents.message_content = True
+intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)

@@ -18,6 +18,14 @@ GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 LEGAL_MAP_CHANNEL_ID = int(os.getenv("LEGAL_MAP_CHANNEL_ID", "1411042968999166033"))
 LEGAL_MAP_MARKERS_PATH = Path(__file__).resolve().parent.parent / "legal-map" / "markers.json"
 
+# Ticket Tool categories
+VERIFICATION_TICKETS_CATEGORY_ID = int(
+    os.getenv("VERIFICATION_TICKETS_CATEGORY_ID", "1427685018746097805")
+)
+REPORTED_TICKETS_CATEGORY_ID = int(
+    os.getenv("REPORTED_TICKETS_CATEGORY_ID", "1428717295210991678")
+)
+
 # =========================
 # CAH (Cards Against Humanity) game
 # =========================
