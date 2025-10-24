@@ -3,14 +3,16 @@ SLA monitor: escalate review cards with priority.
 """
 
 import time, asyncio
+from typing import Optional, Dict, Any
 from app.clients.discord_bot import bot
 from app.models.state import pending_reviews
 from app.moderation.cards_send import send_discord_approval
 from app.config import SLA_MINUTES, SLA_PRIORITY_PREFIX, DISCORD_CHANNEL_ID
+from app.persistence.pending_delete import delete_pending_review
 
 
-async def _escalate_card(msg_id: int):
-    entry = pending_reviews.get(msg_id)
+async def _escalate_card(msg_id: int, entry: Optional[Dict[str, Any]] = None):
+    entry = entry or pending_reviews.get(msg_id)
     if not entry:
         return
     item = entry["item"]
@@ -43,8 +45,11 @@ def sla_loop():
                 last = entry.get("last_escalated_ts", entry.get("created_ts", now))
                 if now - last >= SLA_MINUTES * 60:
                     entry["last_escalated_ts"] = now
-                    asyncio.run_coroutine_threadsafe(_escalate_card(msg_id), bot.loop)
+                    asyncio.run_coroutine_threadsafe(
+                        _escalate_card(msg_id, entry), bot.loop
+                    )
                     pending_reviews.pop(msg_id, None)
+                    delete_pending_review(msg_id)
             time.sleep(60)
         except Exception as e:
             print(f"⚠️ SLA loop error: {e}")
