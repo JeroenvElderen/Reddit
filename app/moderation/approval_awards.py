@@ -17,9 +17,18 @@ from app.moderation.badges_seasonal_rare import check_seasonal_and_rare
 from app.moderation.badges_observer_award import check_observer_badges
 from app.utils.reddit_images import is_native_reddit_image
 from app.config import (
-    QV_ENABLED, QV_STEP_SCORE, QV_MAX_BONUS, QV_BONUS_PER_STEP,
-    STREAK_ENABLED, STREAK_MIN_DAYS, STREAK_DAILY_BONUS, STREAK_MAX_BONUS_PER_DAY,
-    WELCOME_ENABLED, SUBREDDIT_NAME, DISCORD_UPVOTE_LOG_CHANNEL_ID,
+    OWNER_USERNAME,
+    QV_ENABLED,
+    QV_STEP_SCORE,
+    QV_MAX_BONUS,
+    QV_BONUS_PER_STEP,
+    STREAK_ENABLED,
+    STREAK_MIN_DAYS,
+    STREAK_DAILY_BONUS,
+    STREAK_MAX_BONUS_PER_DAY,
+    WELCOME_ENABLED,
+    SUBREDDIT_NAME,
+    DISCORD_UPVOTE_LOG_CHANNEL_ID,
 )
 
 
@@ -246,7 +255,8 @@ def award_achievements_once(item, name: str, row: dict):
 def apply_approval_awards(item, is_manual: bool):
     """Main entrypoint: apply karma, streaks, bonuses, achievements when a post/comment is approved.
 
-    Auto-approved items (``is_manual`` is ``False``) should not receive karma or achievements.
+    Auto-approved items (``is_manual`` is ``False``) should not receive karma or achievements,
+    except for the owner account which is auto-approved by design.
     """
     author = item.author
     name = str(author)
@@ -254,6 +264,10 @@ def apply_approval_awards(item, is_manual: bool):
     row = res.data[0] if res.data else {}
     old_k = int(row.get("karma", 0))
     flair = row.get("last_flair", "—")
+
+    # Skip awards for auto-approved items except the owner, who still earns achievements/karma.
+    if not is_manual and name.lower() != OWNER_USERNAME:
+        return old_k, old_k, flair, 0, ""
 
     if hasattr(item, "title"):
         try:
