@@ -7,7 +7,7 @@ from datetime import datetime
 from app.clients.discord_bot import bot
 from app.clients.reddit_bot import reddit
 from app.clients.supabase import supabase
-from app.models.state import pending_reviews, pending_spots, SUBREDDIT_NAME, auto_approved, pending_marker_actions, pending_reminders
+from app.models.state import pending_reviews, pending_spots, SUBREDDIT_NAME, auto_approved, pending_marker_actions
 from app.persistence.pending_restore import restore_pending_reviews
 from app.persistence.pending_delete import delete_pending_review
 from app.moderation.approval_awards import apply_approval_awards
@@ -30,20 +30,15 @@ from app.loops.poll_dm import reddit_dm_polling
 from app.loops.loop_decay import decay_loop
 from app.loops.loop_sla import sla_loop
 from app.loops.loop_daily_prompt import daily_prompt_poster
-from app.loops.loop_daily_fact import daily_fact_poster
 from app.posters.post_feedback import feedback_loop
 from app.posters.post_achievements_weekly import weekly_achievements_loop
 from app.loops.loop_upvotes import upvote_reward_loop
-from app.loops.loop_cah import cah_loop
-from app.loops.loop_pack_sched import pack_schedule_loop
 from app.loops.loop_marker_actions import marker_actions_loop
-from app.loops.loop_reminders import reminder_loop, cleanup_old_reminders
 
 @bot.event
 async def on_ready():
     print(f"🤖 Discord bot logged in as {bot.user}")
     restore_pending_reviews()
-    await cleanup_old_reminders()
 
     # background threads
     threading.Thread(target=reddit_polling, daemon=True).start()
@@ -51,14 +46,10 @@ async def on_ready():
     threading.Thread(target=decay_loop, daemon=True).start()
     threading.Thread(target=sla_loop, daemon=True).start()
     threading.Thread(target=daily_prompt_poster, daemon=True).start()
-    threading.Thread(target=daily_fact_poster, daemon=True).start()
     threading.Thread(target=feedback_loop, daemon=True).start()
     threading.Thread(target=weekly_achievements_loop, daemon=True).start()
     threading.Thread(target=upvote_reward_loop, daemon=True).start()
-    threading.Thread(target=cah_loop, daemon=True).start()
-    threading.Thread(target=pack_schedule_loop, daemon=True).start()
     threading.Thread(target=marker_actions_loop, daemon=True).start()
-    threading.Thread(target=reminder_loop, daemon=True).start()
 
 
 @bot.event
@@ -69,7 +60,7 @@ async def on_reaction_add(reaction, user):
     msg_id = reaction.message.id
     print(f"➡️ Reaction received: {reaction.emoji} by {user} on msg {msg_id}")
 
-     # Spot submissions moderation
+    # Spot submissions moderation
     if msg_id in pending_spots:
         entry = pending_spots.pop(msg_id)
         spot = entry["spot"]
@@ -114,41 +105,6 @@ async def on_reaction_add(reaction, user):
                 pass
         except Exception as e:
             print(f"🔥 Error handling marker action reaction: {e}")
-        return
-
-    if msg_id in pending_reminders:
-        entry = pending_reminders.pop(msg_id)
-        series = entry.get("series")
-        if str(reaction.emoji) == "✅":
-            date_str = datetime.utcnow().date().isoformat()
-            if series in ("morning", "lunch"):
-                res = (
-                    supabase.table("scheduled_posts")
-                    .select("post_number")
-                    .eq("series", series)
-                    .order("post_number", desc=True)
-                    .limit(1)
-                    .execute()
-                )
-                next_num = res.data[0]["post_number"] + 1 if res.data else 1
-                supabase.table("scheduled_posts").insert(
-                    {"series": series, "post_date": date_str, "post_number": next_num}
-                ).execute()
-                await reaction.message.edit(
-                    content=f"{reaction.message.content}\nApproved {date_str} (Post {next_num})"
-                )
-            else:
-                supabase.table("scheduled_posts").insert(
-                    {"series": series, "post_date": date_str}
-                ).execute()
-                await reaction.message.edit(
-                    content=f"{reaction.message.content}\nApproved {date_str}"
-                )
-        elif str(reaction.emoji) == "❌":
-            try:
-                await reaction.message.delete()
-            except Exception:
-                pass
         return
 
     if msg_id in auto_approved:
