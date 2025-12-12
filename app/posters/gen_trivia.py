@@ -21,7 +21,7 @@ def generate_trivia():
                             "You are a trivia generator for a naturist Reddit community. "
                             "Always create varied and engaging questions: true/false, "
                             "multiple choice, or open-ended. Cover history, culture, "
-                            "environment, health, famous naturist places, and body positivity. "
+                            "environment, health, famous naturist places, and community etiquette. "
                             "Use emojis naturally. Never repeat previous ones."
                         )
                     },
