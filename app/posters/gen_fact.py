@@ -44,4 +44,4 @@ def generate_naturist_fact():
 
     except Exception as e:
         print(f"⚠️ Fact generation failed: {e}")
-        return "🌿 Naturism celebrates respect for the earth, body positivity, and living freely under the sun 🌞."
+        return "🌿 Naturism celebrates respect for the earth and living freely under the sun 🌞."
